@@ -57,6 +57,7 @@ export function FieldLayout() {
         <Link to={`/fields/${fieldId}/history`} style={{ fontWeight: location.pathname.includes('/history') ? 'bold' : 'normal', color: '#4d7c0f', textDecoration: 'none' }}>Events & History</Link>
       </div>
       
+      {field.name.startsWith('Public demo:') && <p role="status" style={{ padding: '1rem', background: '#27371f', color: '#d9ea92', borderRadius: '6px' }}>Public benchmark demo: boundary recorded in 2016 (FTW India). Current crop type, planting dates and yield are unverified. Source attribution is recorded in Events &amp; History.</p>}
       <div className="field-content" style={{ background: '#fff', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
         <Outlet key={field.id} context={{ field, refreshField }} />
       </div>

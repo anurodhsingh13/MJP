@@ -4,7 +4,8 @@ const browserErrors = new WeakMap<Page, string[]>();
 test.afterEach(async ({ page }) => { expect(browserErrors.get(page) || [], 'Unhandled browser errors').toEqual([]); });
 
 const id = '00000000-0000-0000-0000-000000000001';
-const seed = { id, name: 'Test field', crop: 'Wheat', area_hectares: 10, latitude:28, longitude:77,
+const seed: any = { id, name: 'Test field', crop: 'Wheat', area_hectares: 10, latitude:28, longitude:77,
+  boundary_geojson:{type:'Polygon',coordinates:[[[77,28],[77.01,28],[77.01,28.01],[77,28.01],[77,28]]]},
   planting_date:'2026-09-01', harvest_date:'2026-12-01', last_observation:null, expected_yield_tons:null };
 
 async function setup(page: Page) {
@@ -132,7 +133,7 @@ test('analysis retries, language, weather sync and assistant failures/success',a
   state.fail.clear();await page.getByRole('button',{name:'Sync Weather Data'}).click();await expect(page.getByRole('status')).toContainText('7 observations imported');
   await expect(page.getByRole('button',{name:'Ask AI'})).toBeDisabled();
   await page.getByRole('textbox',{name:'Question for field assistant'}).fill('How is my field?');
-  state.fail.add('POST /api/assistant');await page.getByRole('button',{name:/Ask|Send/}).click();await expect(page.getByText('Service temporarily unavailable',{exact:true})).toBeVisible();
+  state.fail.add('POST /api/assistant');await page.getByRole('button',{name:/Ask|Send/}).click();await expect(page.getByRole('alert')).toContainText('Service temporarily unavailable');await expect(page.getByText('Answer:',{exact:true})).toHaveCount(0);
   state.fail.clear();await page.getByRole('button',{name:/Ask|Send/}).click();await expect(page.getByText('Review field moisture.')).toBeVisible();
 });
 
@@ -168,4 +169,31 @@ test('failed map SDK load exposes a working retry action',async({page})=>{
   await page.goto(`/fields/${id}/map`);await expect(page.getByRole('button',{name:'Retry map'})).toBeVisible();
   await page.evaluate(()=>{(window as any).google.maps.importLibrary=async()=>(window as any).google.maps;});
   await page.getByRole('button',{name:'Retry map'}).click();await expect(page.getByLabel('Test map')).toBeVisible();
+});
+
+
+test('point-only satellite records do not pretend to provide field NDVI', async ({page}) => {
+  const state = await setup(page); state.fields[0].boundary_geojson = null;
+  state.scenes = [{scene_id:'scene-1',observed_at:'2026-10-01',cloud_cover:5}];
+  await page.goto(`/fields/${id}/map`);
+  await expect(page.getByText(/No field boundary saved/)).toBeVisible();
+  await expect(page.getByRole('button',{name:'Find & Process Best Recent Scene'})).toBeDisabled();
+  await expect(page.locator('select')).toBeEnabled();
+});
+
+test('dataset catalog navigation, search, status filters and demo provenance are clear', async ({page}) => {
+  const state = await setup(page);
+  await page.goto('/');await page.getByRole('link',{name:'Explore datasets'}).click();
+  await expect(page.getByRole('heading',{name:'Project datasets'})).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('9 sources');
+  await page.getByLabel('Search datasets').fill('soil');await expect(page.getByRole('heading',{name:'ISRIC SoilGrids'})).toBeVisible();
+  await page.getByLabel('Integration status').selectOption('Connected');await expect(page.getByText('No sources match this search.',{exact:false})).toBeVisible();
+  await page.getByLabel('Search datasets').fill('');await expect(page.getByRole('status')).toContainText('2 sources');
+  await page.getByRole('link',{name:'Back to Dashboard',exact:false}).click();
+  state.fields[0].name='Public demo: India parcel test';
+  state.events=[{id:'source-event',event_type:'dataset_import',event_date:'2026-10-15',notes:JSON.stringify({dataset:'FTW India',boundary_year:2016,license:'CC BY 4.0',warning:'Historical benchmark, not current farm ground truth',source_url:'https://source.coop/kerner-lab/fields-of-the-world-india/boundaries_india_2016.parquet'})}];
+  await page.setViewportSize({width:390,height:844});await page.goto(`/fields/${id}/history`);
+  await expect(page.getByText(/Public benchmark demo: boundary recorded in 2016/)).toBeVisible();
+  await expect(page.getByRole('link',{name:'Dataset source and attribution',exact:false})).toHaveAttribute('href', /source.coop/);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
 });

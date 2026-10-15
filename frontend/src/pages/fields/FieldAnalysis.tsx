@@ -14,6 +14,7 @@ export function FieldAnalysis() {
   
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
+  const [assistantError, setAssistantError] = useState('');
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState('');
   const [weatherMessage, setWeatherMessage] = useState('');
@@ -39,13 +40,13 @@ export function FieldAnalysis() {
   const handleAsk = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!question.trim() || asking) return;
-    setAnswer('');
+    setAnswer(''); setAssistantError('');
     setAsking(true);
     try {
       const res = await askFieldAssistant(question, field.id, language);
       setAnswer(res.answer);
     } catch (caught) {
-      setAnswer(caught instanceof Error ? caught.message : 'Assistant unavailable. Please try again.');
+      setAssistantError(caught instanceof Error ? caught.message : 'Assistant unavailable. Please try again.');
     } finally {
       setAsking(false);
     }
@@ -192,8 +193,9 @@ export function FieldAnalysis() {
           </button>
         </form>
 
+        {assistantError && <div className="assistant-error" role="alert">{assistantError}</div>}
         {answer && (
-          <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'white', borderRadius: '4px', border: '1px solid #e5e7eb', fontSize: '0.9rem', lineHeight: '1.5' }}>
+          <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'white', borderRadius: '4px', border: '1px solid #e5e7eb', fontSize: '0.9rem', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>
             <strong>Answer:</strong>
             <p style={{ margin: '0.5rem 0 0 0' }}>{answer}</p>
           </div>

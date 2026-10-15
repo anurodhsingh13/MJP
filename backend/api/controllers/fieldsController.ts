@@ -80,6 +80,7 @@ export async function getFieldNdviAnalysis(request: Request, response: Response)
   try {
     const fieldResult = await pool.query('select planting_date, harvest_date from public.fields where id = $1', [request.params.fieldId]);
     const field = fieldResult.rows[0];
+    if (!field) { response.status(404).json({ error: 'Field not found' }); return; }
     
     const result = await pool.query('select observed_on, ndvi_value, cloud_cover, source, scene_id from public.vegetation_indices where field_id = $1 order by observed_on asc', [request.params.fieldId]);
     
@@ -88,10 +89,11 @@ export async function getFieldNdviAnalysis(request: Request, response: Response)
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         languageCode, 
-        plantingDate: field?.planting_date,
-        harvestDate: field?.harvest_date,
-        observations: result.rows 
-      })
+        plantingDate: field.planting_date ?? null,
+        harvestDate: field.harvest_date ?? null,
+        observations: result.rows
+      }),
+      signal: AbortSignal.timeout(15000)
     });
     
     if (!engineResponse.ok) {
@@ -173,7 +175,7 @@ export async function calculateNdviFromScene(request: Request, response: Respons
          ndvi_min = excluded.ndvi_min, ndvi_max = excluded.ndvi_max,
          ndvi_median = excluded.ndvi_median, ndvi_stddev = excluded.ndvi_stddev`,
       [request.params.fieldId, scene.observed_at, ndvi, ndre, ndmi, savi, evi,
-        scene.cloud_cover, 'Copernicus Sentinel-2 Red/NIR/RE/SWIR/Blue', scene.scene_id,
+        Math.max(0, Math.min(100, Math.round(Number(scene.cloud_cover) || 0))), 'Copernicus Sentinel-2 Red/NIR/RE/SWIR/Blue', scene.scene_id,
         validPixels, validCoverage, minimum, maximum, median, standardDeviation]
     );
 
@@ -269,11 +271,13 @@ export async function ingestSentinelScenes(request: Request, response: Response)
       headers: { 'Content-Type': 'application/json' }, 
       body: JSON.stringify({ 
         collections: ['sentinel-2-l2a'], 
-        bbox: [minLongitude, minLatitude, maxLongitude, maxLatitude], 
+        ...(field.boundary_geojson
+          ? { bbox: [minLongitude, minLatitude, maxLongitude, maxLatitude] }
+          : { intersects: { type: 'Point', coordinates: [field.longitude, field.latitude] } }),
         datetime, 
         query: { 'eo:cloud_cover': { lt: 40 } }, 
         limit: 10,
-        sortby: [{ field: "eo:cloud_cover", direction: "asc" }, { field: "datetime", direction: "desc" }]
+        sortby: [{ field: "properties.eo:cloud_cover", direction: "asc" }, { field: "properties.datetime", direction: "desc" }]
       }) 
     });
 
@@ -298,16 +302,25 @@ export async function ingestWeather(request: Request, response: Response) {
     const field = fieldResult.rows[0];
     if (field?.latitude == null || field?.longitude == null) { response.status(400).json({ error: 'Field latitude and longitude are required' }); return; }
     const from = start ?? new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10).replaceAll('-', '');
-    const to = end ?? new Date().toISOString().slice(0, 10).replaceAll('-', '');
+    // NASA POWER meteorology is delayed by 2–3 days.
+    const to = end ?? new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10).replaceAll('-', '');
     const sourceUrl = `https://power.larc.nasa.gov/api/temporal/daily/point?parameters=PRECTOTCORR,T2M,RH2M&community=AG&longitude=${field.longitude}&latitude=${field.latitude}&start=${from}&end=${to}&format=JSON`;
     const sourceResponse = await fetch(sourceUrl, { signal: AbortSignal.timeout(30000) });
     if (!sourceResponse.ok) { response.status(502).json({ error: 'NASA POWER request failed' }); return; }
-    const payload = await sourceResponse.json() as { properties: { parameter: Record<string, Record<string, number>> } };
+    const payload = await sourceResponse.json() as { header?: { fill_value?: number }; properties: { parameter: Record<string, Record<string, number>> } };
     const parameters = payload.properties.parameter;
+    const fillValue = payload.header?.fill_value ?? -999;
+    const measured = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) && value !== fillValue ? value : null;
+    let imported = 0;
     for (const date of Object.keys(parameters.T2M ?? {})) {
-      await pool.query(`insert into public.weather_observations (field_id, observed_on, precipitation_mm, temperature_c, humidity_percent, source_url) values ($1, to_date($2, 'YYYYMMDD'), $3, $4, $5, $6) on conflict (field_id, observed_on, source) do update set precipitation_mm = excluded.precipitation_mm, temperature_c = excluded.temperature_c, humidity_percent = excluded.humidity_percent, source_url = excluded.source_url`, [request.params.fieldId, date, parameters.PRECTOTCORR?.[date], parameters.T2M?.[date], parameters.RH2M?.[date], sourceUrl]);
+      const precipitation = measured(parameters.PRECTOTCORR?.[date]);
+      const temperature = measured(parameters.T2M?.[date]);
+      const humidity = measured(parameters.RH2M?.[date]);
+      if (precipitation === null && temperature === null && humidity === null) continue;
+      await pool.query(`insert into public.weather_observations (field_id, observed_on, precipitation_mm, temperature_c, humidity_percent, source_url) values ($1, to_date($2, 'YYYYMMDD'), $3, $4, $5, $6) on conflict (field_id, observed_on, source) do update set precipitation_mm = excluded.precipitation_mm, temperature_c = excluded.temperature_c, humidity_percent = excluded.humidity_percent, source_url = excluded.source_url`, [request.params.fieldId, date, precipitation, temperature, humidity, sourceUrl]);
+      imported++;
     }
-    response.json({ source: 'NASA POWER', sourceUrl, imported: Object.keys(parameters.T2M ?? {}).length });
+    response.json({ source: 'NASA POWER', sourceUrl, imported });
   } catch (error) {
     console.error('POST weather ingestion failed:', error);
     response.status(503).json({ error: 'Weather ingestion failed' });

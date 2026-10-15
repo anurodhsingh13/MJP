@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 import numpy as np
 from shapely.geometry import shape
 from shapely.ops import transform
@@ -26,8 +27,8 @@ def root():
 
 class AnalyzeIndicesRequest(BaseModel):
     languageCode: str = "en-IN"
-    plantingDate: str = None
-    harvestDate: str = None
+    plantingDate: Optional[str] = None
+    harvestDate: Optional[str] = None
     observations: list
 
 @app.post("/analyze-indices")
@@ -125,12 +126,12 @@ def analyze_indices(payload: AnalyzeIndicesRequest):
 
 
 class CalculateIndicesRequest(BaseModel):
-    blueUrl: str = None
+    blueUrl: Optional[str] = None
     redUrl: str
-    redEdgeUrl: str = None
+    redEdgeUrl: Optional[str] = None
     nirUrl: str
-    swirUrl: str = None
-    sclUrl: str = None
+    swirUrl: Optional[str] = None
+    sclUrl: Optional[str] = None
     polygonGeojson: dict
 
 @app.post("/calculate-indices")
@@ -375,7 +376,7 @@ def generate_overlay(payload: GenerateOverlayRequest):
 class TileRequest(BaseModel):
     redUrl: str
     nirUrl: str
-    sclUrl: str = None
+    sclUrl: Optional[str] = None
     polygonGeojson: dict = None
 
 @app.post("/tiles/{z}/{x}/{y}.png")

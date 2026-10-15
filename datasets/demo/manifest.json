@@ -1,0 +1,10 @@
+{
+  "source_url": "https://source.coop/kerner-lab/fields-of-the-world-india/boundaries_india_2016.parquet",
+  "source_rows": 10013,
+  "source_file_sha256": "ed5a4060999ec1d1c2403ef4f39dd9d3470d6cc6c109b685ef63c6e8a8c5bc4f",
+  "source_file_bytes": 7837930,
+  "sample_count": 3,
+  "selection": "Valid 1\u201310 ha source polygons nearest (29,76), (22,78), (17,78), without changing polygon coordinates.",
+  "license": "CC BY 4.0",
+  "status": "Historical public demo, not user field ground truth"
+}

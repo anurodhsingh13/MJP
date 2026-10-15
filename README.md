@@ -82,3 +82,13 @@ See [PROJECT_REVIEW.md](PROJECT_REVIEW.md) for the findings and recommended impl
 The original database backup is `.local-database-backup.dump` and is ignored by Git. Keep it until the native database copy is verified.
 
 Browser tests use Chrome on macOS and Playwright Chromium on Linux (`npx playwright install --with-deps chromium`). External Maps and service responses are fixtures; real UI controls, navigation and HTTP requests run in the browser. The suite does not change your real fields.
+
+## Sync project data
+
+With native services running, run `npm run sync:data` to import 30 available days of NASA POWER weather and search the last 90 days of Sentinel-2 observations for saved field locations. NASA meteorological availability typically trails by 2–3 days; missing-value sentinels are excluded from measurements. Set `SYNC_WEATHER_DAYS` to choose 1–365 days. This sends saved coordinates to NASA POWER and Earth Search.
+
+Fields with no coordinates are skipped. Field-level indices require an actual polygon boundary; a point lookup only supplies scene metadata. Successful observations update vegetation indices and field health, and may generate stress alerts. The local sync report is `.local/data-sync-report.json`. Planting/harvest dates, yield and management events must come from the field manager.
+
+## Public demo and dataset catalog
+
+Open **Explore datasets** on the dashboard for nine relevant public sources and their actual integration status. See [datasets/README.md](datasets/README.md) for reproducible public-boundary demo import, attribution, and the mapping from datasets to app fields. Public demo parcels are clearly labelled; unknown crop identity, farm dates and yield remain unknown.

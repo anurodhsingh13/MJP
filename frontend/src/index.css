@@ -61,3 +61,31 @@ button { font: inherit; cursor: pointer; }
 button:disabled { cursor:not-allowed; opacity:.6; }
 a:focus-visible,input:focus-visible,textarea:focus-visible { outline:2px solid #84a73c; outline-offset:3px; }
 @media(max-width:760px) { .field-columns { grid-template-columns:minmax(0,1fr); padding:1rem; } }
+
+.assistant-error { margin-top:1rem; padding:1rem; border:1px solid #fca5a5; border-radius:6px; color:#991b1b; background:#fef2f2; }
+
+.dashboard-actions,.dataset-filters { display:flex; gap:1rem; align-items:center; flex-wrap:wrap; }
+.dataset-link,.dataset-card a { color:#cbe86b; }
+.dataset-intro { color:#a5b29e; max-width:900px; line-height:1.65; }
+.dataset-filters { margin:2rem 0 1rem; }
+.dataset-filters label { display:grid; gap:.5rem; }
+.dataset-filters input,.dataset-filters select { min-height:44px; padding:.6rem; background:#1b241b; color:#edf1df; border:1px solid #536b36; border-radius:4px; }
+.dataset-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr)); gap:1rem; }
+.dataset-card { padding:1.4rem; border:1px solid #303a2d; background:#1b241b; border-radius:8px; line-height:1.6; }
+.dataset-card h2 { font-size:1.2rem; line-height:1.35; }
+.dataset-card p,.dataset-card li { color:#b7c0b0; font-size:.9rem; }
+.dataset-card .dataset-limits { color:#e6c588; border-left:2px solid #8a743d; padding-left:.8rem; }
+
+.field-map-panel { display:flex; flex-direction:column; min-height:560px; }
+.field-map-toolbar { display:flex; flex-wrap:wrap; gap:1rem; padding:1rem; align-items:center; background:#f9fafb; }
+.field-map-toolbar label { flex:1 1 240px; min-width:0; }
+.field-map-toolbar select { max-width:100%; min-height:36px; }
+.field-map-canvas { position:relative; height:540px; min-height:400px; isolation:isolate; }
+.open-map-frame,.open-field-map { height:100%; width:100%; min-height:400px; }
+.open-map-frame { position:relative; }
+.open-field-map { background:#e5ebe0; color:#1f2937; }
+.map-source-label { position:absolute; z-index:450; top:10px; right:10px; max-width:calc(100% - 70px); background:#fffef1ed; color:#344225; padding:.45rem .6rem; font-size:.75rem; border-radius:4px; pointer-events:none; }
+.map-load-error { position:absolute; z-index:600; left:10px; right:10px; bottom:130px; padding:.65rem; background:#fff1e9; color:#9a3412; font-size:.85rem; }
+.ndvi-map-legend { position:absolute; z-index:500; bottom:35px; right:12px; background:#fff; color:#1f2937; padding:.75rem; border-radius:8px; box-shadow:0 2px 10px #0002; pointer-events:none; }
+.leaflet-control-attribution { max-width:100%; font-size:10px; }
+@media(max-width:600px) { .field-map-canvas { height:460px; } .field-map-toolbar button { width:100%; } }

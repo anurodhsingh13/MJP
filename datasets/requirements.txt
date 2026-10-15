@@ -1,0 +1,2 @@
+# Optional public GeoParquet import tooling. Install into the project virtualenv.
+pyarrow==19.0.1

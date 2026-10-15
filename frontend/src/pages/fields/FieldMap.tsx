@@ -3,6 +3,11 @@ import { useParams, useOutletContext } from 'react-router-dom';
 import { GoogleSatelliteMap } from '../../lib/GoogleSatelliteMap';
 import { calculateNdvi, ingestSentinelScenes, loadFieldAlerts, loadScenes, resolveFieldAlert } from '../../lib/api';
 
+function preferredObservation(scenes: Array<{ scene_id: string; observed_at: string }>, lastObservation: string | null) {
+  return scenes.find(scene => lastObservation && scene.observed_at.slice(0, 10) === lastObservation.slice(0, 10))?.scene_id
+    || [...scenes].sort((a, b) => b.observed_at.localeCompare(a.observed_at))[0]?.scene_id || '';
+}
+
 export function FieldMap() {
   const { field, refreshField } = useOutletContext<{ field: any; refreshField: () => Promise<void> }>();
   const { fieldId } = useParams();
@@ -28,22 +33,22 @@ export function FieldMap() {
     loadScenes(fieldId).then(data => {
       if (cancelled) return;
       setScenes(data);
-      setActiveSceneId(data[0]?.scene_id || '');
+      setActiveSceneId(preferredObservation(data, field.last_observation));
     }).catch(() => { if (!cancelled) setError('Unable to load satellite observations.'); });
     loadFieldAlerts(fieldId).then(alerts => {
       if (!cancelled) setAlerts(alerts);
     }).catch(() => { if (!cancelled) setError('Unable to load field alerts.'); });
     return () => { cancelled = true; };
-  }, [fieldId]);
+  }, [fieldId, field.last_observation]);
 
-  const tileUrl = fieldId && activeSceneId
+  const tileUrl = fieldId && activeSceneId && field.boundary_geojson
     ? `/api/fields/${fieldId}/tiles/${encodeURIComponent(activeSceneId)}/{z}/{x}/{y}.png`
     : null;
   const stressGeojson = alerts.find(alert => !alert.resolved && alert.severity === 'high' && alert.scene_id === activeSceneId)?.stress_geojson ?? null;
   const activeAlert = alerts.find(alert => !alert.resolved && alert.scene_id === activeSceneId);
 
   const processLatestScene = async () => {
-    if (!fieldId || processing) return;
+    if (!fieldId || processing || !field.boundary_geojson) return;
     setProcessing(true);
     setError('');
     setMessage('Searching for recent Sentinel-2 observations…');
@@ -69,8 +74,8 @@ export function FieldMap() {
   const hasLocation = field.latitude != null && field.longitude != null && Number.isFinite(Number(field.latitude)) && Number.isFinite(Number(field.longitude));
 
   return (
-    <div style={{ height: 'calc(100vh - 200px)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '1rem', background: '#f9fafb', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+    <div className="field-map-panel">
+      <div className="field-map-toolbar">
         <label>
           <strong>Select Observation:</strong>
           <select disabled={processing || !scenes.length} value={activeSceneId} onChange={e => setActiveSceneId(e.target.value)} style={{ marginLeft: '0.5rem' }}>
@@ -82,10 +87,11 @@ export function FieldMap() {
             ))}
           </select>
         </label>
-        <button type="button" onClick={processLatestScene} disabled={processing} style={{ minHeight: '44px', padding: '0.65rem 1rem', background: '#4d7c0f', color: 'white', border: 0, borderRadius: '6px' }}>
+        <button type="button" onClick={processLatestScene} disabled={processing || !field.boundary_geojson} style={{ minHeight: '44px', padding: '0.65rem 1rem', background: '#4d7c0f', color: 'white', border: 0, borderRadius: '6px' }}>
           {processing ? 'Processing…' : 'Find & Process Best Recent Scene'}
         </button>
       </div>
+      {!field.boundary_geojson && <div role="status" style={{ padding: ".75rem 1rem", background: "#fff7ed", color: "#9a3412" }}>No field boundary saved. Available scenes cover the saved location; crop-health indices require your actual field boundary.</div>}
       {message && <div role="status" style={{ padding: '.75rem 1rem', background: '#ecfccb', color: '#365314' }}>{message}</div>}
       {error && <div role="alert" style={{ padding: '.75rem 1rem', background: '#fee2e2', color: '#991b1b' }}>{error}</div>}
       {activeAlert && <div role="alert" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'1rem', padding:'.75rem 1rem', background:'#fff7ed', color:'#9a3412' }}><span><strong>{activeAlert.title}</strong> for this observation</span><button type="button" disabled={resolving} onClick={async () => {
@@ -95,7 +101,7 @@ export function FieldMap() {
         catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to resolve alert'); }
         finally { setResolving(false); }
       }}>{resolving ? 'Resolving…' : 'Mark resolved'}</button></div>}
-      <div style={{ flex: 1, position: 'relative' }}>
+      <div className="field-map-canvas">
         {hasLocation ? (
           <GoogleSatelliteMap
             latitude={Number(field.latitude)}
@@ -108,7 +114,7 @@ export function FieldMap() {
         ) : (
           <div role="alert" style={{ padding: '2rem' }}>This field has no valid location or boundary. Edit the field before requesting satellite analysis.</div>
         )}
-        <div style={{ position: 'absolute', bottom: '2rem', right: '1rem', background: 'white', padding: '1rem', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
+        <div className="ndvi-map-legend">
           <h4 style={{ margin: '0 0 0.5rem 0' }}>NDVI Legend</h4>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span>-0.2</span>

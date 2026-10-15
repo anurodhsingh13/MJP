@@ -42,7 +42,7 @@ export function Dashboard() {
           <h1>Terra<span>Scope</span></h1>
           <p>Understand field health from Sentinel-2 imagery and weather observations.</p>
         </div>
-        <button className="primary-action" onClick={() => setModal('add')}>+ Add field</button>
+        <div className="dashboard-actions"><Link to="/datasets" className="dataset-link">Explore datasets</Link><button className="primary-action" onClick={() => setModal('add')}>+ Add field</button></div>
       </header>
 
       {error && <div className="service-error" role="alert"><strong>Service unavailable</strong><span>{error}</span><button onClick={refreshFields}>Retry</button></div>}

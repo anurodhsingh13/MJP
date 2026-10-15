@@ -1,0 +1,13 @@
+import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+const manifest=JSON.parse(readFileSync('datasets/demo/manifest.json','utf8'));
+const url='https://data.source.coop/kerner-lab/fields-of-the-world-india/boundaries_india_2016.parquet';
+const response=await fetch(url,{signal:AbortSignal.timeout(120000)});
+if(!response.ok)throw new Error(`Dataset download failed: HTTP ${response.status}`);
+const bytes=Buffer.from(await response.arrayBuffer());
+const checksum=createHash('sha256').update(bytes).digest('hex');
+if(checksum!==manifest.source_file_sha256)throw new Error('Source checksum changed; review the new dataset before replacing the pinned reference.');
+mkdirSync('.local/datasets',{recursive:true});
+const target='.local/datasets/boundaries_india_2016.parquet';
+writeFileSync(`${target}.tmp`,bytes);renameSync(`${target}.tmp`,target);
+console.log(`Verified public boundary dataset: ${bytes.length} bytes, SHA-256 ${checksum}`);

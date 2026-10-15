@@ -76,7 +76,7 @@ async function stop() {
   const pid = runningPid();
   if (!pid) { rmSync(pidFile, { force: true }); console.log('Local stack is already stopped.'); return; }
   process.kill(-pid, 'SIGTERM');
-  for (let i = 0; i < 50 && runningPid(); i++) await delay(100);
+  for (let i = 0; i < 100 && runningPid(); i++) await delay(100);
   if (runningPid()) throw new Error('Stack is still shutting down. Check .local/server.log.');
   rmSync(pidFile, { force: true });
   console.log('Local frontend, API and Python engine stopped. Application ports released.');
@@ -107,7 +107,7 @@ async function main() {
   await new Promise((resolveSpawn, reject) => { child.once('spawn', resolveSpawn); child.once('error', reject); });
   writeFileSync(pidFile, String(child.pid));
   child.unref();
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 180; i++) {
     if (!runningPid()) break;
     if (await ready()) { console.log(`TerraScope ready: http://localhost:${webPort}\nStop: npm stop\nLogs: ${logFile}`); return; }
     await delay(500);

@@ -2,6 +2,22 @@ import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { loadFieldEvents, createFieldEvent, deleteFieldEvent } from '../../lib/api';
 
+function EventNotes({ event }: { event: { event_type: string; notes: string | null } }) {
+  let source: Record<string, unknown> | null = null;
+  if (event.event_type === 'dataset_import' && event.notes) {
+    try {
+      const parsed: unknown = JSON.parse(event.notes);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) source = parsed as Record<string, unknown>;
+    } catch { /* Keep plain notes when the import format is not JSON. */ }
+  }
+  if (source) return <div style={{ fontSize: '.9rem', color: '#4b5563', overflowWrap: 'anywhere' }}>
+    <p>{String(source.dataset || 'Public dataset')} · boundary year {String(source.boundary_year || 'unknown')} · {String(source.license || 'see source')}</p>
+    <p>{String(source.warning || '')}</p>
+    {typeof source.source_url === 'string' && source.source_url.startsWith('https://') && <a href={source.source_url} target="_blank" rel="noreferrer">Dataset source and attribution ↗</a>}
+  </div>;
+  return <p style={{ margin: 0, color: '#6b7280', fontSize: '.9rem', overflowWrap: 'anywhere' }}>{event.notes || 'No notes provided'}</p>;
+}
+
 export function FieldHistory() {
   const { field } = useOutletContext<{ field: any }>();
   const [events, setEvents] = useState<any[]>([]);
@@ -57,7 +73,7 @@ export function FieldHistory() {
               <div key={ev.id} style={{ padding: '1rem', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', display: 'flex', justifyContent: 'space-between' }}>
                 <div>
                   <h4 style={{ margin: '0 0 0.25rem 0', textTransform: 'capitalize' }}>{ev.event_type.replace('_', ' ')}</h4>
-                  <p style={{ margin: 0, color: '#6b7280', fontSize: '0.9rem' }}>{ev.notes || 'No notes provided'}</p>
+                  <EventNotes event={ev} />
                 </div>
                 <div style={{ color: '#4b5563', fontWeight: '500' }}>
                   {new Date(ev.event_date).toLocaleDateString()}

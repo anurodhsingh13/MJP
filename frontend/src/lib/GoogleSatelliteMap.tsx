@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { configureMaps } from './maps';
 import { importLibrary } from '@googlemaps/js-api-loader'
 
-type Props = { latitude: number; longitude: number; fieldName?: string; zoom?: number; stressGeojson?: Record<string, unknown> | null; boundaryGeojson?: Record<string, unknown> | null; overlay?: { image: string, bounds: any } | null; tileUrl?: string | null }
+import { OpenFieldMap } from './OpenFieldMap';
+import type { FieldMapProps } from './mapTypes';
 
-export function GoogleSatelliteMap({ latitude, longitude, fieldName = '', zoom = 14, stressGeojson, boundaryGeojson, overlay, tileUrl }: Props) {
+export function GoogleSatelliteMap({ latitude, longitude, fieldName = '', zoom = 14, stressGeojson, boundaryGeojson, overlay, tileUrl }: FieldMapProps) {
   const mapElement = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const markerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null)
@@ -105,7 +106,7 @@ export function GoogleSatelliteMap({ latitude, longitude, fieldName = '', zoom =
     }
   }, [mapReady, tileUrl]);
 
-  if (!apiKey) return <div className="map-unavailable" role="alert">Google Maps is not configured. Add a browser-restricted VITE_GOOGLE_MAPS_API_KEY to display the map.</div>
+  if (!apiKey) return <OpenFieldMap latitude={latitude} longitude={longitude} fieldName={fieldName} zoom={zoom} boundaryGeojson={boundaryGeojson} stressGeojson={stressGeojson} tileUrl={tileUrl} overlay={overlay} />
   if (mapError) return <div className="map-unavailable" role="alert">{mapError}<button type="button" onClick={() => { setMapError(''); setAttempt(value => value + 1) }}>Retry map</button></div>
   return <div ref={mapElement} className="google-map" aria-label={`Satellite map of ${fieldName}`} />
 }
