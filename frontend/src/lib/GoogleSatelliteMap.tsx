@@ -5,7 +5,7 @@ import { importLibrary } from '@googlemaps/js-api-loader'
 import { OpenFieldMap } from './OpenFieldMap';
 import type { FieldMapProps } from './mapTypes';
 
-export function GoogleSatelliteMap({ latitude, longitude, fieldName = '', zoom = 14, stressGeojson, boundaryGeojson, overlay, tileUrl }: FieldMapProps) {
+export function GoogleSatelliteMap({ latitude, longitude, fieldName = '', zoom = 14, stressGeojson, boundaryGeojson, overlay, tileUrl, opacity = .8 }: FieldMapProps) {
   const mapElement = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const markerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null)
@@ -73,13 +73,13 @@ export function GoogleSatelliteMap({ latitude, longitude, fieldName = '', zoom =
     if (!mapRef.current) return;
     if (overlay && overlay.image && overlay.bounds) {
       if (overlayRef.current) overlayRef.current.setMap(null);
-      overlayRef.current = new google.maps.GroundOverlay(overlay.image, overlay.bounds, { opacity: 0.8 });
+      overlayRef.current = new google.maps.GroundOverlay(overlay.image, overlay.bounds, { opacity });
       overlayRef.current.setMap(mapRef.current);
     } else if (!overlay && overlayRef.current) {
       overlayRef.current.setMap(null);
       overlayRef.current = null;
     }
-  }, [mapReady, overlay]);
+  }, [mapReady, overlay, opacity]);
 
   
   useEffect(() => {
@@ -95,7 +95,7 @@ export function GoogleSatelliteMap({ latitude, longitude, fieldName = '', zoom =
         tileSize: new google.maps.Size(256, 256),
         maxZoom: 20,
         minZoom: 0,
-        opacity: 0.8,
+        opacity,
         name: 'NDVI'
       });
       tileOverlayRef.current = imageMapType;
@@ -104,9 +104,9 @@ export function GoogleSatelliteMap({ latitude, longitude, fieldName = '', zoom =
       mapRef.current.overlayMapTypes.clear();
       tileOverlayRef.current = null;
     }
-  }, [mapReady, tileUrl]);
+  }, [mapReady, tileUrl, opacity]);
 
-  if (!apiKey) return <OpenFieldMap latitude={latitude} longitude={longitude} fieldName={fieldName} zoom={zoom} boundaryGeojson={boundaryGeojson} stressGeojson={stressGeojson} tileUrl={tileUrl} overlay={overlay} />
+  if (!apiKey) return <OpenFieldMap latitude={latitude} longitude={longitude} fieldName={fieldName} zoom={zoom} boundaryGeojson={boundaryGeojson} stressGeojson={stressGeojson} tileUrl={tileUrl} overlay={overlay} opacity={opacity} />
   if (mapError) return <div className="map-unavailable" role="alert">{mapError}<button type="button" onClick={() => { setMapError(''); setAttempt(value => value + 1) }}>Retry map</button></div>
   return <div ref={mapElement} className="google-map" aria-label={`Satellite map of ${fieldName}`} />
 }

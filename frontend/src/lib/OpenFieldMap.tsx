@@ -4,7 +4,7 @@ import type { GeoJsonObject } from 'geojson';
 import 'leaflet/dist/leaflet.css';
 import type { FieldMapProps } from './mapTypes';
 
-export function OpenFieldMap({ latitude, longitude, fieldName = '', zoom = 14, boundaryGeojson, stressGeojson, tileUrl, overlay }: FieldMapProps) {
+export function OpenFieldMap({ latitude, longitude, fieldName = '', zoom = 14, boundaryGeojson, stressGeojson, tileUrl, overlay, opacity = .8 }: FieldMapProps) {
   const element = useRef<HTMLDivElement>(null);
   const [failedLayer, setFailedLayer] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -28,15 +28,15 @@ export function OpenFieldMap({ latitude, longitude, fieldName = '', zoom = 14, b
       if (boundary.getBounds().isValid()) { bounds = boundary.getBounds(); map.fitBounds(bounds.pad(0.35), { maxZoom: 18, animate: false }); }
     }
     if (tileUrl && bounds) {
-      const ndvi = L.tileLayer(tileUrl, { bounds, opacity: 0.85, maxZoom: 20, keepBuffer: 0, attribution: 'NDVI: Copernicus Sentinel-2 / Earth Search' }).addTo(map);
+      const ndvi = L.tileLayer(tileUrl, { bounds, opacity, maxZoom: 20, keepBuffer: 0, attribution: 'NDVI: Copernicus Sentinel-2 / Earth Search' }).addTo(map);
       ndvi.on('tileerror', () => setFailedLayer(tileUrl));
       ndvi.on('tileload', () => setFailedLayer(current => current === tileUrl ? null : current));
     }
-    if (overlay) L.imageOverlay(overlay.image, [[overlay.bounds.south, overlay.bounds.west], [overlay.bounds.north, overlay.bounds.east]], { opacity: 0.85 }).addTo(map);
+    if (overlay) L.imageOverlay(overlay.image, [[overlay.bounds.south, overlay.bounds.west], [overlay.bounds.north, overlay.bounds.east]], { opacity }).addTo(map);
     if (stressGeojson) L.geoJSON(stressGeojson as unknown as GeoJsonObject, { style: { color: '#b91c1c', fillColor: '#ef4444', fillOpacity: 0.3, weight: 2 } }).addTo(map);
     const observer = new ResizeObserver(() => map.invalidateSize()); observer.observe(element.current);
     return () => { observer.disconnect(); basemap.off(); map.remove(); };
-  }, [latitude, longitude, fieldName, zoom, boundaryGeojson, stressGeojson, tileUrl, overlay, attempt]);
+  }, [latitude, longitude, fieldName, zoom, boundaryGeojson, stressGeojson, tileUrl, overlay, opacity, attempt]);
   const error = failedLayer === 'basemap' ? 'Street-map tiles could not load. The field boundary is still available.'
     : failedLayer && failedLayer === tileUrl ? 'NDVI tiles could not load for this observation. Try another scene or retry.' : '';
   return <div className="open-map-frame">

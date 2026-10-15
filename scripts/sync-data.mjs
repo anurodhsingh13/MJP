@@ -14,7 +14,7 @@ async function request(path,method='GET',body,timeout=135000){
 }
 const sceneLimit=Number(process.env.SYNC_SCENE_LIMIT || 6);
 if(!Number.isInteger(sceneLimit)||sceneLimit<1||sceneLimit>6)throw new Error('SYNC_SCENE_LIMIT must be 1–6');
-const fields=(await request('/fields')).filter(field => process.env.SYNC_DEMO_ONLY !== '1' || field.name.startsWith('Public demo:'));
+const fields=(await request('/fields')).filter(field => process.env.SYNC_DEMO_ONLY === '1' ? field.provenance === 'public_boundary' : !field.isDemo);
 if(process.env.SYNC_DEMO_ONLY==='1')console.log('Sync scope: public benchmark demo fields only.');
 for(const field of fields){
  const result={id:field.id,name:field.name,weather:null,satellite:null,processed:[],errors:[]};report.fields.push(result);persist();
@@ -29,9 +29,9 @@ for(const field of fields){
  if(result.satellite){
   const scenes=await request(`/fields/${field.id}/scenes`);
   const dates=new Set();
-  const candidates=[...scenes].sort((a,b)=>b.observed_at.localeCompare(a.observed_at)).filter(scene=>{const day=scene.observed_at.slice(0,10);if(dates.has(day))return false;dates.add(day);return true;}).slice(0,sceneLimit).reverse();
+  const candidates=[...scenes].sort((a,b)=>b.observed_at.localeCompare(a.observed_at)).filter(scene=>{const day=scene.observed_at.slice(0,10);if(dates.has(day))return false;dates.add(day);return true;}).slice(0,sceneLimit);
   for(const scene of candidates){
-   try{const data=await request(`/fields/${field.id}/ndvi/from-scene/${encodeURIComponent(scene.scene_id)}`,'POST');result.processed.push({sceneId:scene.scene_id,observedAt:data.observedAt,ndvi:data.ndvi,coverage:data.validCoverage});console.log(`  ${scene.scene_id}: NDVI ${data.ndvi}, coverage ${data.validCoverage}%`);}
+   try{const data=await request(`/fields/${field.id}/ndvi/from-scene/${encodeURIComponent(scene.scene_id)}`,'POST');result.processed.push({sceneId:scene.scene_id,observedAt:data.observedAt,ndvi:data.ndvi,coverage:data.validCoverage,accepted:data.accepted,qualityReason:data.qualityReason});console.log(`  ${scene.scene_id}: NDVI ${data.ndvi}, coverage ${data.validCoverage}%`);}
    catch(error){result.errors.push(`${scene.scene_id}: ${error.message}`);console.log(`  Scene skipped: ${error.message}`);}
    persist();
   }

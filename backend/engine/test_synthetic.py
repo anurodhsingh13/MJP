@@ -37,14 +37,17 @@ def synthetic_urls(tmp_path):
     nir_path = os.path.join(tmp_path, "nir.tif")
     create_synthetic_geotiff(nir_path, nir_data)
     
-    return red_path, nir_path
+    scl_path=os.path.join(tmp_path,"scl.tif")
+    create_synthetic_geotiff(scl_path,np.full((256,256),4,dtype=np.uint8))
+    return red_path, nir_path, scl_path
 
 def test_tile_generation_synthetic(synthetic_urls):
-    red_url, nir_url = synthetic_urls
+    red_url, nir_url, scl_url = synthetic_urls
     
     payload = {
         "redUrl": red_url,
         "nirUrl": nir_url,
+        "sclUrl": scl_url,
         "polygonGeojson": {
             "type": "Polygon",
             "coordinates": [[[77.201, 28.599], [77.209, 28.599], [77.209, 28.591], [77.201, 28.591], [77.201, 28.599]]],

@@ -1,12 +1,14 @@
+import type { Assessment, EvidencePolicy, Observation, Provenance, SceneStatus } from '../../../shared/evidence';
+export type { Observation } from '../../../shared/evidence';
 export type DatabaseField = {
   id: string
   name: string
   crop: string
   area_hectares: number
-  health_score: number
-  ndvi_average: number
+  health_score: number | null
+  ndvi_average: number | string | null
   canopy_coverage: number
-  health_delta: number
+  health_delta: number | null
   last_observation: string | null
   latitude: number | null
   longitude: number | null
@@ -15,6 +17,15 @@ export type DatabaseField = {
   expected_yield_tons: number | null
   boundary_geojson?: Record<string, unknown> | null
   stress_geojson?: Record<string, unknown> | null
+  boundary_version?: number
+  provenance?: Provenance
+  provenanceNote?: string
+  isDemo?: boolean
+  assessment?: Assessment
+  policy?: EvidencePolicy
+  latestObservation?: Observation | null
+  previousObservation?: Observation | null
+  processing?: Array<{scene_id:string; processing_status:SceneStatus; processing_error:string|null}>
 }
 
 export async function loadFields() {
@@ -54,7 +65,7 @@ export async function askFieldAssistant(message: string, fieldId?: string, langu
     const payload = await response.json().catch(() => ({})) as { error?: string }
     throw new Error(payload.error ?? 'Assistant unavailable')
   }
-  return response.json() as Promise<{ answer: string; model: string; languageCode: string }>
+  return response.json() as Promise<{ answer: string; model: string; languageCode: string; evidenceDates?:string[] }>
 }
 
 export async function ingestWeather(fieldId: string) {
@@ -74,27 +85,19 @@ export async function ingestSentinelScenes(fieldId: string) {
 export async function loadScenes(fieldId: string) {
   const response = await fetch(`/api/fields/${fieldId}/scenes`)
   if (!response.ok) throw new Error('Unable to load satellite scenes')
-  return response.json() as Promise<Array<{ scene_id: string; observed_at: string; cloud_cover: number | string }>>
+  return response.json() as Promise<SatelliteScene[]>
 }
 
 export async function calculateNdvi(fieldId: string, sceneId: string) {
   const response = await fetch(`/api/fields/${fieldId}/ndvi/from-scene/${encodeURIComponent(sceneId)}`, { method: 'POST' })
-  const payload = await response.json().catch(() => ({})) as { error?: string; sceneId: string; ndvi: number; validPixels: number; validCoverage: number; healthScore: number; source: string }
+  const payload = await response.json().catch(() => ({})) as { error?: string; sceneId: string; ndvi: number; validPixels: number; validCoverage: number; healthScore: number; source: string; accepted: boolean; qualityReason: string | null }
   if (!response.ok) throw new Error(payload.error ?? 'NDVI calculation failed')
   return payload
 }
 
-export type VegetationIndexObservation = {
-  observed_on: string
-  ndvi_value: number | string
-  ndre_value: number | string | null
-  ndmi_value: number | string | null
-  savi_value: number | string | null
-  evi_value: number | string | null
-  cloud_cover: number | string
-  source: string
-  scene_id: string | null
-}
+export type VegetationIndexObservation = Observation & {
+  savi_value: number | string | null; evi_value: number | string | null;
+};
 
 export async function loadNdvi(fieldId: string) {
   const response = await fetch(`/api/fields/${fieldId}/ndvi`)
@@ -106,14 +109,17 @@ export type NdviAnalysis = {
   status: string
   statusLabel: string
   trend?: 'improving' | 'declining' | 'stable'
-  stage?: string
+  stage?: string | null
   summary: string
   recommendation?: string
   observations: number
   average?: number
-  slopePerObservation?: number
+  slopePerDay?: number | null
+  slopeUnits?: string
+  dateStart?: string | null
+  dateEnd?: string | null
   volatility?: number
-  predictedNext?: number
+  predictedNext?: number | null
   rSquared?: number | null
   languageCode: string
   source: string
@@ -197,4 +203,17 @@ export async function loadWeather(fieldId: string) {
   const response = await fetch(`/api/fields/${fieldId}/weather`)
   if (!response.ok) throw new Error('Unable to load weather')
   return response.json() as Promise<WeatherObservation[]>
+}
+
+export interface ProcessingResult { accepted:boolean; sceneId?:string; ndvi?:number; validCoverage?:number; message?:string; attempts:Array<{sceneId:string;status:string;reason?:string}> }
+export async function processLatest(fieldId:string):Promise<ProcessingResult> {
+  const response=await fetch(`/api/fields/${fieldId}/ndvi/process-latest`,{method:'POST'});
+  const payload=await response.json();
+  if(!response.ok) throw new Error(payload.error||'Image processing unavailable');
+  return payload;
+}
+export interface SatelliteScene {
+  scene_id:string; observed_at:string; cloud_cover:number|string|null;
+  processing_status?:SceneStatus; processing_error?:string|null;
+  valid_coverage_percent?:number|string|null; valid_pixel_count?:number|null;
 }

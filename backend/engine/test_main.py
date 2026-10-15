@@ -37,3 +37,26 @@ def test_indices_accept_nullable_optional_bands_from_json():
         blueUrl=None, redEdgeUrl=None, swirUrl=None, sclUrl=None,
         polygonGeojson={'type': 'Polygon', 'coordinates': []})
     assert payload.swirUrl is None
+
+def test_irregular_dates_use_elapsed_days_without_planting_date():
+    result=client.post('/analyze-indices',json={'observations':[
+        {'observed_on':'2026-01-21','ndvi_value':.6},
+        {'observed_on':'2026-01-01','ndvi_value':.8},
+        {'observed_on':'2026-01-03','ndvi_value':.78},
+        {'observed_on':'2026-01-03','ndvi_value':.78},
+        {'observed_on':'bad','ndvi_value':.5},
+        {'ndvi_value':.2}]}).json()
+    assert result['observations']==3
+    assert result['slopePerDay']==-.01
+    assert result['dateStart']=='2026-01-01'
+    assert result['dateEnd']=='2026-01-21'
+    assert result['stage'] is None
+    assert result['predictedNext'] is None
+    assert result['rSquared'] is None
+
+def test_duplicate_dates_do_not_establish_a_trend():
+    result=client.post('/analyze-indices',json={'observations':[
+        {'observed_on':'2026-01-01','ndvi_value':0},
+        {'observed_on':'2026-01-01','ndvi_value':.5}]}).json()
+    assert result['status']=='insufficient_data'
+    assert result['observations']==1
