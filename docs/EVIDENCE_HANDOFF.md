@@ -1,22 +1,26 @@
-# TerraScope evidence-first slice
+# CHM evidence-first implementation handoff
 
-Branch: `feature/evidence-first-monitoring`, based on `c49b80725eb57c6d832de0308bb643ea6d35d236`.
+Repository: `tusharsingh-1801/91-CHM`
+Branch: `feature/evidence-first-monitoring`
+Current committed HEAD: `83d87cc` (`Separate field condition from satellite evidence quality and recency`), based on `c49b807`. Implementation changes in this handoff are still local/uncommitted.
 
-This is the first local vertical slice requested in the implementation brief. It is not completion of the whole multi-phase roadmap. No code was pushed, merged or deployed. No MADHWAI service or database was accessed. Native CHM PostgreSQL/PostGIS remains the database; no Supabase integration was introduced.
+This is a substantial but incomplete continuation of the CHM roadmap, not a claim that the whole product is complete. No changes from this continuation were pushed, merged or deployed. No MADHWAI project or database was accessed. CHM continues to use PostgreSQL/PostGIS; no Supabase integration was introduced.
 
 ## Farmer workflow
 
-Open the overview to find fields requiring inspection, old imagery, or missing evidence. Demo/public parcels are excluded by default. Search/filter fields, open a field, read acquisition/age/coverage/source and the next action. On the map, select an acquisition date and inspect that date's quality and processing status. The basemap is explicitly separate from analysed Sentinel imagery. Toggle the accepted NDVI layer and its opacity. On analysis, view measured NDVI/NDMI/NDRE time series and recorded field-event markers; expand the technical table if needed. Low-quality or missing evidence never becomes a healthy/unhealthy label.
+Open the overview to find fields requiring inspection, old imagery, or missing evidence. Demo/public parcels are excluded by default. Search/filter fields, open a field, read acquisition/age/coverage/source and the next action. Field creation and boundary editing use Leaflet/OpenStreetMap and do not require a Google Maps key. The onboarding wizard saves the field boundary first, then searches and processes candidates newest-first; rejected evidence remains rejected, older scenes can be attempted, and processing can be retried without creating another field. Planting and expected harvest dates are optional. GeoJSON import accepts one valid Polygon; MultiPolygon is deliberately rejected with an explanation.
+
+On the map, select a specific scene ID and inspect that scene's acquisition and quality. The latest accepted scene ID is preferred over a date-only match; refresh retains a still-available user selection. The basemap is explicitly separate from analysed Sentinel imagery. Toggle the accepted NDVI layer and its opacity. On analysis, view measured NDVI/NDMI/NDRE time series, an acquisition timeline, a two-date comparison of actual accepted observations, and recorded field-event markers; expand the technical table if needed. Low-quality or missing evidence never becomes a healthy/unhealthy label.
 
 ## Scope by phase
 
 | Phase | Status |
 | --- | --- |
-| A: correctness, provenance, recency | First slice implemented: coverage-independent score, quality acceptance, newest-first bounded candidate processing, idempotent versioned writes, transaction-safe latest summaries, provenance, elapsed-date trends, consistent raster masks. Agronomic calibration and broader live-scene evaluation remain. |
-| B: dashboard/onboarding/maps/trends | Dashboard evidence queue, search/filter, field evidence summary, selected-date quality, layer opacity and actual time series implemented. No-Google onboarding/editing, full translation/units, compact four-tab navigation, two-date comparison and timeline remain. |
-| C: photo scouting/diagnosis | Pending. No diagnosis provider/model is configured or represented as functional. |
-| D: forecasts/jobs/reports/offline | Pending. Current processing is bounded synchronous work with persisted scene status, not a durable job queue. Assistant context now includes dated accepted imagery, historical weather and diary events. |
-| E: shared-access protection | Pending. Local-only operation; no public release. |
+| A: correctness, provenance, recency | Implemented in this branch: quality acceptance, newest-first bounded candidate processing, idempotent/versioned writes, transaction-safe latest summaries, provenance, same-scene map evidence, timeline/comparison and consistent raster masks. Agronomic calibration and a live accepted-image result remain unproven. |
+| B: dashboard/onboarding/maps/trends | Dashboard evidence queue, search/filter, exact-scene selection, key-free Polygon draw/edit/import, optional dates, actual time series, timeline and two-date comparison are implemented. App-wide persistent Hindi/English and hectare/acre preferences and a separate field overview route remain incomplete. |
+| C: photo scouting/diagnosis | Photo-backed scouting capture, storage, diary review and retry flow are implemented. No licensed/configured diagnosis provider is available; diagnosis is reported unavailable, not invented. |
+| D: forecasts/jobs/reports/offline | Historical NASA POWER remains labelled as modeled weather; no forecast is configured. PostgreSQL job schema/worker groundwork exists, but the current onboarding/map satellite flow still performs synchronous requests and durable restart/retry behavior is not validated. CSV/PDF reporting and offline/PWA sync remain incomplete. |
+| E: shared-access protection | Account/session endpoints, server-side field ownership checks and explicit legacy claim/audit tooling are implemented. Production/shared-deployment hardening and real database-backed cross-user verification remain; do not expose this branch as production-ready. |
 
 ## Data and scientific behavior
 
@@ -37,23 +41,31 @@ Open the overview to find fields requiring inspection, old imagery, or missing e
 
 Backend: `backend/api/services/satellite.ts`, `policy.ts`, `controllers/fieldsController.ts`, `controllers/assistantController.ts`, routes, and `backend/engine/main.py`.
 
-Frontend: existing dashboard, field layout/map/analysis, API types, Google/Leaflet map renderers and imported `index.css`. `App.css` is not used for these changes.
+Frontend: existing dashboard, field layout/map/analysis/history, API types, account gate, Leaflet field renderer/editor and imported `index.css`. Core field maps no longer invoke Google Maps. `App.css` is not used for these changes.
 
-Operations: additive migrations `1792060000000_evidence-provenance.ts` and `1792060100000_evidence-spatial-details.ts`, native launcher preflight, sync/import scripts and `.env.example`.
+Operations: additive migrations `1792060000000_evidence-provenance.ts`, `1792060100000_evidence-spatial-details.ts`, and `1792071000000_product-workflows.ts`; native launcher preflight; CI PostGIS service; sync/import/claim scripts; and `.env.example`.
 
 ## Preservation and local setup
 
-A CHM-only backup was taken at `.local/backups/before-evidence-1792070315521.dump` before applying migrations to `127.0.0.1:5435/terrascope`. The six original fields remained. Temporary integration fixtures are removed in cleanup. Existing applied migrations were not edited. The new migrations are forward-only to avoid discarding provenance/history on downgrade. Default startup remains `npm run migrate`, `npm start`, `npm run status`, `npm stop`.
+A prior CHM-only backup was taken at `.local/backups/before-evidence-1792070315521.dump` before applying earlier evidence migrations to `127.0.0.1:5435/terrascope`; that earlier handoff recorded six original fields preserved. The product-workflows migration is additive and forward-only. Its legacy `fields.owner_id` stays nullable; no legacy records are automatically assigned to an arbitrary account. Back up before applying migrations. Default startup remains `npm run migrate`, `npm start`, `npm run status`, `npm stop`.
 
-No new credentials are needed for this slice. Existing Sarvam credentials are needed only for live assistant answers; Maps is optional for viewing. Google-only boundary onboarding remains a known next-phase limitation. Thresholds and candidate limits are documented in `.env.example`. The native launcher fails with migration guidance when the new schema is missing.
+No Google Maps credentials are needed for field creation, editing or viewing. A configured Sarvam key is needed for live assistant answers. No photo diagnosis provider is configured. For shared use, create an account, set `AUTH_MODE=required`, configure exact HTTPS `APP_ORIGIN` values and secure cookies, then explicitly claim only intended legacy field UUIDs via `node scripts/claim-fields.mjs account@example.com <field-uuid> [...]`. Do not use local auth mode on a network-exposed service. Thresholds and candidate limits are documented in `.env.example`. The native launcher fails with migration guidance when the new schema is missing.
 
 ## Validation
 
-Baseline: build, lint and 14 API tests passed. Existing Python suite contained eight tests.
+Latest checks in this continuation:
 
-Current validation results and screenshot paths are recorded at handoff completion below. Browser/API fixtures test behavior; they do not validate agricultural thresholds or external AI answers. The real PostgreSQL integration uses actual PostGIS/transactions with fixture raster-engine responses. Known-raster Python tests use synthetic, numerically specified fixtures rather than live satellite truth.
+- `npm run build`: passed (includes TypeScript project check).
+- `npm run lint`: passed.
+- `npm test`: 19 passed, 2 skipped. Skips are the PostGIS transaction test and database-backed cross-owner API test; both require an isolated integration database.
+- `npm run test:ui`: 24 passed, including onboarding rejection/retry, same-date scene selection, auth/scouting UI, key-free Leaflet, and responsive layouts at 320, 390, 768, 844×390, 1024 and 1440 pixels.
+- `/Users/tusharsingh18/Desktop/MP/91-CHM/.venv/bin/python -m pytest backend/engine -q`: 14 passed; dependency deprecation warnings remain. The configured local virtualenv is Python 3.9.6, while README/CI target Python 3.11.
+- PostGIS integration was not run locally: do not point it at the existing `terrascope` development database. CI is configured to start disposable `postgis/postgis:16-3.4`, migrate `chm_integration`, and run `npm run test:integration`; this CI workflow was not run in this session.
+- `npm run test:smoke` was not run; no live external accepted satellite observation was produced during this continuation.
 
-Live provider check on 15 October 2026: Earth Search responded for the public demo parcel. A 12 October 2026 scene's STAC red/NIR assets explicitly reported scale .0001 and offset -.1. A separate latest public-parcel scene `S2A_43REM_20261015_1_L2A` was opened from the real COGs and rejected with HTTP 422 after cloud/nodata masking left no usable pixels. No live observation was saved and no claim of live accepted vegetation measurements is made. Live Sarvam was not exercised. NASA POWER was preserved and fixture-tested, not re-fetched in this slice.
+Browser tests exercise real rendered controls and Leaflet with mocked API responses and tile images. They establish fixture-backed behavior, not live imagery/provider correctness or agronomic validity. See the test output directories for generated screenshots and traces; they are not committed.
+
+Most recent recorded live-provider check (from the earlier handoff, 15 October 2026): Earth Search responded for a public demo parcel. A 12 October 2026 scene's STAC red/NIR assets reported scale .0001 and offset -.1. A separate latest scene `S2A_43REM_20261015_1_L2A` was opened from real COGs and rejected with HTTP 422 after masking left no usable pixels. No live observation was saved. This continuation did not repeat the external check; do not claim an accepted live vegetation measurement. Live Sarvam was not exercised; NASA POWER remains fixture-tested rather than freshly fetched.
 
 ## References consulted
 
@@ -61,17 +73,4 @@ Product direction: [OneSoil field monitoring](https://onesoil.ai/en/platform) an
 
 Implementation contracts: [Earth Search examples](https://element84.com/earth-search/examples/), [Rasterio dataset scale/mask metadata](https://rasterio.readthedocs.io/en/stable/api/rasterio.io.html), [Rasterio reprojection](https://rasterio.readthedocs.io/en/stable/topics/reproject.html), and [Rasterio masking](https://rasterio.readthedocs.io/en/stable/api/rasterio.mask.html).
 
-## Completed checks
-
-- `npm run build`: passed.
-- `npm run lint`: passed without warnings.
-- `npm test`: 18 passed; the database integration test is intentionally skipped in the default run.
-- Opt-in CHM/PostGIS integration: passed (actual transactions/PostGIS; raster responses are fixtures).
-- `.venv/bin/python -m pytest backend/engine -q`: 14 passed. Dependency deprecation warnings remain.
-- `npx playwright test`: 20 passed, including evidence workflows at 320/390/768/1440 pixels and portrait/landscape layout regressions.
-- `npm run test:smoke`: passed against the restarted native stack; original field count retained.
-- Live STAC metadata/read check: reachable, latest tested scene rejected for no usable pixels; no live accepted measurement claimed.
-
-Screenshots (fixture-based, not real field diagnosis) are in `test-results/evidence-farmer-evidence-workflow-and-screenshot-at-<width>px/overview-<width>.png` and `trends-<width>.png` for widths 320, 390, 768 and 1440. Rendered screenshots at all four required widths were visually inspected; the four evidence workflows passed again after the final chart/measurement display adjustments. Persistent local copies are in `.local/evidence-screenshots/`. Traces/screenshots are ignored local artifacts and can be regenerated with the browser suite.
-
-Local preview: `http://localhost:5173`. Shared/public release is not authorized or ready. The next implementation slice should finish no-Google boundary onboarding/editing, optional planting, and persistent interface language before photo scouting.
+Local preview: `http://localhost:5173`. Shared/public release is not authorized or ready. Next priorities are persistent app-wide language/unit preferences, a dedicated field overview, reports and offline support, wiring satellite work to durable jobs, and isolated database-backed ownership/worker recovery validation.

@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useModalDialog } from '../../lib/useModalDialog';
-import { configureMaps } from '../../lib/maps';
-import { importLibrary } from '@googlemaps/js-api-loader';
+import { processLatest } from '../../lib/api';
+import { FieldBoundaryEditor } from './FieldBoundaryEditor';
+import { polygonAreaHectares, validatePolygonBoundary, type PolygonBoundary } from './boundary';
 
 type Step = 'basic' | 'dates' | 'boundary' | 'confirm';
 
@@ -12,116 +13,53 @@ export function AddFieldWizard({ onComplete, onCancel }: { onComplete: (fieldId:
   const [plantingDate, setPlantingDate] = useState('');
   const [harvestDate, setHarvestDate] = useState('');
   
-  const [areaHectares, setAreaHectares] = useState(0);
-  const [polygonGeojson, setPolygonGeojson] = useState<any>(null);
+  const [polygonGeojson, setPolygonGeojson] = useState<PolygonBoundary|null>(null);
   const [savedFieldId, setSavedFieldId] = useState<string | null>(null);
+  const [clientKey] = useState(()=>crypto.randomUUID());
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
-  const [boundaryPoints, setBoundaryPoints] = useState(0);
   const [boundaryFinished, setBoundaryFinished] = useState(false);
-  
-  const mapElement = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const polygonRef = useRef<google.maps.Polygon | null>(null);
-  const boundaryFinishedRef = useRef(false);
-  const boundaryPathRef = useRef<google.maps.LatLngLiteral[]>([]);
+  const [importError,setImportError]=useState('');
+  const areaHectares=polygonAreaHectares(polygonGeojson);
+  const outerRing=polygonGeojson?.coordinates[0]??[];
+  const boundaryPoints=outerRing.length>1&&outerRing[0][0]===outerRing.at(-1)?.[0]&&outerRing[0][1]===outerRing.at(-1)?.[1]?outerRing.length-1:outerRing.length;
   
   const closeWizard = () => savedFieldId ? onComplete(savedFieldId) : onCancel();
 
-  const configuredKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  const apiKey = configuredKey && !configuredKey.startsWith('your-') ? configuredKey : '';
-
   useModalDialog(true, closeWizard, saving);
 
-  useEffect(() => {
-    if (step === 'boundary' && apiKey && mapElement.current) {
-      let isMounted = true;
-      configureMaps(apiKey);
-      Promise.all([
-        importLibrary('maps'),
-        importLibrary('geometry')
-      ]).then(([maps, geometry]) => {
-        if (!isMounted || !mapElement.current) return;
-        
-        const map = new maps.Map(mapElement.current, {
-          center: { lat: 28.6139, lng: 77.2090 }, // Default to India
-          zoom: 5,
-          mapTypeId: 'satellite'
-        });
-        mapRef.current = map;
-
-        const polygon = new maps.Polygon({
-          map,
-          paths: boundaryPathRef.current,
-          editable: true,
-          fillColor: '#84cc16',
-          fillOpacity: 0.25,
-          strokeColor: '#cbe86b',
-          strokeWeight: 3,
-        });
-        polygonRef.current = polygon;
-
-        const updateBoundary = () => {
-          const path = polygon.getPath();
-          setBoundaryPoints(path.getLength());
-          boundaryPathRef.current = Array.from({ length: path.getLength() }, (_, index) => {
-            const point = path.getAt(index);
-            return { lat: point.lat(), lng: point.lng() };
-          });
-          if (path.getLength() < 3) {
-            setPolygonGeojson(null);
-            setAreaHectares(0);
-            return;
-          }
-          const coordinates: number[][] = [];
-          for (let index = 0; index < path.getLength(); index += 1) {
-            const point = path.getAt(index);
-            coordinates.push([point.lng(), point.lat()]);
-          }
-          coordinates.push([...coordinates[0]]);
-          setAreaHectares(geometry.spherical.computeArea(path) / 10000);
-          setPolygonGeojson({ type: 'Polygon', coordinates: [coordinates] });
-        };
-        const path = polygon.getPath();
-        ['insert_at', 'set_at', 'remove_at'].forEach(eventName =>
-          path.addListener(eventName, updateBoundary)
-        );
-        map.addListener('click', (event: google.maps.MapMouseEvent) => {
-          if (!event.latLng || boundaryFinishedRef.current) return;
-          path.push(event.latLng);
-        });
-
-        // Try geolocation
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition((pos) => {
-            if (isMounted) map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-            if (isMounted) map.setZoom(14);
-          });
-        }
-
-      }).catch(() => setError('Google Maps could not be loaded. Check the browser API key and allowed localhost domain.'));
-      return () => {
-        isMounted = false;
-        polygonRef.current?.setMap(null);
-        polygonRef.current = null;
-        mapRef.current = null;
-      };
-    }
-  }, [step, apiKey]);
-
   const undoBoundaryPoint = () => {
-    const path = polygonRef.current?.getPath();
-    if (!path?.getLength()) return;
-    boundaryFinishedRef.current = false;
+    if(!polygonGeojson||!boundaryPoints)return;
+    const open=outerRing.slice(0,boundaryPoints);
+    open.pop();
+    if(open.length>=3)open.push([...open[0]]);
+    setPolygonGeojson({...polygonGeojson,coordinates:[open,...polygonGeojson.coordinates.slice(1)]});
     setBoundaryFinished(false);
-    path.pop();
   };
 
   const clearBoundary = () => {
-    boundaryFinishedRef.current = false;
     setBoundaryFinished(false);
-    polygonRef.current?.getPath().clear();
+    setPolygonGeojson(null);
+    setImportError('');
+  };
+
+  const importBoundary=async(event:React.ChangeEvent<HTMLInputElement>)=>{
+    const file=event.target.files?.[0];if(!file)return;
+    setImportError('');
+    try{
+      if(file.size>120*1024)throw new Error('GeoJSON files must be smaller than 120 KB to fit the API boundary limit.');
+      const parsed=JSON.parse(await file.text()) as {type?:string;geometry?:unknown;features?:Array<{geometry?:unknown}>};
+      const geometry=parsed.type==='Feature'?parsed.geometry:parsed.type==='FeatureCollection'&&parsed.features?.length===1?parsed.features[0].geometry:parsed;
+      if(geometry&&typeof geometry==='object'&&(geometry as {type?:string}).type==='MultiPolygon'){
+        throw new Error('This service supports one Polygon per field. MultiPolygon imports are not supported; split the parcel into separate fields.');
+      }
+      if(!validatePolygonBoundary(geometry))throw new Error('Choose a valid GeoJSON Polygon with closed rings and WGS84 [longitude, latitude] coordinates. FeatureCollections must contain exactly one Polygon.');
+      const area=polygonAreaHectares(geometry);
+      if(!Number.isFinite(area)||area<=0||area>10000)throw new Error('The Polygon area must be greater than zero and no more than 10,000 hectares.');
+      setPolygonGeojson(geometry);setBoundaryFinished(false);
+    }catch(caught){setImportError(caught instanceof Error?caught.message:'Unable to read this GeoJSON file.');}
+    finally{event.target.value='';}
   };
 
   const handleSave = async () => {
@@ -134,7 +72,7 @@ export function AddFieldWizard({ onComplete, onCancel }: { onComplete: (fieldId:
         setStatus('Saving field boundary…');
         const response = await fetch('/api/fields', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json','Idempotency-Key':clientKey },
           body: JSON.stringify({
             name,
             crop,
@@ -145,30 +83,38 @@ export function AddFieldWizard({ onComplete, onCancel }: { onComplete: (fieldId:
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.error || 'Failed to save field');
+        if (typeof payload.id !== 'string' || !payload.id) throw new Error('The field was saved, but its ID could not be confirmed. Contact support before trying again.');
         fieldId = payload.id;
         setSavedFieldId(fieldId);
       }
 
-      setStatus('Searching for recent cloud-free Sentinel-2 scenes…');
+      setStatus('Field boundary saved. Satellite processing is starting…');
       const ingestionResponse = await fetch(`/api/fields/${fieldId}/ingest/sentinel-scenes?days=90`, { method: 'POST' });
       const ingestion = await ingestionResponse.json().catch(() => ({}));
       if (!ingestionResponse.ok) throw new Error(ingestion.error || 'Satellite scene search failed');
 
-      const scenesResponse = await fetch(`/api/fields/${fieldId}/scenes`);
-      const scenes = await scenesResponse.json().catch(() => []);
-      if (!scenesResponse.ok) throw new Error('Unable to load satellite scenes');
-      if (!scenes.length) throw new Error('No suitable Sentinel-2 scene was found in the last 90 days');
+      if (!fieldId) throw new Error('Field ID is unavailable. Reopen the saved field before retrying analysis.');
+      setStatus('Checking newest scenes first and moving to older images if needed…');
+      const result = await processLatest(fieldId);
+      if (!result.accepted || !result.sceneId) {
+        const attempts = result.attempts.map(attempt =>
+          `${attempt.sceneId}: ${attempt.status}${attempt.reason ? ` — ${attempt.reason}` : ''}`
+        ).join('; ');
+        const processingFailed=result.attempts.some(attempt=>attempt.status==='failed');
+        setStatus(result.attempts.length===0
+          ? 'Field boundary saved. No usable satellite image is currently available.'
+          : processingFailed
+            ? 'Field boundary saved. Satellite processing failed and can be retried.'
+            : 'Field boundary saved. No image met the field-quality requirements.');
+        setError([result.message || 'The field is saved; no usable observation was accepted.', attempts].filter(Boolean).join(' '));
+        return;
+      }
 
-      setStatus('Calculating crop-health indices from the best scene…');
-      const calculationResponse = await fetch(`/api/fields/${fieldId}/ndvi/from-scene/${encodeURIComponent(scenes[0].scene_id)}`, { method: 'POST' });
-      const calculation = await calculationResponse.json().catch(() => ({}));
-      if (!calculationResponse.ok) throw new Error(calculation.error || 'Crop-health processing failed');
-
-      setStatus('Analysis complete');
-      onComplete(fieldId!);
+      setStatus(`Field boundary saved. A usable Sentinel-2 observation was accepted from scene ${result.sceneId}.`);
+      onComplete(fieldId);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to complete field setup');
-      setStatus(fieldId ? 'The field was saved. Retry processing when ready.' : '');
+      setStatus(fieldId ? 'Field boundary saved. Satellite processing failed and can be retried without creating the field again.' : '');
     } finally {
       setSaving(false);
     }
@@ -193,8 +139,8 @@ export function AddFieldWizard({ onComplete, onCancel }: { onComplete: (fieldId:
         )}
 
         {step === 'dates' && (
-          <form onSubmit={(e) => { e.preventDefault(); if (harvestDate && harvestDate < plantingDate) { setError('Harvest date must be on or after planting date.'); return; } setError(''); setStep('boundary'); }}>
-            <label>Planting Date <input type="date" required value={plantingDate} onChange={e => setPlantingDate(e.target.value)} /></label>
+          <form onSubmit={(e) => { e.preventDefault(); if (plantingDate && harvestDate && harvestDate < plantingDate) { setError('Harvest date must be on or after planting date.'); return; } setError(''); setStep('boundary'); }}>
+            <label>Planting Date (Optional) <input type="date" value={plantingDate} onChange={e => setPlantingDate(e.target.value)} /></label>
             <label>Expected Harvest (Optional) <input type="date" min={plantingDate || undefined} value={harvestDate} onChange={e => setHarvestDate(e.target.value)} /></label>
             <div className="actions">
               <button type="button" onClick={() => setStep('basic')}>Back</button>
@@ -205,27 +151,22 @@ export function AddFieldWizard({ onComplete, onCancel }: { onComplete: (fieldId:
 
         {step === 'boundary' && (
           <div>
-            <p>Tap or click each corner of your field on the map. Add at least three points, then choose <strong>Finish boundary</strong>. You can drag points to correct the shape.</p>
-            {!apiKey ? (
-               <div style={{ padding: '2rem', background: '#fee2e2', color: '#991b1b' }}>
-                 No Google Maps API Key found. A map is required to draw a field.
-               </div>
-            ) : (
-               <div ref={mapElement} className="boundary-map" />
-            )}
-            {apiKey && (
-              <div className="boundary-tools" aria-live="polite">
-                <span>{boundaryPoints} point{boundaryPoints === 1 ? '' : 's'} · {areaHectares.toFixed(2)} ha</span>
-                <button type="button" onClick={undoBoundaryPoint} disabled={!boundaryPoints}>Undo point</button>
-                <button type="button" onClick={clearBoundary} disabled={!boundaryPoints}>Clear</button>
-                <button type="button" onClick={() => { boundaryFinishedRef.current = true; setBoundaryFinished(true); }} disabled={boundaryPoints < 3 || boundaryFinished}>
-                  {boundaryFinished ? 'Boundary finished' : 'Finish boundary'}
-                </button>
-              </div>
-            )}
+            <p>Use the OpenStreetMap basemap to add corners, drag the white vertex handles to edit them, and finish the Polygon. No map key is required.</p>
+            <FieldBoundaryEditor boundary={polygonGeojson} onChange={boundary=>{setPolygonGeojson(boundary);setImportError('');}} boundaryFinished={boundaryFinished}/>
+            <div className="boundary-tools" aria-live="polite">
+              <span>{boundaryPoints} point{boundaryPoints === 1 ? '' : 's'} · {areaHectares.toFixed(2)} ha (calculated boundary area)</span>
+              <button type="button" onClick={undoBoundaryPoint} disabled={!boundaryPoints}>Undo point</button>
+              <button type="button" onClick={clearBoundary} disabled={!boundaryPoints}>Clear</button>
+              <button type="button" onClick={() => setBoundaryFinished(true)} disabled={boundaryPoints < 3 || boundaryFinished}>
+                {boundaryFinished ? 'Boundary finished' : 'Finish boundary'}
+              </button>
+            </div>
+            <label>Import GeoJSON Polygon<input type="file" accept=".geojson,.json,application/geo+json,application/json" onChange={importBoundary}/></label>
+            <p>Supported: one valid GeoJSON Polygon, Polygon Feature, or a FeatureCollection containing one Polygon. MultiPolygon is not supported; split it into separate fields. Coordinates must be WGS84 longitude, latitude.</p>
+            {importError&&<p role="alert">{importError}</p>}
             <div className="actions" style={{ marginTop: '1rem' }}>
               <button type="button" onClick={() => setStep('dates')}>Back</button>
-              <button type="button" disabled={!polygonGeojson || !boundaryFinished} onClick={() => setStep('confirm')}>Review</button>
+              <button type="button" disabled={!polygonGeojson || !validatePolygonBoundary(polygonGeojson) || !boundaryFinished || areaHectares<=0 || areaHectares>10000} onClick={() => setStep('confirm')}>Review</button>
             </div>
           </div>
         )}
@@ -236,13 +177,14 @@ export function AddFieldWizard({ onComplete, onCancel }: { onComplete: (fieldId:
             <ul>
               <li><strong>Name:</strong> {name}</li>
               <li><strong>Crop:</strong> {crop}</li>
-              <li><strong>Planting:</strong> {plantingDate}</li>
+              <li><strong>Planting:</strong> {plantingDate || 'Unknown'}</li>
+              <li><strong>Expected harvest:</strong> {harvestDate || 'Unknown'}</li>
               <li><strong>Area:</strong> {areaHectares.toFixed(2)} ha</li>
             </ul>
             <div className="actions">
               <button type="button" onClick={() => setStep('boundary')} disabled={saving || Boolean(savedFieldId)}>Back</button>
               <button type="button" onClick={handleSave} disabled={saving}>
-                {saving ? 'Processing…' : savedFieldId ? 'Retry Satellite Processing' : 'Save & Analyse Field'}
+                {saving ? (savedFieldId ? 'Checking images…' : 'Saving field…') : savedFieldId ? 'Retry Satellite Processing' : 'Save & Analyse Field'}
               </button>
             </div>
             {status && <p className="wizard-status" role="status">{status}</p>}

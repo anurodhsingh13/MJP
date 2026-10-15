@@ -236,3 +236,26 @@ def generate_tile(z: int,x: int,y: int,payload: TileRequest):
         return Response(content=png(ndvi),media_type='image/png',headers={'Cache-Control':'no-store'})
     except HTTPException: raise
     except Exception as exc: raise HTTPException(502,'NDVI tile processing failed') from exc
+
+class PhotoRequest(BaseModel):
+    image: str
+
+@app.post('/inspect-photo')
+def inspect_photo(payload: PhotoRequest):
+    from PIL import ImageOps, ImageStat
+    try:
+        data=base64.b64decode(payload.image,validate=True)
+        if len(data)>5*1024*1024:
+            raise ValueError('Photo exceeds 5 MB')
+        with Image.open(io.BytesIO(data)) as original:
+            if original.format not in ('JPEG','PNG','WEBP') or original.width*original.height>20_000_000:
+                raise ValueError('Use a JPEG, PNG or WebP photo under 20 megapixels')
+            image=ImageOps.exif_transpose(original).convert('RGB')
+            image.thumbnail((2048,2048))
+            width,height=image.size
+            quality='needs_review' if min(width,height)<320 or max(ImageStat.Stat(image.resize((128,128))).stddev)<8 else 'usable_for_scouting'
+            output=io.BytesIO();image.save(output,format='JPEG',quality=88)
+        return {'image':base64.b64encode(output.getvalue()).decode(),'width':width,'height':height,'quality':quality,
+                'qualityNote':'Basic size/contrast check only; does not verify diagnostic suitability'}
+    except Exception as exc:
+        raise HTTPException(422,'Photo could not be decoded safely. Use JPEG, PNG or WebP under 5 MB and 20 megapixels.') from exc

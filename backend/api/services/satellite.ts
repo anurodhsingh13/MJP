@@ -91,10 +91,16 @@ export async function processScene(fieldId: string, sceneId: string) {
         const [latest,previous] = latestRows;
         if (latest) {
           const comparable = previous?.calculation_version === latest.calculation_version;
+          const declined = comparable && numeric(latest.ndvi_value)!-numeric(previous!.ndvi_value)! <= -policy.declineThreshold;
+          const currentEvidenceKey=declined?`decline:${version}:${latest.scene_id}`:null;
+          await client.query(`update public.alerts set action_status='superseded'
+            where field_id=$1 and boundary_version=$2 and evidence_key like 'decline:%'
+              and action_status in ('open','acknowledged','action_taken')
+              and ($3::text is null or evidence_key<>$3)`,[fieldId,version,currentEvidenceKey]);
           await client.query(`update public.fields set health_score=$2,ndvi_average=$3,last_observation=$4,
             latest_observed_at=$5,latest_scene_id=$6,health_delta=$7 where id=$1`,
             [fieldId,latest.vegetation_score,latest.ndvi_value,latest.observed_on,latest.acquired_at,latest.scene_id,comparable?latest.vegetation_score-previous.vegetation_score:0]);
-          if (comparable && numeric(latest.ndvi_value)!-numeric(previous.ndvi_value)! <= -policy.declineThreshold) {
+          if (declined) {
             await client.query(`insert into public.alerts(field_id,title,severity,observed_at,scene_id,boundary_version,evidence_key,interpretation)
               values($1,'Vegetation decreased — inspect the field','neutral',$2,$3,$4,$5,$6)
               on conflict (field_id,evidence_key) where evidence_key is not null do nothing`,

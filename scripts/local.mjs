@@ -12,6 +12,7 @@ const pidFile = resolve(runtime, 'server.pid');
 const logFile = resolve(runtime, 'server.log');
 const python = process.env.PYTHON_BIN || (existsSync('.venv/bin/python') ? '.venv/bin/python' : 'python3');
 const apiPort = Number(process.env.API_PORT || 3001);
+if(process.env.AUTH_MODE==='local'&&process.env.WEB_HOST&&!['127.0.0.1','localhost'].includes(process.env.WEB_HOST))throw new Error('Shared network access requires AUTH_MODE=required.');
 const webPort = Number(process.env.WEB_PORT || 5173);
 const engine = new URL(process.env.PYTHON_ENGINE_URL || 'http://127.0.0.1:8000');
 const enginePort = Number(engine.port || 8000);

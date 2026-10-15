@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useModalDialog } from '../../lib/useModalDialog';
-import { deleteField, loadFields, updateField, type DatabaseField } from '../../lib/api';
+import { deleteField, loadFields, updateField, updateFieldBoundary, type DatabaseField } from '../../lib/api';
+import { FieldBoundaryEditor } from '../../features/fields/FieldBoundaryEditor';
+import { polygonAreaHectares, validatePolygonBoundary, type PolygonBoundary } from '../../features/fields/boundary';
 
 export function FieldLayout() {
   const { fieldId } = useParams();
@@ -12,6 +14,10 @@ export function FieldLayout() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [editedBoundary,setEditedBoundary]=useState<PolygonBoundary|null>(null);
+  const [boundarySaving,setBoundarySaving]=useState(false);
+  const [boundaryError,setBoundaryError]=useState('');
+  const [boundaryStatus,setBoundaryStatus]=useState('');
 
   useModalDialog(editing, () => setEditing(false), saving);
 
@@ -48,7 +54,7 @@ export function FieldLayout() {
           <h1 style={{ margin: 0, color: '#edf1df' }}>{field.name}</h1>
           <p style={{ margin: '0.25rem 0 0 0', color: '#8e9986' }}>Crop: {field.crop} | Area: {field.area_hectares} ha</p>
         </div>
-        <button type="button" onClick={() => { setFormError(''); setEditing(true); }} style={{ minHeight:'42px', padding:'.6rem 1rem', border:'1px solid #536b36', background:'#27371f', color:'#d9ea92', borderRadius:'4px' }}>Manage field</button>
+        <button type="button" onClick={() => { setFormError('');setBoundaryError('');setBoundaryStatus('');setEditedBoundary(validatePolygonBoundary(field.boundary_geojson)?field.boundary_geojson:null); setEditing(true); }} style={{ minHeight:'42px', padding:'.6rem 1rem', border:'1px solid #536b36', background:'#27371f', color:'#d9ea92', borderRadius:'4px' }}>Manage field</button>
       </header>
       
       <nav className="field-tabs" aria-label="Field sections">
@@ -87,6 +93,20 @@ export function FieldLayout() {
             <label>Expected yield (tons)<input name="expected_yield_tons" type="number" min="0" step="0.01" defaultValue={field.expected_yield_tons ?? ''} /></label>
             {formError && <p className="wizard-error" role="alert">{formError}</p>}
             <div className="actions"><button type="button" onClick={() => setEditing(false)} disabled={saving}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button></div>
+            <section aria-labelledby="edit-boundary-heading" style={{marginTop:'1.5rem'}}>
+              <h3 id="edit-boundary-heading">Edit field boundary</h3>
+              <p>Draw or drag the Polygon vertices on the OpenStreetMap basemap. Saving a changed boundary creates a new version and clears the current summary until new imagery is processed.</p>
+              <FieldBoundaryEditor boundary={editedBoundary} onChange={setEditedBoundary}/>
+              <p>{polygonAreaHectares(editedBoundary).toFixed(2)} ha calculated boundary area · Polygon only (MultiPolygon not supported)</p>
+              {boundaryError&&<p role="alert">{boundaryError}</p>}
+              {boundaryStatus&&<p role="status">{boundaryStatus}</p>}
+              <button type="button" disabled={boundarySaving||!validatePolygonBoundary(editedBoundary)||polygonAreaHectares(editedBoundary)<=0||polygonAreaHectares(editedBoundary)>10000} onClick={async()=>{
+                if(!editedBoundary)return;setBoundarySaving(true);setBoundaryError('');setBoundaryStatus('');
+                try{await updateFieldBoundary(field.id,editedBoundary);await refreshField();setBoundaryStatus('Boundary saved as a new version. Existing imagery and summaries are retained as historical evidence, not applied to this boundary.');}
+                catch(caught){setBoundaryError(caught instanceof Error?caught.message:'Boundary update failed. The previous boundary remains active.');}
+                finally{setBoundarySaving(false);}
+              }}>{boundarySaving?'Saving boundary…':'Save new boundary version'}</button>
+            </section>
             <button type="button" disabled={saving} onClick={async () => {
               if (!window.confirm(`Delete ${field.name} and all its observations? This cannot be undone.`)) return;
               setSaving(true); setFormError('');
