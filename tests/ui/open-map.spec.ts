@@ -32,6 +32,6 @@ test('map works without a Google key and selects the last processed observation'
   await expect(page.locator('.leaflet-tile').first()).not.toHaveAttribute('src',before||'');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
   await page.getByRole('link',{name:'Back to Dashboard'}).click();
-  await expect(page.getByRole('heading',{name:'Monitored fields'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'My fields'})).toBeVisible();
   expect(browserErrors).toEqual([]);
 });

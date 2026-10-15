@@ -3,7 +3,7 @@ import { getHealth } from '../controllers/healthController.ts';
 import { askAssistant } from '../controllers/assistantController.ts';
 import { 
   getFields, getFieldAlerts, resolveFieldAlert, getFieldNdvi, getFieldNdviAnalysis,
-  getFieldWeather, calculateNdviFromScene, processNdviSentinelHub, 
+  getFieldWeather, calculateNdviFromScene, processNdviSentinelHub, processLatestScene,
   getFieldScenes, ingestSentinelScenes, ingestWeather, 
   createField, updateFieldLocation, updateField, deleteField,
   getFieldEvents, createFieldEvent, deleteFieldEvent,
@@ -36,6 +36,7 @@ router.get('/fields/:fieldId/ndvi', getFieldNdvi);
 router.get('/fields/:fieldId/ndvi/analysis', getFieldNdviAnalysis);
 router.get('/fields/:fieldId/weather', getFieldWeather);
 router.post('/fields/:fieldId/ndvi/from-scene/:sceneId', calculateNdviFromScene);
+router.post('/fields/:fieldId/ndvi/process-latest', processLatestScene);
 router.post('/fields/:fieldId/ndvi/process', processNdviSentinelHub);
 router.get('/fields/:fieldId/scenes', getFieldScenes);
 router.post('/fields/:fieldId/ingest/sentinel-scenes', ingestSentinelScenes);

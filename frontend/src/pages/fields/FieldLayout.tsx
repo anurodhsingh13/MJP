@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useModalDialog } from '../../lib/useModalDialog';
-import { deleteField, loadFields, updateField } from '../../lib/api';
+import { deleteField, loadFields, updateField, type DatabaseField } from '../../lib/api';
 
 export function FieldLayout() {
   const { fieldId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const [field, setField] = useState<any>(null);
+  const [field, setField] = useState<DatabaseField | null>(null);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -57,6 +57,7 @@ export function FieldLayout() {
         <Link to={`/fields/${fieldId}/history`} style={{ fontWeight: location.pathname.includes('/history') ? 'bold' : 'normal', color: '#cbe86b', textDecoration: 'none' }}>Events & History</Link>
       </nav>
       
+      {field.assessment && <section className="field-evidence" aria-label="Field evidence"><h2 style={{fontSize:'1rem',marginTop:0}}>Latest accepted field evidence</h2><strong className={`evidence-status status-${field.assessment.state}`}>{field.assessment.title}</strong><p>{field.assessment.explanation}</p><p><strong>Next:</strong> {field.assessment.nextAction}</p><dl className="evidence-facts"><div><dt>Acquired</dt><dd>{field.latestObservation?.observed_on || 'Unavailable'}</dd></div><div><dt>Image age</dt><dd>{field.assessment.ageDays != null ? `${field.assessment.ageDays} days` : 'Unavailable'}</dd></div><div><dt>Usable field coverage</dt><dd>{field.latestObservation?.valid_coverage_percent != null ? `${field.latestObservation.valid_coverage_percent}%` : 'Unavailable'}</dd></div><div><dt>Source</dt><dd>{field.latestObservation?.source || 'No verified satellite evidence'}</dd></div></dl><p>{field.provenanceNote}</p></section>}
       {field.name.startsWith('Public demo:') && <p role="status" style={{ padding: '1rem', background: '#27371f', color: '#d9ea92', borderRadius: '6px' }}>Public benchmark demo: boundary recorded in 2016 (FTW India). Current crop type, planting dates and yield are unverified. Source attribution is recorded in Events &amp; History.</p>}
       <div className="field-content" style={{ background: '#fff', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
         <Outlet key={field.id} context={{ field, refreshField }} />

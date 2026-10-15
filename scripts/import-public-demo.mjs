@@ -12,7 +12,7 @@ for(const feature of data.features){
  const p=feature.properties;
  if(!p.name.startsWith('Public demo:')||feature.geometry.type!=='Polygon')throw new Error('Only labelled public demo polygons are accepted');
  let field=fields.find(item=>item.name===p.name);
- if(!field){field=await api('/fields','POST',{name:p.name,crop:'Unrecorded crop — public boundary benchmark',boundary_geojson:feature.geometry,planting_date:null,harvest_date:null});fields.push(field);}
+ if(!field){field=await api('/fields','POST',{name:p.name,provenance:'public_boundary',crop:'Unrecorded crop — public boundary benchmark',boundary_geojson:feature.geometry,planting_date:null,harvest_date:null});fields.push(field);}
  const events=await api(`/fields/${field.id}/events`);
  const provenance={kind:'public_benchmark_demo',dataset:p.dataset,source_id:p.source_id,boundary_year:p.boundary_year,license:p.license,source_url:p.source_url,authors:'Sherrie Wang, Francois Waldner, David B. Lobell; distributed through FTW/Kerner Lab',warning:p.warning};
  if(!events.some(event=>event.event_type==='dataset_import'&&event.notes?.includes(`"source_id":"${p.source_id}"`))){

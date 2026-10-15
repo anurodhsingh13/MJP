@@ -98,3 +98,19 @@ Open **Explore datasets** on the dashboard for nine relevant public sources and 
 The web interface adapts to phones, tablets, laptops, and desktops, including portrait and landscape screens. Tables scroll within their panel on narrow screens; field navigation, forms, and map controls support touch.
 
 To use the running app from another device on the same trusted Wi-Fi, set `WEB_HOST=0.0.0.0` in `.env`, restart with `npm run stop` then `npm start`, and open `http://<computer-LAN-IP>:5173` on that device (or your configured `WEB_PORT`). Allow the web port through the computer's firewall if needed. Keep the API and Python engine local: the frontend proxies `/api` to them, so devices share the same data. Google Maps browser-key restrictions must allow the address you use; automatic geolocation requires HTTPS on remote devices, but you can pan and zoom to draw a boundary manually. For access outside your Wi-Fi, deploy the services behind HTTPS.
+
+## Evidence-first monitoring (feature branch)
+
+The overview prioritizes field visits, old images and missing evidence. Universal farm-average health has been removed. Field-level coverage, valid pixels, acquisition date, source, freshness and descriptive change are separate. Demo/public parcels are hidden from real-farm summaries by default. Legacy scores are preserved in PostgreSQL but are not verified imagery.
+
+Run `npm run migrate` before starting this version. The two new forward-only migrations preserve existing rows, archive boundary revisions, and attach provenance and quality to observations. Take a database backup before migration. Existing unverified observations must be reprocessed to qualify; they are not silently promoted to measured evidence.
+
+`EVIDENCE_MIN_COVERAGE=70`, `EVIDENCE_MIN_PIXELS=10`, `EVIDENCE_FRESH_DAYS=14`, and `EVIDENCE_DECLINE_THRESHOLD=0.10` are initial product heuristics, not validated agricultural thresholds. Restart after changing them. Scene discovery searches `SATELLITE_SEARCH_DAYS=90` days, retrieves up to `SATELLITE_CANDIDATE_LIMIT=100` recent candidates and processes at most `SATELLITE_MAX_ATTEMPTS=6` sequentially. Missing required bands, insufficient field coverage and unusable pixels cause a candidate to be rejected. No accepted candidate leaves the previous evidence in place. `POST /api/fields/:id/ndvi/process-latest` processes discovered candidates; discover first via the existing ingestion endpoint. This slice uses bounded request processing; persistent background jobs are pending.
+
+Experimental vegetation scores remain under advanced details, independent of image quality. A decrease is a reason to inspect, not disease detection. Trends use elapsed dates, not observation sequence numbers. There is no crop-stage or next-NDVI forecast. Historical weather is modeled NASA POWER data, not a forecast. Manually closing a notice does not establish recovery.
+
+The engine requires red/NIR/SCL bands and trustworthy reflectance scale/offset metadata (STAC `raster:bands`, or raster metadata). It refuses to guess integer-band scaling. Statistics, tiles and overlays share masking and normalization. Boundary updates archive the old geometry, invalidate summaries, and isolate old observations by revision. Existing Google/Leaflet viewing remains supported.
+
+For the opt-in real PostgreSQL regression: `CHM_INTEGRATION=1 node --import tsx --test backend/api/services/satellite.integration.test.ts`. It requires the isolated CHM database `127.0.0.1:5435/terrascope`, creates one fixture field and removes that fixture in cleanup. Standard `npm test` skips this database-dependent test.
+
+See [the implementation handoff](docs/EVIDENCE_HANDOFF.md) for scope, validation, live-provider results and remaining phases. This is an isolated local application; authentication/ownership and the later photo/job/report/offline workflows are not yet implemented. Do not publish it as a shared service in this state.

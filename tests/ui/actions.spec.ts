@@ -29,6 +29,7 @@ async function setup(page: Page) {
     else if(path.endsWith('/alerts')) body=state.alerts;
     else if(path.endsWith('/ingest/sentinel-scenes')) {state.scenes=[{scene_id:'scene-1',observed_at:'2026-10-01',cloud_cover:5},{scene_id:'scene-2',observed_at:'2026-09-25',cloud_cover:10}];body={imported:2};}
     else if(path.endsWith('/scenes')) body=state.scenes;
+    else if(path.endsWith('/ndvi/process-latest')) body={accepted:true,sceneId:'scene-1',validCoverage:90,attempts:[{sceneId:'scene-1',status:'processed'}]};
     else if(path.includes('/ndvi/from-scene/')) body={ndvi:.7,validCoverage:90};
     else if(path.endsWith('/ndvi/analysis')) body={status:'insufficient_data',statusLabel:'Not enough data',summary:'Two observations required.'};
     else if(path.endsWith('/ingest/weather')) body={imported:7};
@@ -69,7 +70,7 @@ async function setup(page: Page) {
 test('dashboard retry, empty state, add wizard navigation and all boundary controls', async ({page}) => {
   const state=await setup(page);state.fields=[];
   state.fail.add('GET /api/fields');await page.goto('/');
-  await expect(page.getByRole('alert')).toContainText('Service unavailable');
+  await expect(page.getByRole('alert')).toContainText('Fields unavailable');
   state.fail.clear();await page.getByRole('button',{name:'Retry',exact:true}).click();
   await page.getByRole('button',{name:'Add your first field'}).click();
   await page.getByRole('button',{name:'Cancel',exact:true}).click();
@@ -99,7 +100,7 @@ test('dashboard retry, empty state, add wizard navigation and all boundary contr
 });
 
 test('field manage cancel/save/delete, navigation and mobile layout', async ({page})=>{
-  await setup(page);await page.goto('/');await page.getByRole('link',{name:/Test field/}).click();
+  await setup(page);await page.goto('/');await page.locator('.field-card').filter({has:page.getByRole('heading',{name:'Test field',exact:true})}).click();
   await page.getByRole('button',{name:'Manage field',exact:true}).click();
   await page.getByRole('button',{name:'Cancel',exact:true}).click();
   await page.getByRole('button',{name:'Manage field',exact:true}).click();
@@ -128,7 +129,7 @@ test('analysis retries, language, weather sync and assistant failures/success',a
   const state=await setup(page);state.fail.add(`GET /api/fields/${id}/ndvi/analysis`);await page.goto(`/fields/${id}/analysis`);
   await expect(page.getByRole('alert')).toBeVisible();state.fail.clear();await page.getByRole('button',{name:'Retry analysis'}).click();
   await expect(page.getByText('Two observations required.')).toBeVisible();
-  await page.locator('select').selectOption('hi-IN');await expect(page.getByText('Two observations required.')).toBeVisible();
+  await page.getByLabel('Analysis language').selectOption('hi-IN');await expect(page.getByText('Two observations required.')).toBeVisible();
   expect(state.calls.some(c=>c.includes('language=hi-IN'))).toBeTruthy();
   state.fail.add(`POST /api/fields/${id}/ingest/weather`);await page.getByRole('button',{name:'Sync Weather Data'}).click();await expect(page.getByRole('status')).toContainText('Service temporarily unavailable');
   state.fail.clear();await page.getByRole('button',{name:'Sync Weather Data'}).click();await expect(page.getByRole('status')).toContainText('7 observations imported');
@@ -150,7 +151,7 @@ test('satellite processing, observation selection and alert resolution recover f
 
 test('wizard close/keyboard and saved-field exit remain usable after satellite failure',async({page})=>{
   const state=await setup(page);await page.goto('/');
-  await expect(page.getByRole('region',{name:'Farm summary'})).toContainText('Pending');
+  await expect(page.getByRole('region',{name:'Farm summary'})).toContainText('Missing or limited evidence');
   const add=page.getByRole('button',{name:'+ Add field',exact:true});await add.click();
   await page.keyboard.press('Shift+Tab');await expect(page.getByRole('button',{name:'Next',exact:true})).toBeFocused();
   await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);await expect(add).toBeFocused();
@@ -184,7 +185,7 @@ test('point-only satellite records do not pretend to provide field NDVI', async 
 
 test('dataset catalog navigation, search, status filters and demo provenance are clear', async ({page}) => {
   const state = await setup(page);
-  await page.goto('/');await page.getByRole('link',{name:'Explore datasets'}).click();
+  await page.goto('/');await page.getByRole('link',{name:'Data sources & help'}).click();
   await expect(page.getByRole('heading',{name:'Project datasets'})).toBeVisible();
   await expect(page.getByRole('status')).toContainText('9 sources');
   await page.getByLabel('Search datasets').fill('soil');await expect(page.getByRole('heading',{name:'ISRIC SoilGrids'})).toBeVisible();

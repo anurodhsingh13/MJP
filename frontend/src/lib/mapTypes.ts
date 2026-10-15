@@ -6,5 +6,6 @@ export type FieldMapProps = {
   stressGeojson?: Record<string, unknown> | null;
   boundaryGeojson?: Record<string, unknown> | null;
   overlay?: { image: string; bounds: { north: number; south: number; east: number; west: number } } | null;
+  opacity?: number;
   tileUrl?: string | null;
 };

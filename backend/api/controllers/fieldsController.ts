@@ -1,5 +1,8 @@
 import type { Request, Response } from 'express';
 import { pool } from '../db/pool.ts';
+import { assessEvidence, vegetationScore, type Observation } from '../../../shared/evidence.ts';
+import { evidencePolicy } from '../services/policy.ts';
+import { processScene, processLatest, ProcessingError, rasterPayload } from '../services/satellite.ts';
 
 const DEFAULT_PYTHON_ENGINE_URL = 'http://127.0.0.1:8000';
 
@@ -8,42 +11,71 @@ export function getPythonEngineUrl(): string {
 }
 
 export function isValidFieldBoundary(boundary: unknown): boundary is { type: 'Polygon'; coordinates: number[][][] } {
-  const candidate = boundary as { type?: string; coordinates?: unknown[][][] } | null;
-  const coordinates = candidate?.coordinates?.[0];
-  const isCoordinate = (value: unknown): value is [number, number] =>
-    Array.isArray(value) && value.length >= 2 && Number.isFinite(value[0]) && Number.isFinite(value[1]) &&
-    value[0] >= -180 && value[0] <= 180 && value[1] >= -90 && value[1] <= 90;
-  return candidate?.type === 'Polygon' && Array.isArray(coordinates) && coordinates.length >= 4 &&
-    coordinates.every(isCoordinate) && coordinates[0][0] === coordinates.at(-1)?.[0] && coordinates[0][1] === coordinates.at(-1)?.[1];
+  if (!boundary || typeof boundary!=='object') return false;
+  const candidate=boundary as {type?:unknown;coordinates?:unknown};
+  if (candidate.type!=='Polygon'||!Array.isArray(candidate.coordinates)||!candidate.coordinates.length||candidate.coordinates.length>50) return false;
+  let points=0;
+  return candidate.coordinates.every((ring:unknown)=>{
+    if(!Array.isArray(ring)||ring.length<4) return false;
+    points+=ring.length;
+    if(points>5000) return false;
+    const valid=ring.every((point:unknown)=>Array.isArray(point)&&point.length===2&&typeof point[0]==='number'&&typeof point[1]==='number'&&Number.isFinite(point[0])&&Number.isFinite(point[1])&&Math.abs(point[0])<=180&&Math.abs(point[1])<=90);
+    return valid&&ring[0][0]===ring.at(-1)[0]&&ring[0][1]===ring.at(-1)[1];
+  });
 }
 
-export function calculateHealthScore(ndvi: number, ndmi: number | null, validCoverage: number) {
-  const clamp = (value: number) => Math.max(0, Math.min(100, value));
-  const ndviScore = clamp(((ndvi - 0.15) / 0.65) * 100);
-  const moistureScore = ndmi === null ? ndviScore : clamp(((ndmi + 0.2) / 0.7) * 100);
-  const dataQuality = clamp(validCoverage) / 100;
-  return Math.round((ndviScore * 0.75 + moistureScore * 0.25) * dataQuality);
+export function calculateHealthScore(ndvi: number, ndmi: number | null, _validCoverage?: number) {
+  return vegetationScore(ndvi, ndmi);
 }
 
 export async function getFields(_request: Request, response: Response) {
   try {
+    const policy = evidencePolicy();
     const result = await pool.query(`
-      select id, name, crop, area_hectares, health_score, ndvi_average, canopy_coverage, health_delta, last_observation, 
-             planting_date, harvest_date, expected_yield_tons,
-             ST_Y(location) as latitude, ST_X(location) as longitude, 
-             ST_AsGeoJSON(boundary_geom)::jsonb as boundary_geojson, created_at 
-      from public.fields order by created_at asc
-    `);
-    response.json(result.rows);
+      select fields.*, ST_Y(location) as latitude, ST_X(location) as longitude,
+        ST_AsGeoJSON(boundary_geom)::jsonb as boundary_geojson,
+        coalesce(evidence.observations,'[]'::jsonb) as evidence,
+        coalesce(activity.processing,'[]'::jsonb) as processing
+      from public.fields
+      left join lateral (
+        select jsonb_agg(vi order by vi.observed_on desc) as observations from (
+          select distinct on (observed_on) * from public.vegetation_indices
+          where field_id=fields.id and boundary_version=fields.boundary_version and accepted
+            and provenance='measured_imagery' and valid_coverage_percent >= $1 and valid_pixel_count >= $2
+          order by observed_on desc,acquired_at desc,scene_id desc limit 2
+        ) vi
+      ) evidence on true
+      left join lateral (
+        select jsonb_agg(s) as processing from (
+          select scene_id,processing_status,processing_error,valid_coverage_percent,valid_pixel_count
+          from public.satellite_scenes where field_id=fields.id and processing_boundary_version=fields.boundary_version
+          order by processing_started_at desc nulls last limit 3
+        ) s
+      ) activity on true order by fields.created_at asc`, [policy.minCoverage,policy.minPixels]);
+    response.json(result.rows.map((row: Record<string, unknown> & { evidence: Observation[] }) => {
+      const [latest,previous] = row.evidence;
+      const assessment = assessEvidence(latest??null,previous??null,policy);
+      if (!latest && (row.processing as Array<{processing_status:string}>).some(scene=>scene.processing_status==='rejected')) {
+        assessment.state='not_enough_data'; assessment.title='Not enough usable data';
+        assessment.explanation='The available images did not meet field-level quality requirements.';
+        assessment.nextAction='Try another image';
+      }
+      // Legacy stored scores/dates remain in the database, but cannot masquerade as verified evidence.
+      return {...row, boundary_geom:undefined, health_delta:latest&&previous&&latest.calculation_version===previous.calculation_version?Number(latest.ndvi_value)-Number(previous.ndvi_value):null, health_score:latest ? vegetationScore(Number(latest.ndvi_value),latest.ndmi_value==null?null:Number(latest.ndmi_value)) : null,
+        ndvi_average:latest?.ndvi_value??null, last_observation:latest?.observed_on??null,
+        latestObservation:latest??null,previousObservation:previous??null,assessment,policy,
+        isDemo:row.provenance==='demo'||row.provenance==='public_boundary',
+        provenanceNote:row.provenance==='public_boundary'?'Historical public boundary; current crop, dates and yield unverified':row.provenance==='demo'?'Legacy example field; excluded from farm summaries':'Crop, dates, yield and field name are user-reported; satellite evidence is labelled separately'};
+    }));
   } catch (error) {
     console.error('GET /api/fields failed:', error);
-    response.status(503).json({ error: 'Database unavailable' });
+    response.status(503).json({ error: 'Fields are temporarily unavailable. Check local services and retry.' });
   }
 }
 
 export async function getFieldAlerts(request: Request, response: Response) {
   try {
-        const result = await pool.query('select id, title, severity, observed_at, resolved, scene_id, ST_AsGeoJSON(stress_geom)::jsonb as stress_geojson from public.alerts where field_id = $1 order by observed_at desc', [request.params.fieldId]);
+        const result = await pool.query('select id,title,severity,observed_at,resolved,scene_id,boundary_version,interpretation,ST_AsGeoJSON(stress_geom)::jsonb as stress_geojson from public.alerts where field_id=$1 and boundary_version=(select boundary_version from fields where id=$1) order by observed_at desc', [request.params.fieldId]);
     response.json(result.rows);
   } catch (error) {
     console.error('GET /api/fields/:fieldId/alerts failed:', error);
@@ -67,7 +99,7 @@ export async function resolveFieldAlert(request: Request, response: Response) {
 
 export async function getFieldNdvi(request: Request, response: Response) {
   try {
-    const result = await pool.query('select * from public.vegetation_indices where field_id = $1 order by observed_on asc', [request.params.fieldId]);
+    const result = await pool.query('select vi.*,ST_AsGeoJSON(inspection_geom)::jsonb as inspection_geojson from public.vegetation_indices vi where field_id = $1 order by observed_on asc,acquired_at asc', [request.params.fieldId]);
     response.json(result.rows);
   } catch (error) {
     console.error('GET /api/fields/:fieldId/ndvi failed:', error);
@@ -82,7 +114,8 @@ export async function getFieldNdviAnalysis(request: Request, response: Response)
     const field = fieldResult.rows[0];
     if (!field) { response.status(404).json({ error: 'Field not found' }); return; }
     
-    const result = await pool.query('select observed_on, ndvi_value, cloud_cover, source, scene_id from public.vegetation_indices where field_id = $1 order by observed_on asc', [request.params.fieldId]);
+    const policy=evidencePolicy();
+    const result = await pool.query(`select distinct on (observed_on) observed_on,ndvi_value,cloud_cover,source,scene_id from public.vegetation_indices where field_id=$1 and accepted and provenance='measured_imagery' and boundary_version=(select boundary_version from fields where id=$1) and calculation_version='sentinel-reflectance-scl-v2' and valid_coverage_percent >= $2 and valid_pixel_count >= $3 order by observed_on asc,acquired_at desc,scene_id desc`, [request.params.fieldId,policy.minCoverage,policy.minPixels]);
     
     const engineResponse = await fetch(`${getPythonEngineUrl()}/analyze-indices`, {
       method: 'POST',
@@ -103,7 +136,7 @@ export async function getFieldNdviAnalysis(request: Request, response: Response)
     }
     
     const analysis = await engineResponse.json() as Record<string, unknown>;
-    response.json({ ...analysis, languageCode, source: 'scikit-learn LinearRegression' });
+    response.json({ ...analysis, languageCode, source: 'Descriptive NDVI change over elapsed days; not a crop forecast' });
   } catch (error) {
     console.error('GET NDVI analysis failed:', error);
     response.status(503).json({ error: 'NDVI analysis is unavailable' });
@@ -122,123 +155,24 @@ export async function getFieldWeather(request: Request, response: Response) {
 }
 
 export async function calculateNdviFromScene(request: Request, response: Response) {
-  try {
-    const sceneResult = await pool.query('select * from public.satellite_scenes where field_id = $1 and scene_id = $2', [request.params.fieldId, request.params.sceneId]);
-    const scene = sceneResult.rows[0];
-    if (!scene) { response.status(404).json({ error: 'Satellite scene not found' }); return; }
-    const assets = scene.assets as Record<string, { href?: string }>;
-    if (!assets.red?.href || !assets.nir?.href) { response.status(422).json({ error: 'Scene does not contain red and NIR assets' }); return; }
-    const fieldResult = await pool.query('select ST_AsGeoJSON(boundary_geom)::jsonb as boundary_geojson from public.fields where id = $1', [request.params.fieldId]);
-    const polygon = fieldResult.rows[0]?.boundary_geojson;
-    if (!polygon || !polygon.coordinates?.length) { response.status(400).json({ error: 'Field boundary is required for NDVI calculation' }); return; }
-    
-    const engineResponse = await fetch(`${getPythonEngineUrl()}/calculate-indices`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        blueUrl: assets.blue?.href,
-        redUrl: assets.red.href,
-        redEdgeUrl: assets.rededge1?.href,
-        nirUrl: assets.nir.href,
-        swirUrl: assets.swir16?.href,
-        sclUrl: assets.scl?.href,
-        polygonGeojson: polygon
-      }),
-      signal: AbortSignal.timeout(120_000)
-    });
-    
-    if (!engineResponse.ok) {
-      const errorText = await engineResponse.text();
-      console.error('Python engine NDVI calculation failed:', errorText);
-      response.status(422).json({ error: 'Failed to calculate NDVI for the given scene' });
-      return;
-    }
-    
-    const { ndvi, ndre, ndmi, savi, evi, validPixels, validCoverage, minimum, maximum, median, standardDeviation, stressGeojson } = await engineResponse.json() as {
-      ndvi: number; ndre: number | null; ndmi: number | null; savi: number | null; evi: number | null;
-      validPixels: number; validCoverage: number; minimum: number; maximum: number; median: number;
-      standardDeviation: number; stressGeojson?: Record<string, unknown>;
-    };
-    
-    await pool.query(
-      `insert into public.vegetation_indices
-       (field_id, observed_on, ndvi_value, ndre_value, ndmi_value, savi_value, evi_value,
-        cloud_cover, source, scene_id, valid_pixel_count, valid_coverage_percent,
-        ndvi_min, ndvi_max, ndvi_median, ndvi_stddev)
-       values ($1, $2::date, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-       on conflict (field_id, scene_id, observed_on) do update set
-         ndvi_value = excluded.ndvi_value, ndre_value = excluded.ndre_value,
-         ndmi_value = excluded.ndmi_value, savi_value = excluded.savi_value,
-         evi_value = excluded.evi_value, cloud_cover = excluded.cloud_cover,
-         valid_pixel_count = excluded.valid_pixel_count,
-         valid_coverage_percent = excluded.valid_coverage_percent,
-         ndvi_min = excluded.ndvi_min, ndvi_max = excluded.ndvi_max,
-         ndvi_median = excluded.ndvi_median, ndvi_stddev = excluded.ndvi_stddev`,
-      [request.params.fieldId, scene.observed_at, ndvi, ndre, ndmi, savi, evi,
-        Math.max(0, Math.min(100, Math.round(Number(scene.cloud_cover) || 0))), 'Copernicus Sentinel-2 Red/NIR/RE/SWIR/Blue', scene.scene_id,
-        validPixels, validCoverage, minimum, maximum, median, standardDeviation]
-    );
-
-    const healthScore = calculateHealthScore(ndvi, ndmi, validCoverage);
-    await pool.query(
-      `update public.fields set
-         health_delta = $1 - health_score,
-         health_score = $1,
-         ndvi_average = $2,
-         last_observation = $3::date
-       where id = $4`,
-      [healthScore, ndvi, scene.observed_at, request.params.fieldId]
-    );
-    
-    if (stressGeojson) {
-      await pool.query(
-        `insert into public.alerts (field_id, title, severity, observed_at, stress_geom, scene_id)
-         select $1, $2, $3, $4, ST_GeomFromGeoJSON($5), $6
-         where not exists (
-           select 1 from public.alerts where field_id = $1 and scene_id = $6 and title = $2
-         )`,
-        [request.params.fieldId, 'Stress Zone Detected', 'high', scene.observed_at, JSON.stringify(stressGeojson), scene.scene_id]
-      );
-    }
-    
-    response.json({ sceneId: scene.scene_id, observedAt: scene.observed_at, ndvi, ndre, ndmi, savi, evi, validPixels, validCoverage, healthScore, source: 'Copernicus Sentinel-2' });
-  } catch (error) {
-    console.error('POST NDVI calculation failed:', error);
-    const message = error instanceof DOMException && error.name === 'TimeoutError' ? 'Python engine request timed out' : 'NDVI calculation failed';
-    response.status(message.includes('timed out') ? 504 : 503).json({ error: message });
+  try { response.json(await processScene(String(request.params.fieldId),String(request.params.sceneId))); }
+  catch(error) {
+    console.error('Scene processing failed:',error);
+    response.status(error instanceof ProcessingError?error.status:503).json({error:error instanceof ProcessingError?error.message:'Image processing unavailable. Please retry.'});
   }
 }
+export async function processLatestScene(request: Request,response: Response) {
+  try { response.json(await processLatest(String(request.params.fieldId))); }
+  catch(error) { console.error('Latest scene processing failed:',error); response.status(503).json({error:'Image processing unavailable. Please retry.'}); }
+}
 
-export async function processNdviSentinelHub(request: Request, response: Response) {
-  const clientId = process.env.SENTINEL_HUB_CLIENT_ID;
-  const clientSecret = process.env.SENTINEL_HUB_CLIENT_SECRET;
-  if (!clientId || !clientSecret || clientId.startsWith('your-')) { response.status(503).json({ error: 'Sentinel Hub credentials are not configured' }); return; }
-  try {
-    const fieldResult = await pool.query('select ST_AsGeoJSON(boundary_geom)::jsonb as boundary_geojson from public.fields where id = $1', [request.params.fieldId]);
-    const geometry = fieldResult.rows[0]?.boundary_geojson;
-    if (!geometry) { response.status(400).json({ error: 'Field boundary is required' }); return; }
-    const tokenResponse = await fetch('https://services.sentinel-hub.com/oauth/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret }) });
-    if (!tokenResponse.ok) { response.status(502).json({ error: 'Sentinel Hub authentication failed' }); return; }
-    const token = await tokenResponse.json() as { access_token: string };
-    const processResponse = await fetch('https://services.sentinel-hub.com/api/v1/process', { method: 'POST', headers: { Authorization: `Bearer ${token.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ input: { bounds: { geometry }, data: [{ type: 'sentinel-2-l2a', dataFilter: { maxCloudCoverage: 30 }, processing: { upsampling: 'BILINEAR' } }] }, output: { width: 256, height: 256, responses: [{ identifier: 'default', format: { type: 'image/tiff' } }] }, evalscript: '//VERSION=3\nfunction setup(){return {input:["B04","B08"],output:{bands:1,sampleType:"FLOAT32"}}}\nfunction evaluatePixel(sample){return [(sample.B08-sample.B04)/(sample.B08+sample.B04)]}' }) });
-    if (!processResponse.ok) { response.status(502).json({ error: 'Sentinel Hub processing failed' }); return; }
-    const { fromArrayBuffer } = await import('geotiff');
-    const image = await (await fromArrayBuffer(await processResponse.arrayBuffer())).getImage();
-    const raster = await image.readRasters({ interleave: true });
-    const values = Array.from(raster as ArrayLike<number>).filter((value) => Number.isFinite(value) && value >= -1 && value <= 1);
-    if (!values.length) { response.status(422).json({ error: 'No valid NDVI pixels returned' }); return; }
-    const ndvi = Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(4));
-    await pool.query('insert into public.vegetation_indices (field_id, observed_on, ndvi_value, source) values ($1, current_date, $2, $3)', [request.params.fieldId, ndvi, 'Sentinel Hub Process API / Sentinel-2']);
-    response.json({ ndvi, validPixels: values.length, source: 'Sentinel-2 via Sentinel Hub Process API' });
-  } catch (error) {
-    console.error('POST Sentinel Hub NDVI failed:', error);
-    response.status(503).json({ error: 'Sentinel Hub NDVI request failed' });
-  }
+export async function processNdviSentinelHub(_request: Request, response: Response) {
+  response.status(422).json({ error: 'Undated mosaics are not accepted as observations. Select a dated Earth Search scene instead.' });
 }
 
 export async function getFieldScenes(request: Request, response: Response) {
   try {
-    const result = await pool.query('select * from public.satellite_scenes where field_id = $1 order by cloud_cover asc nulls last, observed_at desc', [request.params.fieldId]);
+    const result = await pool.query('select * from public.satellite_scenes where field_id = $1 order by observed_at desc, scene_id desc', [request.params.fieldId]);
     response.json(result.rows);
   } catch (error) {
     console.error('GET satellite scenes failed:', error);
@@ -251,15 +185,11 @@ export async function ingestSentinelScenes(request: Request, response: Response)
     const fieldResult = await pool.query('select ST_Y(location) as latitude, ST_X(location) as longitude, ST_AsGeoJSON(boundary_geom)::jsonb as boundary_geojson from public.fields where id = $1', [request.params.fieldId]);
     const field = fieldResult.rows[0];
     if (field?.latitude == null || field?.longitude == null) { response.status(400).json({ error: 'Field coordinates are required' }); return; }
-    const point = field.boundary_geojson?.coordinates?.[0] ?? [[field.longitude, field.latitude]];
-    const flatCoordinates = point.flat();
-    const minLongitude = Math.min(...flatCoordinates.filter((_value: number, index: number) => index % 2 === 0));
-    const maxLongitude = Math.max(...flatCoordinates.filter((_value: number, index: number) => index % 2 === 0));
-    const minLatitude = Math.min(...flatCoordinates.filter((_value: number, index: number) => index % 2 === 1));
-    const maxLatitude = Math.max(...flatCoordinates.filter((_value: number, index: number) => index % 2 === 1));
     const catalogUrl = 'https://earth-search.aws.element84.com/v1/search';
     
-    const days = parseInt(request.query.days as string, 10) || 90;
+    const policy = evidencePolicy();
+    const days = Number(request.query.days ?? policy.searchDays);
+    if (!Number.isInteger(days) || days<1 || days>365) { response.status(400).json({error:'Choose a search range of 1–365 days'}); return; }
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(endDate.getDate() - days);
@@ -272,12 +202,12 @@ export async function ingestSentinelScenes(request: Request, response: Response)
       body: JSON.stringify({ 
         collections: ['sentinel-2-l2a'], 
         ...(field.boundary_geojson
-          ? { bbox: [minLongitude, minLatitude, maxLongitude, maxLatitude] }
+          ? { intersects: field.boundary_geojson }
           : { intersects: { type: 'Point', coordinates: [field.longitude, field.latitude] } }),
         datetime, 
         query: { 'eo:cloud_cover': { lt: 40 } }, 
-        limit: 10,
-        sortby: [{ field: "properties.eo:cloud_cover", direction: "asc" }, { field: "properties.datetime", direction: "desc" }]
+        limit: policy.candidateLimit,
+        sortby: [{ field: "properties.datetime", direction: "desc" }]
       }) 
     });
 
@@ -285,6 +215,7 @@ export async function ingestSentinelScenes(request: Request, response: Response)
     const catalog = await catalogResponse.json() as { features?: Array<{ id: string; collection?: string; properties: { datetime: string; 'eo:cloud_cover'?: number }; assets: Record<string, { href: string; type?: string }> }> };
     let imported = 0;
     for (const scene of catalog.features ?? []) {
+      if (!scene.id || !Number.isFinite(Date.parse(scene.properties?.datetime)) || !scene.assets) continue;
       await pool.query('insert into public.satellite_scenes (field_id, scene_id, collection, observed_at, cloud_cover, source, catalog_url, assets) values ($1, $2, $3, $4, $5, $6, $7, $8) on conflict (field_id, scene_id) do update set cloud_cover = excluded.cloud_cover, assets = excluded.assets', [request.params.fieldId, scene.id, typeof scene.collection === 'string' ? scene.collection : 'sentinel-2-l2a', scene.properties.datetime, scene.properties['eo:cloud_cover'] ?? null, 'Copernicus Sentinel-2 via Earth Search', catalogUrl, JSON.stringify(scene.assets)]);
       imported += 1;
     }
@@ -327,24 +258,30 @@ export async function ingestWeather(request: Request, response: Response) {
   }
 }
 
+function validCalendarDate(value: unknown): boolean {
+  return value===null || (typeof value==='string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10)===value);
+}
+
 export async function createField(request: Request, response: Response) {
-  const { name, crop, boundary_geojson, planting_date, harvest_date } = request.body as any;
+  const { name, crop, boundary_geojson, planting_date, harvest_date, provenance } = (request.body??{}) as {name?:string;crop?:string;boundary_geojson?:unknown;planting_date?:string|null;harvest_date?:string|null;provenance?:string};
   if (typeof name !== 'string' || !name.trim() || typeof crop !== 'string' || !crop.trim() || !isValidFieldBoundary(boundary_geojson)) {
     response.status(400).json({ error: 'name, crop, and a valid closed Polygon boundary are required' });
     return;
   }
+  if ((planting_date!==undefined&&!validCalendarDate(planting_date))||(harvest_date!==undefined&&!validCalendarDate(harvest_date))||(planting_date&&harvest_date&&planting_date>harvest_date)) { response.status(400).json({error:'Use valid planting/harvest dates, or leave them unknown'});return; }
+  if(provenance!==undefined&&!['user_reported','demo','public_boundary'].includes(provenance)) { response.status(400).json({error:'Choose a supported field provenance'});return; }
   try {
     const result = await pool.query(
       `with boundary as (
          select ST_SetSRID(ST_GeomFromGeoJSON($3::text), 4326) as geom
        )
-       insert into public.fields (name, crop, location, boundary_geom, area_hectares, planting_date, harvest_date)
+       insert into public.fields (name, crop, location, boundary_geom, area_hectares, planting_date, harvest_date, provenance)
        select $1, $2, ST_PointOnSurface(geom), geom,
-              round((ST_Area(geom::geography) / 10000.0)::numeric, 2), $4, $5
+              round((ST_Area(geom::geography) / 10000.0)::numeric, 2), $4, $5, $6
        from boundary
-       where ST_IsValid(geom) and ST_GeometryType(geom) = 'ST_Polygon'
+       where ST_IsValid(geom) and ST_GeometryType(geom) = 'ST_Polygon' and ST_Area(geom::geography)>0 and ST_Area(geom::geography)<=100000000
        returning id, name, crop, area_hectares, health_score, ndvi_average, canopy_coverage, health_delta, last_observation, ST_Y(location) as latitude, ST_X(location) as longitude, ST_AsGeoJSON(boundary_geom)::jsonb as boundary_geojson, planting_date, harvest_date, created_at`,
-      [name.trim(), crop.trim(), JSON.stringify(boundary_geojson), planting_date ?? null, harvest_date ?? null],
+      [name.trim(), crop.trim(), JSON.stringify(boundary_geojson), planting_date ?? null, harvest_date ?? null, provenance??'user_reported'],
     );
     if (!result.rowCount) {
       response.status(400).json({ error: 'Field boundary is not a valid polygon' });
@@ -390,6 +327,7 @@ export async function updateField(request: Request, response: Response) {
     response.status(400).json({ error: 'Expected yield must be a positive number' });
     return;
   }
+  if ((planting_date!==undefined&&!validCalendarDate(planting_date))||(harvest_date!==undefined&&!validCalendarDate(harvest_date))) { response.status(400).json({error:'Use valid calendar dates, or leave them unknown'});return; }
   if (planting_date && harvest_date && planting_date > harvest_date) {
     response.status(400).json({ error: 'Harvest date must be after planting date' });
     return;
@@ -483,8 +421,7 @@ export async function getFieldOverlay(request: Request, response: Response) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        redUrl: assets['red']?.href ?? assets['B04']?.href,
-        nirUrl: assets['nir']?.href ?? assets['B08']?.href,
+        ...rasterPayload(assets),
         polygonGeojson: field.boundary_geojson
       })
     });
@@ -524,9 +461,7 @@ export async function getFieldTile(request: Request, response: Response) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        redUrl,
-        nirUrl,
-        sclUrl: assets['scl']?.href ?? assets['SCL']?.href,
+        ...rasterPayload(assets),
         polygonGeojson: scene.boundary_geojson
       }),
       signal: AbortSignal.timeout(30_000)
@@ -539,7 +474,7 @@ export async function getFieldTile(request: Request, response: Response) {
     
     const buffer = await engineResponse.arrayBuffer();
     response.setHeader('Content-Type', 'image/png');
-    response.setHeader('Cache-Control', 'public, max-age=86400');
+    response.setHeader('Cache-Control', 'no-store');
     response.send(Buffer.from(buffer));
   } catch (error) {
     console.error('GET tile failed:', error);

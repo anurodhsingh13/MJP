@@ -31,10 +31,11 @@ describe('Fields Controller Integration Tests', () => {
     assert.equal(isValidFieldBoundary({ type: 'Polygon', coordinates: [[[200, 28], [77.1, 28], [77.1, 28.1], [200, 28]]] }), false);
   });
 
-  it('keeps the experimental health score inside 0-100 and applies data quality', () => {
+  it('keeps crop measurements independent of image coverage', () => {
     assert.equal(calculateHealthScore(1, 1, 100), 100);
     assert.equal(calculateHealthScore(-1, -1, 100), 0);
-    assert.ok(calculateHealthScore(0.7, 0.3, 50) < calculateHealthScore(0.7, 0.3, 100));
+    assert.equal(calculateHealthScore(0.7, 0.3, 20), 81);
+    assert.equal(calculateHealthScore(0.7, 0.3, 100), 81);
   });
 });
 
@@ -97,7 +98,7 @@ it('satellite point search uses Earth Search property paths for sorting', async 
   globalThis.fetch = (async (_url: unknown, init: RequestInit) => {
     const body = JSON.parse(init.body as string);
     assert.deepEqual(body.intersects, { type: 'Point', coordinates: [77, 28] });
-    assert.deepEqual(body.sortby.map((sort: { field: string }) => sort.field), ['properties.eo:cloud_cover', 'properties.datetime']);
+    assert.deepEqual(body.sortby.map((sort: { field: string }) => sort.field), ['properties.datetime']);
     return new Response(JSON.stringify({ features: [{ id: 'test-scene', properties: { datetime: '2026-10-01T00:00:00Z', 'eo:cloud_cover': 5 }, assets: {} }] }));
   }) as typeof fetch;
   try {
@@ -106,4 +107,13 @@ it('satellite point search uses Earth Search property paths for sorting', async 
     } as unknown as import('express').Response);
     assert.equal((imported as { imported: number }).imported, 1);
   } finally { pool.query = originalQuery; globalThis.fetch = originalFetch; }
+});
+
+it('rejects unsupported rings, nonfinite/extra coordinates and oversized polygons',()=>{
+ const outer=[[77,28],[77.1,28],[77.1,28.1],[77,28]];
+ assert.equal(isValidFieldBoundary({type:'MultiPolygon',coordinates:[[outer]]}),false);
+ assert.equal(isValidFieldBoundary({type:'Polygon',coordinates:[outer,[[77,28],[77.01,28],[77.01,28.01]]]}),false);
+ assert.equal(isValidFieldBoundary({type:'Polygon',coordinates:[[[77,28,0],[77.1,28,0],[77.1,28.1,0],[77,28,0]]]}),false);
+ assert.equal(isValidFieldBoundary({type:'Polygon',coordinates:[[[NaN,28],[77.1,28],[77.1,28.1],[NaN,28]]]}),false);
+ assert.equal(isValidFieldBoundary({type:'Polygon',coordinates:[Array.from({length:5001},()=>[77,28])]}),false);
 });

@@ -28,7 +28,7 @@ for (const size of [
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'page should not scroll horizontally').toBeTruthy();
     };
     await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Monitored fields' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'My fields' })).toBeVisible();
     await fits();
     await page.getByRole('button', { name: '+ Add field', exact: true }).click();
     await page.getByLabel('Field Name').fill('Phone field');
@@ -47,6 +47,7 @@ for (const size of [
       await expect(page.getByRole('heading', { name: longText, exact: true })).toBeVisible();
       if (tab === 'analysis') {
         await expect(page.getByLabel('Question for field assistant')).toBeVisible();
+        await page.getByText('Advanced: measurements and experimental score',{exact:true}).click();
         const table = page.getByRole('region', { name: 'Vegetation observations' });
         await expect(table).toBeVisible();
         await expect(page.getByText('Temperature (°C)', { exact: true })).toBeVisible();
