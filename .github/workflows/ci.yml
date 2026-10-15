@@ -10,7 +10,23 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: chm_integration
+          POSTGRES_USER: chm_test
+          POSTGRES_PASSWORD: chm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chm_test -d chm_integration"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgres://chm_test:chm_test@127.0.0.1:5432/chm_integration
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,8 +34,10 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm run migrate
       - run: npm run typecheck
       - run: npm test
+      - run: npm run test:integration
       - run: npm run lint
       - run: npm run build
       - run: npx playwright install --with-deps chromium

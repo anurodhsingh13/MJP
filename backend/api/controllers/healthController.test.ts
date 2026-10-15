@@ -1,7 +1,11 @@
-import test from 'node:test';
+import {after,test} from 'node:test';
 import assert from 'node:assert';
 import { app } from '../app.ts';
 import { EventEmitter } from 'node:events';
+
+const priorAuthMode=process.env.AUTH_MODE;
+process.env.AUTH_MODE='local';
+after(()=>{if(priorAuthMode===undefined)delete process.env.AUTH_MODE;else process.env.AUTH_MODE=priorAuthMode;});
 
 // Inject a synthetic request directly into Express without any network socket.
 // This approach calls app(req, res) directly, just like Express does internally.

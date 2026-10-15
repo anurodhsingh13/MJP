@@ -17,7 +17,8 @@ for (const size of [
     await page.route('**/api/**', route => {
       const path = new URL(route.request().url()).pathname;
       let json: unknown = [];
-      if (path === '/api/fields') json = [field];
+      if (path === '/api/auth/session') json = { mode:'local', user:null };
+      else if (path === '/api/fields') json = [field];
       else if (path.endsWith('/ndvi/analysis')) json = { statusLabel: 'Healthy', summary: longText, recommendation: 'Monitor moisture.' };
       else if (path.endsWith('/ndvi')) json = [{ observed_on: '2026-10-12', cloud_cover: 1, ndvi_value: .7, ndre_value: .3, ndmi_value: .4 }];
       else if (path.endsWith('/weather')) json = [{ observed_on: '2026-10-12', temperature_c: 28, precipitation_mm: 5 }];

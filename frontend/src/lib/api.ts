@@ -25,6 +25,7 @@ export type DatabaseField = {
   policy?: EvidencePolicy
   latestObservation?: Observation | null
   previousObservation?: Observation | null
+  latest_scene_id?: string | null
   processing?: Array<{scene_id:string; processing_status:SceneStatus; processing_error:string|null}>
 }
 
@@ -39,6 +40,13 @@ export async function updateField(fieldId: string, updates: { name: string; crop
   const payload = await response.json().catch(() => ({})) as DatabaseField & { error?: string }
   if (!response.ok) throw new Error(payload.error ?? 'Unable to update field')
   return payload
+}
+
+export async function updateFieldBoundary(fieldId:string,boundary_geojson:Record<string,unknown>) {
+  const response=await fetch(`/api/fields/${fieldId}/boundary`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({boundary_geojson})});
+  const payload=await response.json().catch(()=>({})) as {error?:string;boundary_version?:number};
+  if(!response.ok)throw new Error(payload.error??'Unable to update field boundary');
+  return payload;
 }
 
 export async function deleteField(fieldId: string) {
@@ -163,12 +171,44 @@ export async function deleteFieldEvent(fieldId: string, eventId: string) {
   if (!response.ok) throw new Error('Unable to delete field event')
 }
 
+export type ScoutingPhoto = { id:string; width:number; height:number; quality:string };
+export type ScoutingCase = {
+  id:string; observed_on:string; crop:string|null; symptoms:string|null; notes:string|null;
+  diagnosis_status:string; diagnosis:Record<string,unknown>; photos:ScoutingPhoto[];
+};
+export async function loadScouting(fieldId:string) {
+  const response=await fetch(`/api/fields/${fieldId}/scouting`);
+  if(!response.ok)throw new Error('Unable to load scouting notes');
+  const payload=await response.json() as {cases?:unknown;diagnosis?:{status:string;provider:string|null;reason:string}};
+  if(!Array.isArray(payload.cases))throw new Error('Scouting service returned an invalid response');
+  return payload as {cases:ScoutingCase[];diagnosis:{status:string;provider:string|null;reason:string}};
+}
+export async function saveScouting(fieldId:string,entry:{client_key:string;observed_on:string;crop?:string; symptoms?:string;notes?:string;image:string}) {
+  const response=await fetch(`/api/fields/${fieldId}/scouting`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
+  const payload=await response.json().catch(()=>({})) as ScoutingCase&{error?:string;diagnosis?:Record<string,unknown>};
+  if(!response.ok)throw new Error(payload.error??'Scouting note could not be saved. Keep the form open and retry.');
+  return payload;
+}
+export async function loadFieldTasks(fieldId:string) {
+  const response=await fetch(`/api/fields/${fieldId}/tasks`);
+  if(!response.ok)throw new Error('Unable to load follow-up tasks');
+  const payload=await response.json() as unknown;
+  if(!Array.isArray(payload)||payload.some(task=>!task||typeof task!=='object'||typeof task.id!=='string'||typeof task.title!=='string'))throw new Error('Follow-up task service returned an invalid response');
+  return payload as Array<{id:string;title:string;due_on:string|null;status:'open'|'acknowledged'|'action_taken'|'resolved'}>;
+}
+export async function updateFieldTask(fieldId:string,taskId:string,status:'open'|'acknowledged'|'action_taken'|'resolved') {
+  const response=await fetch(`/api/fields/${fieldId}/tasks/${taskId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});
+  const payload=await response.json().catch(()=>({})) as {error?:string};
+  if(!response.ok)throw new Error(payload.error??'Unable to update follow-up task');
+}
+
 export type Alert = {
   id: string
   title: string
   severity: string
   observed_at: string
   resolved: boolean
+  action_status: 'open'|'acknowledged'|'action_taken'|'resolved'|'superseded'
   scene_id: string | null
   stress_geojson: Record<string, unknown> | null
 }
@@ -177,6 +217,12 @@ export async function loadFieldAlerts(fieldId: string) {
   const response = await fetch(`/api/fields/${fieldId}/alerts`)
   if (!response.ok) throw new Error('Unable to load field alerts')
   return response.json() as Promise<Alert[]>
+}
+
+export async function updateFieldAlert(fieldId:string,alertId:string,status:'open'|'acknowledged'|'action_taken'|'resolved') {
+  const response=await fetch(`/api/fields/${fieldId}/alerts/${alertId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});
+  const payload=await response.json().catch(()=>({})) as {error?:string};
+  if(!response.ok)throw new Error(payload.error??'Unable to update alert status');
 }
 
 export async function resolveFieldAlert(fieldId: string, alertId: string) {
@@ -208,9 +254,14 @@ export async function loadWeather(fieldId: string) {
 export interface ProcessingResult { accepted:boolean; sceneId?:string; ndvi?:number; validCoverage?:number; message?:string; attempts:Array<{sceneId:string;status:string;reason?:string}> }
 export async function processLatest(fieldId:string):Promise<ProcessingResult> {
   const response=await fetch(`/api/fields/${fieldId}/ndvi/process-latest`,{method:'POST'});
-  const payload=await response.json();
-  if(!response.ok) throw new Error(payload.error||'Image processing unavailable');
-  return payload;
+  const payload=await response.json().catch(() => null) as (Partial<ProcessingResult> & {error?:string}) | null;
+  if(!response.ok) throw new Error(payload?.error||'Image processing unavailable');
+  if (!payload || typeof payload.accepted !== 'boolean' || !Array.isArray(payload.attempts)
+    || payload.attempts.some(attempt => !attempt || typeof attempt.sceneId !== 'string' || typeof attempt.status !== 'string')
+    || (payload.accepted && typeof payload.sceneId !== 'string')) {
+    throw new Error('Image processing returned an incomplete result. Please retry.');
+  }
+  return payload as ProcessingResult;
 }
 export interface SatelliteScene {
   scene_id:string; observed_at:string; cloud_cover:number|string|null;

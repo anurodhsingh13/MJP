@@ -10,6 +10,8 @@ export function FieldAnalysis() {
   const [weather, setWeather] = useState<WeatherObservation[]>([]);
   const [events,setEvents]=useState<FieldEvent[]>([]);
   const [range,setRange]=useState('90');
+  const [comparisonOlderDate,setComparisonOlderDate]=useState('');
+  const [comparisonNewerDate,setComparisonNewerDate]=useState('');
   const [viewTime]=useState(()=>Date.now());
   const [index,setIndex]=useState('ndvi_value');
   const [weatherLoading, setWeatherLoading] = useState(false);
@@ -61,6 +63,20 @@ export function FieldAnalysis() {
   const accepted=observations.filter(obs=>obs.accepted&&obs.provenance==='measured_imagery'&&obs.boundary_version===(field.boundary_version??1));
   const cutoff=range==='season' ? (field.planting_date?Date.parse(field.planting_date):0) : viewTime-Number(range)*86400000;
   const chart=accepted.filter(obs=>Date.parse(obs.observed_on)>=cutoff).map(obs=>({...obs,date:Date.parse(obs.observed_on),ndvi_value:obs.ndvi_value==null?null:Number(obs.ndvi_value),ndmi_value:obs.ndmi_value==null?null:Number(obs.ndmi_value),ndre_value:obs.ndre_value==null?null:Number(obs.ndre_value)}));
+  const acquisitionTimeline=[...accepted].sort((a,b)=>Date.parse(b.acquired_at||b.observed_on)-Date.parse(a.acquired_at||a.observed_on));
+  const comparisonDates=[...new Map(acquisitionTimeline.map(observation=>[observation.observed_on,observation])).values()];
+  const selectedNewerDate=comparisonDates.some(observation=>observation.observed_on===comparisonNewerDate)
+    ?comparisonNewerDate:comparisonDates[0]?.observed_on||'';
+  const selectedOlderDate=comparisonDates.some(observation=>observation.observed_on===comparisonOlderDate&&observation.observed_on!==selectedNewerDate)
+    ?comparisonOlderDate:comparisonDates.find(observation=>observation.observed_on!==selectedNewerDate)?.observed_on||'';
+  const newerObservation=comparisonDates.find(observation=>observation.observed_on===selectedNewerDate);
+  const olderObservation=comparisonDates.find(observation=>observation.observed_on===selectedOlderDate);
+  const ndviChange=newerObservation&&olderObservation
+    &&olderObservation.observed_on<newerObservation.observed_on
+    &&olderObservation.boundary_version===newerObservation.boundary_version
+    &&olderObservation.calculation_version===newerObservation.calculation_version
+    &&olderObservation.ndvi_value!=null&&newerObservation.ndvi_value!=null
+    ?Number(newerObservation.ndvi_value)-Number(olderObservation.ndvi_value):null;
   if (loading) return <div style={{ padding: '2rem' }}>Loading analysis...</div>;
 
   return (
@@ -92,6 +108,23 @@ export function FieldAnalysis() {
         <section className="vegetation-trends" aria-label="Vegetation trends"><h3>What changed in the field?</h3><p>Actual acquisitions only. Gaps between images are not observations. A falling index is a reason to inspect, not a diagnosis.</p><div className="content-heading"><label>Date range<select value={range} onChange={event=>setRange(event.target.value)}><option value="30">30 days</option><option value="90">90 days</option><option value="season">{field.planting_date?'Since recorded planting':'All available dates'}</option></select></label><label>Vegetation index<select value={index} onChange={event=>setIndex(event.target.value)}><option value="ndvi_value">NDVI — vegetation</option><option value="ndmi_value">NDMI — canopy water signal</option><option value="ndre_value">NDRE — red-edge signal</option></select></label></div>
           {chart.length?<div style={{height:280,width:'100%',marginTop:'1rem'}}><ResponsiveContainer width="100%" height="100%"><LineChart data={chart} margin={{left:0,right:20,bottom:12}}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="date" type="number" scale="time" domain={['dataMin','dataMax']} tickFormatter={value=>new Date(value).toLocaleDateString(undefined,{month:'short',day:'numeric'})}/><YAxis domain={[-1,1]} width={42}/><Tooltip labelFormatter={value=>new Date(Number(value)).toLocaleDateString()}/><Line name={index.split('_')[0].toUpperCase()} dataKey={index} stroke="#4d7c0f" strokeWidth={2} dot={{r:4}} connectNulls={false} strokeDasharray="2 5" isAnimationActive={false}/>{events.filter(event=>['planting','irrigation','fertilizer','scouting','harvest'].includes(event.event_type)&&Date.parse(event.event_date)>=cutoff).map(event=><ReferenceLine key={event.id} x={Date.parse(event.event_date)} stroke="#8b5cf6" label={event.event_type}/>)}</LineChart></ResponsiveContainer></div>:<p>No accepted observations in this range. Find a usable image on the Map tab.</p>}
           {analysis?.slopePerDay!=null&&<p>Descriptive slope: {analysis.slopePerDay} NDVI/day · {analysis.observations} dates · {analysis.dateStart} to {analysis.dateEnd}. This does not predict crop growth or yield.</p>}
+        </section>
+        <section aria-label="Two-date comparison">
+          <h3>Compare two accepted images</h3>
+          <p>Only accepted measurements from the current field boundary are included. A vegetation change is not a diagnosis.</p>
+          {comparisonDates.length<2?<p>Two accepted acquisition dates are needed for comparison.</p>:<>
+            <label>Earlier acquisition<select value={selectedOlderDate} onChange={event=>setComparisonOlderDate(event.target.value)}>{comparisonDates.filter(observation=>observation.observed_on!==selectedNewerDate).map(observation=><option key={observation.observed_on} value={observation.observed_on}>{observation.observed_on}</option>)}</select></label>
+            <label>Later acquisition<select value={selectedNewerDate} onChange={event=>setComparisonNewerDate(event.target.value)}>{comparisonDates.filter(observation=>observation.observed_on!==selectedOlderDate).map(observation=><option key={observation.observed_on} value={observation.observed_on}>{observation.observed_on}</option>)}</select></label>
+            {[['Earlier',olderObservation],['Later',newerObservation]].map(([label,observation])=>{
+              const image=observation as VegetationIndexObservation|undefined;
+              return <p key={label as string}>{label as string}: {image?.observed_on||'Unavailable'} · scene {image?.scene_id||'Unavailable'} · NDVI {image?.ndvi_value??'Unavailable'} · usable field coverage {image?.valid_coverage_percent??'Unavailable'}% · {image?.valid_pixel_count??'Unavailable'} pixels · {image?.source||'Source unavailable'}</p>;
+            })}
+            <p>{ndviChange==null?'These acquisitions are not comparable because order, boundary version, calculation version or measurements differ.':`NDVI change between these dates: ${ndviChange.toFixed(3)}. This is a vegetation signal for inspection, not a diagnosis or verified recovery.`}</p>
+          </>}
+        </section>
+        <section aria-label="Acquisition timeline">
+          <h3>Acquisition timeline</h3>
+          {acquisitionTimeline.length?<ol>{acquisitionTimeline.map(observation=><li key={`${observation.observed_on}-${observation.scene_id||'unknown'}`}>{observation.acquired_at||observation.observed_on} · scene {observation.scene_id||'Unavailable'} · usable field coverage {observation.valid_coverage_percent??'Unavailable'}% · {observation.valid_pixel_count??'Unavailable'} pixels · {observation.source}</li>)}</ol>:<p>No accepted acquisitions are available for this field boundary.</p>}
         </section>
         <details className="technical-observations"><summary>Advanced: measurements and experimental score</summary><p>Experimental score = 75% normalized NDVI + 25% normalized NDMI (or NDVI when NDMI is missing), clamped to 0–100. Coverage controls acceptance independently. This is not disease probability or guaranteed yield. Historical records may be unverified.</p><p>NDVI normalization: (NDVI − 0.15) / 0.65. NDMI normalization: (NDMI + 0.2) / 0.7. Both are clamped to 0–1 before weighting. These are unvalidated display heuristics.</p>
         <h3>Vegetation Indices (NDVI)</h3>

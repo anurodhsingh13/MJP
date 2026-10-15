@@ -9,6 +9,7 @@
     "dev:server": "tsx backend/api/server.ts",
     "typecheck": "tsc -b",
     "test": "node --import tsx --test backend/api/**/*.test.ts",
+    "test:integration": "CHM_INTEGRATION=1 node --import tsx --test backend/api/services/satellite.integration.test.ts",
     "build": "npm run typecheck && vite --config frontend/vite.config.ts build",
     "lint": "oxlint frontend backend",
     "preview": "vite --config frontend/vite.config.ts preview",

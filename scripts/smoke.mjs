@@ -1,21 +1,36 @@
 import 'dotenv/config';
 import assert from 'node:assert/strict';
+import {createHash,randomBytes,randomUUID} from 'node:crypto';
+import pg from 'pg';
+const database=new URL(process.env.DATABASE_URL);
+assert.ok(['127.0.0.1','localhost','[::1]'].includes(database.hostname),'Smoke test may only use a loopback database');
+assert.match(database.pathname,/\/terrascope$/i,'Smoke test is restricted to the local TerraScope development database');
+const client=new pg.Client({connectionString:database.href});
+await client.connect();
 const base=`http://127.0.0.1:${process.env.API_PORT || 3001}/api`;
 const web=`http://127.0.0.1:${process.env.WEB_PORT || 5173}`;
 const engine=process.env.PYTHON_ENGINE_URL || 'http://127.0.0.1:8000';
+const email=`smoke-${randomUUID()}@example.invalid`;
+const token=randomBytes(32).toString('hex');
+const digest=value=>createHash('sha256').update(value).digest('hex');
+let userId;
+let cookie='';
 const request=async(path,method='GET',body)=> {
-  const response=await fetch(`${base}${path}`,{method,headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
+  const response=await fetch(`${base}${path}`,{method,headers:{'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:body===undefined?undefined:JSON.stringify(body)});
   assert.ok(response.ok,`${method} ${path}: ${response.status} ${response.ok?'':await response.text()}`);
   return response.status===204?null:response.json();
 };
 assert.equal((await fetch(web)).status,200);
 assert.equal((await fetch(`${web}/api/health`)).status,200);
 assert.equal((await fetch(`${engine.replace(/\/$/, '')}/health`)).status,200);
-assert.equal((await fetch(`${base}/fields/invalid/weather`)).status,400);
-const before=await request('/fields');
-
 let id;
 try {
+  userId=(await client.query('insert into app_users(email,password_hash) values($1,$2) returning id',[email,'temporary smoke-test account'])).rows[0].id;
+  await client.query('insert into app_sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval \'5 minutes\')',[digest(token),userId]);
+  cookie=`chm_session=${token}`;
+  const invalid=await fetch(`${base}/fields/invalid/weather`,{headers:{Cookie:cookie}});
+  assert.equal(invalid.status,400);
+  const before=await request('/fields');
   const field=await request('/fields','POST',{name:'Temporary local smoke test',crop:'Wheat',boundary_geojson:{type:'Polygon',coordinates:[[[77,28],[77.01,28],[77.01,28.01],[77,28.01],[77,28]]]},planting_date:'2026-09-01',harvest_date:'2026-12-01'});
   id=field.id;
   await request(`/fields/${id}`,'PATCH',{expected_yield_tons:12});
@@ -25,6 +40,11 @@ try {
   assert.equal(Number(renamed.expected_yield_tons),12);
   const cleared=await request(`/fields/${id}`,'PATCH',{planting_date:null,harvest_date:null,expected_yield_tons:null});
   assert.equal(cleared.planting_date,null);assert.equal(cleared.harvest_date,null);assert.equal(cleared.expected_yield_tons,null);
-} finally {if(id)await request(`/fields/${id}`,'DELETE');}
-assert.equal((await request('/fields')).length,before.length);
+  await request(`/fields/${id}`,'DELETE');id=undefined;
+  assert.equal((await request('/fields')).length,before.length);
+} finally {
+  if(id)await client.query('delete from fields where id=$1',[id]);
+  if(userId)await client.query('delete from app_users where id=$1',[userId]);
+  await client.end();
+}
 console.log('Native smoke test passed: frontend, proxy, engine, validation and field create/update/delete; existing field count retained.');

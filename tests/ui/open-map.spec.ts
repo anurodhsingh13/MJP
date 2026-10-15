@@ -12,8 +12,9 @@ test('map works without a Google key and selects the last processed observation'
   await page.route('https://tile.openstreetmap.org/**',route=>route.fulfill({contentType:'image/svg+xml',body:png}));
   await page.route('**/api/**',route=>{
     const path=new URL(route.request().url()).pathname;
+    if(path==='/api/auth/session')return route.fulfill({json:{mode:'local',user:null}});
     if(path.endsWith('.png'))return route.fulfill({contentType:'image/svg+xml',body:png});
-    if(path==='/api/fields')return route.fulfill({json:[{id,name:'Public demo: test parcel',crop:'Unknown',latitude:17.2589,longitude:77.6401,area_hectares:2.81,last_observation:'2026-10-12',boundary_geojson:{type:'Polygon',coordinates:[[[77.639,17.258],[77.641,17.258],[77.641,17.26],[77.639,17.26],[77.639,17.258]]]}}]});
+    if(path==='/api/fields')return route.fulfill({json:[{id,name:'Public demo: test parcel',crop:'Unknown',latitude:17.2589,longitude:77.6401,area_hectares:2.81,last_observation:'2026-10-12',latest_scene_id:'processed',latestObservation:{scene_id:'processed',observed_on:'2026-10-12',ndvi_value:.62,valid_coverage_percent:87,valid_pixel_count:870,cloud_cover:2,source:'Copernicus Sentinel-2',provenance:'measured_imagery',accepted:true,boundary_version:1,calculation_version:'v2'},boundary_version:1,boundary_geojson:{type:'Polygon',coordinates:[[[77.639,17.258],[77.641,17.258],[77.641,17.26],[77.639,17.26],[77.639,17.258]]]}}]});
     if(path.endsWith('/scenes'))return route.fulfill({json:[{scene_id:'older',observed_at:'2026-09-27T00:00:00Z',cloud_cover:0},{scene_id:'processed',observed_at:'2026-10-12T00:00:00Z',cloud_cover:2}]});
     return route.fulfill({json:[]});
   });

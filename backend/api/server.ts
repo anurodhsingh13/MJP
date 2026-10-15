@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { pathToFileURL } from 'node:url';
 import { app } from './app.ts';
+import {startWorkers} from './services/jobs.ts';
 import { pool } from './db/pool.ts';
 
 const port = Number(process.env.API_PORT ?? 3001);
@@ -14,7 +15,9 @@ export async function start() {
       await pool.end();
       process.exitCode = 1;
     });
+    const stopWorkers=startWorkers();
     const shutdown = () => {
+      void stopWorkers();
       server.close(async () => { await pool.end(); });
     };
     process.once('SIGTERM', shutdown);

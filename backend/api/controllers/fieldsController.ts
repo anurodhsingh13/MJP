@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { pool } from '../db/pool.ts';
+import {actor,authRequired} from '../services/auth.ts';
 import { assessEvidence, vegetationScore, type Observation } from '../../../shared/evidence.ts';
 import { evidencePolicy } from '../services/policy.ts';
 import { processScene, processLatest, ProcessingError, rasterPayload } from '../services/satellite.ts';
@@ -51,7 +52,7 @@ export async function getFields(_request: Request, response: Response) {
           from public.satellite_scenes where field_id=fields.id and processing_boundary_version=fields.boundary_version
           order by processing_started_at desc nulls last limit 3
         ) s
-      ) activity on true order by fields.created_at asc`, [policy.minCoverage,policy.minPixels]);
+      ) activity on true where (not $4::boolean or fields.owner_id=$3::uuid) order by fields.created_at asc`, [policy.minCoverage,policy.minPixels,actor(response)?.id??null,authRequired()]);
     response.json(result.rows.map((row: Record<string, unknown> & { evidence: Observation[] }) => {
       const [latest,previous] = row.evidence;
       const assessment = assessEvidence(latest??null,previous??null,policy);
@@ -75,7 +76,7 @@ export async function getFields(_request: Request, response: Response) {
 
 export async function getFieldAlerts(request: Request, response: Response) {
   try {
-        const result = await pool.query('select id,title,severity,observed_at,resolved,scene_id,boundary_version,interpretation,ST_AsGeoJSON(stress_geom)::jsonb as stress_geojson from public.alerts where field_id=$1 and boundary_version=(select boundary_version from fields where id=$1) order by observed_at desc', [request.params.fieldId]);
+        const result = await pool.query('select id,title,severity,observed_at,resolved,action_status,scene_id,boundary_version,interpretation,ST_AsGeoJSON(stress_geom)::jsonb as stress_geojson from public.alerts where field_id=$1 and boundary_version=(select boundary_version from fields where id=$1) order by observed_at desc', [request.params.fieldId]);
     response.json(result.rows);
   } catch (error) {
     console.error('GET /api/fields/:fieldId/alerts failed:', error);
@@ -86,7 +87,9 @@ export async function getFieldAlerts(request: Request, response: Response) {
 export async function resolveFieldAlert(request: Request, response: Response) {
   try {
     const result = await pool.query(
-      'update public.alerts set resolved = true where id = $1 and field_id = $2 returning id, resolved',
+      `update public.alerts set resolved = true, action_status='resolved'
+       where id = $1 and field_id = $2 and boundary_version=(select boundary_version from fields where id=$2)
+       returning id, resolved, action_status`,
       [request.params.alertId, request.params.fieldId]
     );
     if (!result.rowCount) { response.status(404).json({ error: 'Alert not found' }); return; }
@@ -95,6 +98,18 @@ export async function resolveFieldAlert(request: Request, response: Response) {
     console.error('PATCH field alert failed:', error);
     response.status(503).json({ error: 'Database unavailable' });
   }
+}
+
+export async function updateFieldAlert(request:Request,response:Response){
+  const status=request.body?.status;
+  if(!['open','acknowledged','action_taken','resolved'].includes(status)){response.status(400).json({error:'Choose open, acknowledged, action taken or resolved'});return;}
+  try{
+    const result=await pool.query(`update alerts set action_status=$3,resolved=($3='resolved')
+      where id=$1 and field_id=$2 and boundary_version=(select boundary_version from fields where id=$2)
+      returning id,resolved,action_status`,[request.params.alertId,request.params.fieldId,status]);
+    if(!result.rowCount){response.status(404).json({error:'Alert not found or no longer matches this boundary version'});return;}
+    response.json(result.rows[0]);
+  }catch(error){console.error('PATCH field alert status failed:',error);response.status(503).json({error:'Alert status could not be updated'});}
 }
 
 export async function getFieldNdvi(request: Request, response: Response) {
@@ -264,10 +279,12 @@ function validCalendarDate(value: unknown): boolean {
 
 export async function createField(request: Request, response: Response) {
   const { name, crop, boundary_geojson, planting_date, harvest_date, provenance } = (request.body??{}) as {name?:string;crop?:string;boundary_geojson?:unknown;planting_date?:string|null;harvest_date?:string|null;provenance?:string};
+  const clientKey=request.get?.('Idempotency-Key')||null;
   if (typeof name !== 'string' || !name.trim() || typeof crop !== 'string' || !crop.trim() || !isValidFieldBoundary(boundary_geojson)) {
-    response.status(400).json({ error: 'name, crop, and a valid closed Polygon boundary are required' });
+    response.status(400).json({ error: 'name, crop, and a valid closed Polygon boundary are required. MultiPolygon imports are not supported; use one Polygon per field.' });
     return;
   }
+  if(clientKey!==null&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientKey)){response.status(400).json({error:'Idempotency-Key must be a UUID'});return;}
   if ((planting_date!==undefined&&!validCalendarDate(planting_date))||(harvest_date!==undefined&&!validCalendarDate(harvest_date))||(planting_date&&harvest_date&&planting_date>harvest_date)) { response.status(400).json({error:'Use valid planting/harvest dates, or leave them unknown'});return; }
   if(provenance!==undefined&&!['user_reported','demo','public_boundary'].includes(provenance)) { response.status(400).json({error:'Choose a supported field provenance'});return; }
   try {
@@ -275,13 +292,14 @@ export async function createField(request: Request, response: Response) {
       `with boundary as (
          select ST_SetSRID(ST_GeomFromGeoJSON($3::text), 4326) as geom
        )
-       insert into public.fields (name, crop, location, boundary_geom, area_hectares, planting_date, harvest_date, provenance)
+       insert into public.fields (name, crop, location, boundary_geom, area_hectares, planting_date, harvest_date, provenance, owner_id, client_key)
        select $1, $2, ST_PointOnSurface(geom), geom,
-              round((ST_Area(geom::geography) / 10000.0)::numeric, 2), $4, $5, $6
+              round((ST_Area(geom::geography) / 10000.0)::numeric, 2), $4, $5, $6, $7, $8
        from boundary
        where ST_IsValid(geom) and ST_GeometryType(geom) = 'ST_Polygon' and ST_Area(geom::geography)>0 and ST_Area(geom::geography)<=100000000
+       on conflict(client_key) where client_key is not null do update set client_key=excluded.client_key
        returning id, name, crop, area_hectares, health_score, ndvi_average, canopy_coverage, health_delta, last_observation, ST_Y(location) as latitude, ST_X(location) as longitude, ST_AsGeoJSON(boundary_geom)::jsonb as boundary_geojson, planting_date, harvest_date, created_at`,
-      [name.trim(), crop.trim(), JSON.stringify(boundary_geojson), planting_date ?? null, harvest_date ?? null, provenance??'user_reported'],
+      [name.trim(), crop.trim(), JSON.stringify(boundary_geojson), planting_date ?? null, harvest_date ?? null, provenance??'user_reported',actor(response)?.id??null,clientKey],
     );
     if (!result.rowCount) {
       response.status(400).json({ error: 'Field boundary is not a valid polygon' });
@@ -480,4 +498,18 @@ export async function getFieldTile(request: Request, response: Response) {
     console.error('GET tile failed:', error);
     response.status(503).json({ error: 'Tile generation failed' });
   }
+}
+
+export async function updateBoundary(request:Request,response:Response){
+ const boundary=(request.body as {boundary_geojson?:unknown})?.boundary_geojson;
+ if(!isValidFieldBoundary(boundary)){response.status(400).json({error:'Import or draw a closed Polygon with longitude/latitude coordinates. MultiPolygon is not supported; create one field per parcel.'});return;}
+ try{
+  const result=await pool.query(`with boundary as(select ST_SetSRID(ST_GeomFromGeoJSON($2::text),4326) geom)
+   update fields set boundary_geom=geom,location=ST_PointOnSurface(geom),area_hectares=round((ST_Area(geom::geography)/10000)::numeric,2)
+   from boundary where fields.id=$1 and ST_IsValid(geom) and ST_Area(geom::geography)>0 and ST_Area(geom::geography)<=100000000 returning fields.id,boundary_version`,[request.params.fieldId,JSON.stringify(boundary)]);
+  if(!result.rowCount){response.status(400).json({error:'Invalid boundary: check intersections, coordinate order and area (maximum 10,000 hectares)'});return;}
+  await pool.query(`update ingestion_jobs set status='failed',error='Boundary changed. Start analysis for the new boundary.',lease_token=null,finished_at=now() where field_id=$1 and boundary_version<>$2 and status in ('queued','running')`,[request.params.fieldId,result.rows[0].boundary_version]);
+  await pool.query(`update alerts set action_status='superseded' where field_id=$1 and boundary_version<>$2 and action_status<>'resolved'`,[request.params.fieldId,result.rows[0].boundary_version]);
+  response.json(result.rows[0]);
+ }catch(error){console.error(error);response.status(503).json({error:'Boundary could not be saved. Retry.'});}
 }
