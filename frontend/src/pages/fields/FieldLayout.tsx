@@ -41,21 +41,21 @@ export function FieldLayout() {
   if (!field || field.id !== fieldId) return <div style={{ padding: '2rem' }}>Loading field...</div>;
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #303a2d', paddingBottom: '1rem', marginBottom: '1rem' }}>
+    <main className="field-shell">
+      <header className="field-header" style={{ borderBottom: '1px solid #303a2d', paddingBottom: '1rem', marginBottom: '1rem' }}>
         <div>
           <Link to="/" style={{ color: '#a5b287', textDecoration: 'none', marginBottom: '0.5rem', display: 'inline-block' }}>&larr; Back to Dashboard</Link>
           <h1 style={{ margin: 0, color: '#edf1df' }}>{field.name}</h1>
           <p style={{ margin: '0.25rem 0 0 0', color: '#8e9986' }}>Crop: {field.crop} | Area: {field.area_hectares} ha</p>
         </div>
         <button type="button" onClick={() => { setFormError(''); setEditing(true); }} style={{ minHeight:'42px', padding:'.6rem 1rem', border:'1px solid #536b36', background:'#27371f', color:'#d9ea92', borderRadius:'4px' }}>Manage field</button>
-      </div>
+      </header>
       
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', marginBottom: '2rem' }}>
-        <Link to={`/fields/${fieldId}/map`} style={{ fontWeight: location.pathname.includes('/map') ? 'bold' : 'normal', color: '#4d7c0f', textDecoration: 'none' }}>Satellite Map</Link>
-        <Link to={`/fields/${fieldId}/analysis`} style={{ fontWeight: location.pathname.includes('/analysis') ? 'bold' : 'normal', color: '#4d7c0f', textDecoration: 'none' }}>Health Analysis</Link>
-        <Link to={`/fields/${fieldId}/history`} style={{ fontWeight: location.pathname.includes('/history') ? 'bold' : 'normal', color: '#4d7c0f', textDecoration: 'none' }}>Events & History</Link>
-      </div>
+      <nav className="field-tabs" aria-label="Field sections">
+        <Link to={`/fields/${fieldId}/map`} style={{ fontWeight: location.pathname.includes('/map') ? 'bold' : 'normal', color: '#cbe86b', textDecoration: 'none' }}>Satellite Map</Link>
+        <Link to={`/fields/${fieldId}/analysis`} style={{ fontWeight: location.pathname.includes('/analysis') ? 'bold' : 'normal', color: '#cbe86b', textDecoration: 'none' }}>Health Analysis</Link>
+        <Link to={`/fields/${fieldId}/history`} style={{ fontWeight: location.pathname.includes('/history') ? 'bold' : 'normal', color: '#cbe86b', textDecoration: 'none' }}>Events & History</Link>
+      </nav>
       
       {field.name.startsWith('Public demo:') && <p role="status" style={{ padding: '1rem', background: '#27371f', color: '#d9ea92', borderRadius: '6px' }}>Public benchmark demo: boundary recorded in 2016 (FTW India). Current crop type, planting dates and yield are unverified. Source attribution is recorded in Events &amp; History.</p>}
       <div className="field-content" style={{ background: '#fff', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
@@ -95,6 +95,6 @@ export function FieldLayout() {
           </form>
         </div>
       )}
-    </div>
+    </main>
   );
 }

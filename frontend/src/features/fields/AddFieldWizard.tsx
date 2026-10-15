@@ -205,13 +205,13 @@ export function AddFieldWizard({ onComplete, onCancel }: { onComplete: (fieldId:
 
         {step === 'boundary' && (
           <div>
-            <p>Click each corner of your field on the map. Add at least three points, then choose <strong>Finish boundary</strong>. You can drag points to correct the shape.</p>
+            <p>Tap or click each corner of your field on the map. Add at least three points, then choose <strong>Finish boundary</strong>. You can drag points to correct the shape.</p>
             {!apiKey ? (
                <div style={{ padding: '2rem', background: '#fee2e2', color: '#991b1b' }}>
                  No Google Maps API Key found. A map is required to draw a field.
                </div>
             ) : (
-               <div ref={mapElement} style={{ width: '100%', height: '400px', background: '#ccc' }} />
+               <div ref={mapElement} className="boundary-map" />
             )}
             {apiKey && (
               <div className="boundary-tools" aria-live="polite">
@@ -251,25 +251,6 @@ export function AddFieldWizard({ onComplete, onCancel }: { onComplete: (fieldId:
         )}
         {error && <p className="wizard-error" role="alert">{error}</p>}
       </div>
-      <style dangerouslySetInnerHTML={{__html: `
-        .wizard-modal {
-          position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000;
-          display: flex; align-items: center; justify-content: center;
-        }
-        .wizard-content {
-          background: #1b241b; color: #edf1df; padding: 2rem; border: 1px solid #536b36; border-radius: 8px; width: 100%; max-width: 600px;
-        }
-        .wizard-content label { display: block; margin-bottom: 1rem; }
-        .wizard-content input { display: block; width: 100%; padding: 0.75rem; margin-top: 0.25rem; background:#121812; color:#edf1df; border:1px solid #536b36; border-radius:4px; }
-        .wizard-content .actions { display: flex; justify-content: space-between; margin-top: 2rem; }
-        .step-label, .wizard-status { color:#cbe86b; }
-        .wizard-error { color:#ffb4a2; background:#4b2420; padding:.75rem; border-radius:4px; }
-        .wizard-content button { min-height:44px; padding:.65rem 1rem; }
-        .wizard-content button:disabled { opacity:.55; cursor:not-allowed; }
-        .boundary-tools { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; margin-top:.75rem; color:#cbe86b; font-size:.85rem; }
-        .boundary-tools span { margin-right:auto; }
-        .boundary-tools button { min-height:36px; padding:.4rem .65rem; background:#27371f; color:#edf1df; border:1px solid #536b36; border-radius:4px; }
-      `}} />
     </div>
   );
 }

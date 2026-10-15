@@ -9,6 +9,7 @@ const seed: any = { id, name: 'Test field', crop: 'Wheat', area_hectares: 10, la
   planting_date:'2026-09-01', harvest_date:'2026-12-01', last_observation:null, expected_yield_tons:null };
 
 async function setup(page: Page) {
+  await page.route('https://fonts.googleapis.com/**', route => route.abort());
   const errors: string[] = []; browserErrors.set(page, errors); page.on('pageerror', error => errors.push(error.message));
   const state = { fields:[{...seed}], events:[] as any[], scenes:[] as any[], alerts:[{id:'alert-1',title:'Stress detected',scene_id:'scene-1',resolved:false,severity:'high'}],
     fail: new Set<string>(), calls: [] as string[], created:0 };

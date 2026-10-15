@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     root: fileURLToPath(new URL('.', import.meta.url)),
     envDir: fileURLToPath(new URL('..', import.meta.url)),
-    server: { host: '127.0.0.1', port: Number(env.WEB_PORT || 5173), strictPort: true, proxy },
-    preview: { host: '127.0.0.1', port: Number(env.WEB_PORT || 5173), strictPort: true, proxy },
+    server: { host: env.WEB_HOST || '127.0.0.1', port: Number(env.WEB_PORT || 5173), strictPort: true, proxy },
+    preview: { host: env.WEB_HOST || '127.0.0.1', port: Number(env.WEB_PORT || 5173), strictPort: true, proxy },
   }
 })

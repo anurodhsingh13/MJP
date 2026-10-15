@@ -4,6 +4,9 @@ const id='00000000-0000-0000-0000-000000000099';
 const png=Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect width="256" height="256" fill="#bacf9c"/></svg>');
 
 test('map works without a Google key and selects the last processed observation',async({page})=>{
+  await page.route('https://fonts.googleapis.com/**',route=>route.abort());
+  const browserErrors:string[]=[];
+  page.on('pageerror',error=>browserErrors.push(error.message));
   const googleRequests:string[]=[];
   page.on('request',request=>{if(request.url().includes('maps.googleapis.com'))googleRequests.push(request.url());});
   await page.route('https://tile.openstreetmap.org/**',route=>route.fulfill({contentType:'image/svg+xml',body:png}));
@@ -28,4 +31,7 @@ test('map works without a Google key and selects the last processed observation'
   await page.getByRole('button',{name:'Zoom in',exact:true}).click();
   await expect(page.locator('.leaflet-tile').first()).not.toHaveAttribute('src',before||'');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+  await page.getByRole('link',{name:'Back to Dashboard'}).click();
+  await expect(page.getByRole('heading',{name:'Monitored fields'})).toBeVisible();
+  expect(browserErrors).toEqual([]);
 });

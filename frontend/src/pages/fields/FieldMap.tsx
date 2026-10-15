@@ -78,7 +78,7 @@ export function FieldMap() {
       <div className="field-map-toolbar">
         <label>
           <strong>Select Observation:</strong>
-          <select disabled={processing || !scenes.length} value={activeSceneId} onChange={e => setActiveSceneId(e.target.value)} style={{ marginLeft: '0.5rem' }}>
+          <select disabled={processing || !scenes.length} value={activeSceneId} onChange={e => setActiveSceneId(e.target.value)}>
             {!scenes.length && <option value="">No observations available</option>}
             {scenes.map(s => (
               <option key={s.scene_id} value={s.scene_id}>
@@ -94,7 +94,7 @@ export function FieldMap() {
       {!field.boundary_geojson && <div role="status" style={{ padding: ".75rem 1rem", background: "#fff7ed", color: "#9a3412" }}>No field boundary saved. Available scenes cover the saved location; crop-health indices require your actual field boundary.</div>}
       {message && <div role="status" style={{ padding: '.75rem 1rem', background: '#ecfccb', color: '#365314' }}>{message}</div>}
       {error && <div role="alert" style={{ padding: '.75rem 1rem', background: '#fee2e2', color: '#991b1b' }}>{error}</div>}
-      {activeAlert && <div role="alert" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'1rem', padding:'.75rem 1rem', background:'#fff7ed', color:'#9a3412' }}><span><strong>{activeAlert.title}</strong> for this observation</span><button type="button" disabled={resolving} onClick={async () => {
+      {activeAlert && <div className="map-alert" role="alert" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'1rem', padding:'.75rem 1rem', background:'#fff7ed', color:'#9a3412' }}><span><strong>{activeAlert.title}</strong> for this observation</span><button type="button" disabled={resolving} onClick={async () => {
         if (!fieldId || resolving) return;
         setResolving(true); setError('');
         try { await resolveFieldAlert(fieldId, activeAlert.id); setAlerts(current => current.map(alert => alert.id === activeAlert.id ? { ...alert, resolved:true } : alert)); }

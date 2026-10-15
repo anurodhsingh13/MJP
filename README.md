@@ -92,3 +92,9 @@ Fields with no coordinates are skipped. Field-level indices require an actual po
 ## Public demo and dataset catalog
 
 Open **Explore datasets** on the dashboard for nine relevant public sources and their actual integration status. See [datasets/README.md](datasets/README.md) for reproducible public-boundary demo import, attribution, and the mapping from datasets to app fields. Public demo parcels are clearly labelled; unknown crop identity, farm dates and yield remain unknown.
+
+## Phones, tablets, and other computers
+
+The web interface adapts to phones, tablets, laptops, and desktops, including portrait and landscape screens. Tables scroll within their panel on narrow screens; field navigation, forms, and map controls support touch.
+
+To use the running app from another device on the same trusted Wi-Fi, set `WEB_HOST=0.0.0.0` in `.env`, restart with `npm run stop` then `npm start`, and open `http://<computer-LAN-IP>:5173` on that device (or your configured `WEB_PORT`). Allow the web port through the computer's firewall if needed. Keep the API and Python engine local: the frontend proxies `/api` to them, so devices share the same data. Google Maps browser-key restrictions must allow the address you use; automatic geolocation requires HTTPS on remote devices, but you can pan and zoom to draw a boundary manually. For access outside your Wi-Fi, deploy the services behind HTTPS.

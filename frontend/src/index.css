@@ -89,3 +89,69 @@ a:focus-visible,input:focus-visible,textarea:focus-visible { outline:2px solid #
 .ndvi-map-legend { position:absolute; z-index:500; bottom:35px; right:12px; background:#fff; color:#1f2937; padding:.75rem; border-radius:8px; box-shadow:0 2px 10px #0002; pointer-events:none; }
 .leaflet-control-attribution { max-width:100%; font-size:10px; }
 @media(max-width:600px) { .field-map-canvas { height:460px; } .field-map-toolbar button { width:100%; } }
+
+/* Shared layouts scale with the available space, including split-screen tablets. */
+html { -webkit-text-size-adjust:100%; }
+body { min-height:100dvh; }
+input,select,textarea { font:inherit; min-width:0; max-width:100%; }
+button { white-space:normal; overflow-wrap:anywhere; touch-action:manipulation; }
+.dashboard-shell,.field-shell { overflow-wrap:anywhere; }
+.dashboard-header > div,.summary-grid article,.field-card,.field-card-top > div,.dataset-card { min-width:0; }
+.field-grid { grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr)); }
+.field-shell { width:min(1200px,100%); margin:0 auto; padding:clamp(1rem,3vw,2rem); padding-left:max(clamp(1rem,3vw,2rem),env(safe-area-inset-left)); padding-right:max(clamp(1rem,3vw,2rem),env(safe-area-inset-right)); }
+.field-header { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:1rem; }
+.field-header > div { flex:1 1 260px; min-width:0; }
+.field-header h1 { font-size:clamp(1.6rem,4vw,2rem); }
+.field-tabs { display:flex; flex-wrap:wrap; gap:.5rem 1.5rem; margin-bottom:1.5rem; }
+.field-tabs a { display:flex; align-items:center; min-height:44px; padding:.5rem 0; }
+.field-content { overflow-wrap:anywhere; }
+.content-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.75rem; }
+.table-scroll { max-width:100%; overflow-x:auto; overscroll-behavior-x:contain; }
+.table-scroll table { min-width:460px; }
+.table-scroll th,.table-scroll td { padding-right:1rem; white-space:nowrap; }
+.weather-chart { min-width:0; }
+.history-event { gap:1rem; flex-wrap:wrap; }
+.history-event > div:first-child { min-width:0; flex:1 1 200px; }
+.history-event > div:last-child { flex:0 0 auto; }
+.field-content button,.field-content select,.field-content input { min-height:44px; }
+.field-map-toolbar label { display:flex; flex-direction:column; gap:.5rem; }
+.field-map-toolbar select { width:100%; }
+.map-alert { flex-wrap:wrap; }
+.field-map-panel { min-height:0; }
+.field-map-canvas { height:clamp(320px,65svh,600px); min-height:320px; }
+.open-map-frame,.open-field-map { min-height:0; }
+.wizard-modal { padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); }
+.wizard-content { padding:clamp(1rem,4vw,2rem); max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overscroll-behavior:contain; overflow-wrap:anywhere; }
+.wizard-content .actions { flex-wrap:wrap; }
+.wizard-content .actions button { flex:1 1 120px; }
+.step-label,.wizard-status { color:#cbe86b; }
+.boundary-map { width:100%; height:clamp(240px,50svh,400px); background:#ccc; }
+.boundary-tools { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; margin-top:.75rem; color:#cbe86b; font-size:.85rem; }
+.boundary-tools span { flex-basis:100%; }
+.boundary-tools button { min-height:44px; padding:.4rem .65rem; background:#27371f; color:#edf1df; border:1px solid #536b36; border-radius:4px; }
+.dataset-filters label { min-width:0; flex:1 1 220px; max-width:360px; }
+.dataset-filters input,.dataset-filters select { width:100%; }
+@media(max-width:1000px) {
+  .field-columns { grid-template-columns:minmax(0,1fr); gap:1.5rem; padding:clamp(1rem,3vw,2rem); }
+}
+@media(max-width:600px) {
+  input,select,textarea { font-size:16px; }
+  .dashboard-shell { width:calc(100% - 32px); padding-bottom:max(32px,env(safe-area-inset-bottom)); }
+  .dashboard-state { padding:24px 16px; }
+  .dashboard-actions { width:100%; justify-content:space-between; }
+  .dashboard-actions a { display:flex; align-items:center; min-height:44px; }
+  .section-heading { gap:1rem; }
+  .field-header > button { width:100%; }
+  .field-tabs { gap:.25rem .75rem; }
+  .field-tabs a { font-size:.875rem; }
+  .field-map-toolbar button { width:100%; }
+  .ndvi-map-legend { padding:.5rem; font-size:.75rem; }
+  .dataset-filters label { max-width:none; }
+}
+@media(pointer:coarse) {
+  .leaflet-touch .leaflet-bar a { width:44px; height:44px; line-height:44px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .field-card { transition:none; }
+  .field-card:hover { transform:none; }
+}

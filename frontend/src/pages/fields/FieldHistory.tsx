@@ -70,7 +70,7 @@ export function FieldHistory() {
         {events.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {events.map(ev => (
-              <div key={ev.id} style={{ padding: '1rem', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', display: 'flex', justifyContent: 'space-between' }}>
+              <div className="history-event" key={ev.id} style={{ padding: '1rem', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', display: 'flex', justifyContent: 'space-between' }}>
                 <div>
                   <h4 style={{ margin: '0 0 0.25rem 0', textTransform: 'capitalize' }}>{ev.event_type.replace('_', ' ')}</h4>
                   <EventNotes event={ev} />

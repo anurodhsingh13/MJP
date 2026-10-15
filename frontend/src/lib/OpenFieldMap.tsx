@@ -10,7 +10,7 @@ export function OpenFieldMap({ latitude, longitude, fieldName = '', zoom = 14, b
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!element.current) return;
-    const map = L.map(element.current, { scrollWheelZoom: true, maxZoom: 20 }).setView([latitude, longitude], zoom);
+    const map = L.map(element.current, { scrollWheelZoom: true, maxZoom: 20, zoomAnimation: false }).setView([latitude, longitude], zoom);
     const basemap = L.tileLayer(import.meta.env.VITE_OSM_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxNativeZoom: 19, maxZoom: 20,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -25,7 +25,7 @@ export function OpenFieldMap({ latitude, longitude, fieldName = '', zoom = 14, b
       const boundary = L.geoJSON(boundaryGeojson as unknown as GeoJsonObject, {
         style: { color: '#cbe86b', weight: 3, fillOpacity: 0.04 },
       }).addTo(map);
-      if (boundary.getBounds().isValid()) { bounds = boundary.getBounds(); map.fitBounds(bounds.pad(0.35), { maxZoom: 18 }); }
+      if (boundary.getBounds().isValid()) { bounds = boundary.getBounds(); map.fitBounds(bounds.pad(0.35), { maxZoom: 18, animate: false }); }
     }
     if (tileUrl && bounds) {
       const ndvi = L.tileLayer(tileUrl, { bounds, opacity: 0.85, maxZoom: 20, keepBuffer: 0, attribution: 'NDVI: Copernicus Sentinel-2 / Earth Search' }).addTo(map);

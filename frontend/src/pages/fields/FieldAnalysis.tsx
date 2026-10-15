@@ -58,9 +58,9 @@ export function FieldAnalysis() {
     <div className="field-columns">
       <div>
         {error && <div role="alert">{error} <button type="button" onClick={() => { setLoading(true); setReload(value => value + 1); }}>Retry analysis</button></div>}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div className="content-heading" style={{ marginBottom: '1.5rem' }}>
           <h2 style={{ margin: 0 }}>Health Analysis</h2>
-          <select value={language} onChange={e => { setLoading(true); setLanguage(e.target.value); }} style={{ padding: '0.5rem', borderRadius: '4px' }}>
+          <select aria-label="Analysis language" value={language} onChange={e => { setLoading(true); setLanguage(e.target.value); }} style={{ padding: '0.5rem', borderRadius: '4px' }}>
             <option value="en-IN">English</option>
             <option value="hi-IN">Hindi (हिंदी)</option>
           </select>
@@ -82,7 +82,7 @@ export function FieldAnalysis() {
 
         <h3>Vegetation Indices (NDVI)</h3>
         {observations.length > 0 ? (
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <div className="table-scroll" role="region" aria-label="Vegetation observations" tabIndex={0}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
                 <th style={{ padding: '0.75rem 0' }}>Date</th>
@@ -103,12 +103,12 @@ export function FieldAnalysis() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         ) : (
           <p>No observations recorded yet.</p>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '3rem', marginBottom: '1rem' }}>
+        <div className="content-heading" style={{ marginTop: '3rem', marginBottom: '1rem' }}>
           <h3>NASA POWER Weather Insights</h3>
           <button 
             onClick={async () => {
@@ -135,9 +135,9 @@ export function FieldAnalysis() {
         {weatherMessage && <p role="status">{weatherMessage}</p>}
         {weather.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            <div style={{ height: '300px', width: '100%', background: '#fff', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '8px' }}>
+            <div className="weather-chart" style={{ height: '300px', width: '100%', background: '#fff', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '8px' }}>
               <h4 style={{ marginTop: 0, textAlign: 'center', color: '#4b5563' }}>Temperature (°C)</h4>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="85%">
                 <LineChart data={weather} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="observed_on" tickFormatter={(tick) => new Date(tick).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} />
@@ -148,9 +148,9 @@ export function FieldAnalysis() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            <div style={{ height: '300px', width: '100%', background: '#fff', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '8px' }}>
+            <div className="weather-chart" style={{ height: '300px', width: '100%', background: '#fff', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '8px' }}>
               <h4 style={{ marginTop: 0, textAlign: 'center', color: '#4b5563' }}>Precipitation (mm)</h4>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="85%">
                 <BarChart data={weather} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="observed_on" tickFormatter={(tick) => new Date(tick).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} />
