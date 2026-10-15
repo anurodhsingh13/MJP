@@ -1,9 +1,12 @@
 import pg from 'pg';
 import 'dotenv/config';
 
+// Calendar dates have no timezone; preserve them instead of serializing local midnight as UTC.
+pg.types.setTypeParser(1082, (value: string) => value);
+
 const { Pool } = pg;
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  password: process.env.DATABASE_PASSWORD,
+  connectionTimeoutMillis: 5000,
 });
 

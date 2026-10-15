@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { loadFields } from '../../lib/api';
 import { AddFieldWizard } from '../../features/fields/AddFieldWizard';
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const [fields, setFields] = useState<any[]>([]);
   const [modal, setModal] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -27,8 +28,10 @@ export function Dashboard() {
     return () => { cancelled = true; };
   }, []);
 
-  const averageHealth = fields.length ? Math.round(fields.reduce((sum, field) => sum + Number(field.health_score || 0), 0) / fields.length) : 0;
-  const averageNdvi = fields.length ? fields.reduce((sum, field) => sum + Number(field.ndvi_average || 0), 0) / fields.length : 0;
+  const healthFields = fields.filter(field => field.last_observation && field.health_score != null && Number.isFinite(Number(field.health_score)));
+  const ndviFields = fields.filter(field => field.last_observation && field.ndvi_average != null && Number.isFinite(Number(field.ndvi_average)));
+  const averageHealth = healthFields.length ? Math.round(healthFields.reduce((sum, field) => sum + Number(field.health_score), 0) / healthFields.length) : null;
+  const averageNdvi = ndviFields.length ? ndviFields.reduce((sum, field) => sum + Number(field.ndvi_average), 0) / ndviFields.length : null;
   const monitoredArea = fields.reduce((sum, field) => sum + Number(field.area_hectares || 0), 0);
 
   return (
@@ -47,8 +50,8 @@ export function Dashboard() {
       {!error && !loading && fields.length > 0 && (
         <section className="summary-grid" aria-label="Farm summary">
           <article><span>Fields</span><strong>{fields.length}</strong><small>actively monitored</small></article>
-          <article><span>Average health</span><strong>{averageHealth}<em>/100</em></strong><small>experimental indicator</small></article>
-          <article><span>Average NDVI</span><strong>{averageNdvi.toFixed(3)}</strong><small>latest field values</small></article>
+          <article><span>Average health</span><strong>{averageHealth ?? 'Pending'}{averageHealth !== null && <em>/100</em>}</strong><small>experimental indicator</small></article>
+          <article><span>Average NDVI</span><strong>{averageNdvi === null ? 'Pending' : averageNdvi.toFixed(3)}</strong><small>latest field values</small></article>
           <article><span>Monitored area</span><strong>{monitoredArea.toFixed(1)}<em> ha</em></strong><small>boundary-derived</small></article>
         </section>
       )}
@@ -83,7 +86,7 @@ export function Dashboard() {
 
       {modal === 'add' && (
         <AddFieldWizard 
-          onComplete={() => { setModal(''); refreshFields(); }} 
+          onComplete={fieldId => { setModal(''); navigate(`/fields/${fieldId}/map`); }}
           onCancel={() => setModal('')} 
         />
       )}

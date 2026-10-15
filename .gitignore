@@ -26,3 +26,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local process state and private database backups
+.local/
+*.dump
+playwright-report/
+test-results/

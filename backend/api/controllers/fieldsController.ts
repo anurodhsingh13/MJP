@@ -1,6 +1,12 @@
 import type { Request, Response } from 'express';
 import { pool } from '../db/pool.ts';
 
+const DEFAULT_PYTHON_ENGINE_URL = 'http://127.0.0.1:8000';
+
+export function getPythonEngineUrl(): string {
+  return (process.env.PYTHON_ENGINE_URL ?? DEFAULT_PYTHON_ENGINE_URL).replace(/\/+$/, '');
+}
+
 export function isValidFieldBoundary(boundary: unknown): boundary is { type: 'Polygon'; coordinates: number[][][] } {
   const candidate = boundary as { type?: string; coordinates?: unknown[][][] } | null;
   const coordinates = candidate?.coordinates?.[0];
@@ -77,7 +83,7 @@ export async function getFieldNdviAnalysis(request: Request, response: Response)
     
     const result = await pool.query('select observed_on, ndvi_value, cloud_cover, source, scene_id from public.vegetation_indices where field_id = $1 order by observed_on asc', [request.params.fieldId]);
     
-    const engineResponse = await fetch(`${process.env.PYTHON_ENGINE_URL || "http://127.0.0.1:8000"}/analyze-indices`, {
+    const engineResponse = await fetch(`${getPythonEngineUrl()}/analyze-indices`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -124,7 +130,7 @@ export async function calculateNdviFromScene(request: Request, response: Respons
     const polygon = fieldResult.rows[0]?.boundary_geojson;
     if (!polygon || !polygon.coordinates?.length) { response.status(400).json({ error: 'Field boundary is required for NDVI calculation' }); return; }
     
-    const engineResponse = await fetch(`${process.env.PYTHON_ENGINE_URL || "http://127.0.0.1:8000"}/calculate-indices`, {
+    const engineResponse = await fetch(`${getPythonEngineUrl()}/calculate-indices`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -242,7 +248,7 @@ export async function ingestSentinelScenes(request: Request, response: Response)
   try {
     const fieldResult = await pool.query('select ST_Y(location) as latitude, ST_X(location) as longitude, ST_AsGeoJSON(boundary_geom)::jsonb as boundary_geojson from public.fields where id = $1', [request.params.fieldId]);
     const field = fieldResult.rows[0];
-    if (!field?.latitude || !field.longitude) { response.status(400).json({ error: 'Field coordinates are required' }); return; }
+    if (field?.latitude == null || field?.longitude == null) { response.status(400).json({ error: 'Field coordinates are required' }); return; }
     const point = field.boundary_geojson?.coordinates?.[0] ?? [[field.longitude, field.latitude]];
     const flatCoordinates = point.flat();
     const minLongitude = Math.min(...flatCoordinates.filter((_value: number, index: number) => index % 2 === 0));
@@ -257,7 +263,8 @@ export async function ingestSentinelScenes(request: Request, response: Response)
     startDate.setDate(endDate.getDate() - days);
     const datetime = `${startDate.toISOString()}/${endDate.toISOString()}`;
 
-    const catalogResponse = await fetch(catalogUrl, { 
+    const catalogResponse = await fetch(catalogUrl, {
+      signal: AbortSignal.timeout(30000),
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' }, 
       body: JSON.stringify({ 
@@ -285,15 +292,15 @@ export async function ingestSentinelScenes(request: Request, response: Response)
 }
 
 export async function ingestWeather(request: Request, response: Response) {
-  const { start, end } = request.body as { start?: string; end?: string };
+  const { start, end } = (request.body ?? {}) as { start?: string; end?: string };
   try {
     const fieldResult = await pool.query('select ST_Y(location) as latitude, ST_X(location) as longitude from public.fields where id = $1', [request.params.fieldId]);
     const field = fieldResult.rows[0];
-    if (!field?.latitude || !field.longitude) { response.status(400).json({ error: 'Field latitude and longitude are required' }); return; }
+    if (field?.latitude == null || field?.longitude == null) { response.status(400).json({ error: 'Field latitude and longitude are required' }); return; }
     const from = start ?? new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10).replaceAll('-', '');
     const to = end ?? new Date().toISOString().slice(0, 10).replaceAll('-', '');
     const sourceUrl = `https://power.larc.nasa.gov/api/temporal/daily/point?parameters=PRECTOTCORR,T2M,RH2M&community=AG&longitude=${field.longitude}&latitude=${field.latitude}&start=${from}&end=${to}&format=JSON`;
-    const sourceResponse = await fetch(sourceUrl);
+    const sourceResponse = await fetch(sourceUrl, { signal: AbortSignal.timeout(30000) });
     if (!sourceResponse.ok) { response.status(502).json({ error: 'NASA POWER request failed' }); return; }
     const payload = await sourceResponse.json() as { properties: { parameter: Record<string, Record<string, number>> } };
     const parameters = payload.properties.parameter;
@@ -309,7 +316,7 @@ export async function ingestWeather(request: Request, response: Response) {
 
 export async function createField(request: Request, response: Response) {
   const { name, crop, boundary_geojson, planting_date, harvest_date } = request.body as any;
-  if (!name?.trim() || !crop?.trim() || !isValidFieldBoundary(boundary_geojson)) {
+  if (typeof name !== 'string' || !name.trim() || typeof crop !== 'string' || !crop.trim() || !isValidFieldBoundary(boundary_geojson)) {
     response.status(400).json({ error: 'name, crop, and a valid closed Polygon boundary are required' });
     return;
   }
@@ -362,7 +369,7 @@ export async function updateFieldLocation(request: Request, response: Response) 
 
 export async function updateField(request: Request, response: Response) {
   const { name, crop, planting_date, harvest_date, expected_yield_tons } = request.body as { name?: string; crop?: string; planting_date?: string | null; harvest_date?: string | null; expected_yield_tons?: number | null };
-  if ((name !== undefined && !name.trim()) || (crop !== undefined && !crop.trim())) {
+  if ((name !== undefined && (typeof name !== 'string' || !name.trim())) || (crop !== undefined && (typeof crop !== 'string' || !crop.trim()))) {
     response.status(400).json({ error: 'Field name and crop cannot be empty' });
     return;
   }
@@ -379,12 +386,12 @@ export async function updateField(request: Request, response: Response) {
       `update public.fields 
        set name = coalesce($1, name), 
            crop = coalesce($2, crop), 
-           planting_date = $3, 
-           harvest_date = $4, 
-           expected_yield_tons = $5 
+           planting_date = case when $7 then $3::date else planting_date end,
+           harvest_date = case when $8 then $4::date else harvest_date end,
+           expected_yield_tons = case when $9 then $5::numeric else expected_yield_tons end
        where id = $6 
        returning id, name, crop, area_hectares, health_score, ndvi_average, canopy_coverage, health_delta, last_observation, planting_date, harvest_date, expected_yield_tons, ST_Y(location) as latitude, ST_X(location) as longitude, ST_AsGeoJSON(boundary_geom)::jsonb as boundary_geojson, created_at`, 
-      [name, crop, planting_date, harvest_date, expected_yield_tons, request.params.fieldId]
+      [name, crop, planting_date, harvest_date, expected_yield_tons, request.params.fieldId, planting_date !== undefined, harvest_date !== undefined, expected_yield_tons !== undefined]
     );
     if (!result.rowCount) { response.status(404).json({ error: 'Field not found' }); return; }
     response.json(result.rows[0]);
@@ -459,7 +466,7 @@ export async function getFieldOverlay(request: Request, response: Response) {
     if (!scene) { response.status(404).json({ error: 'Scene not found' }); return; }
     
     const assets = scene.assets;
-    const engineResponse = await fetch(`${process.env.PYTHON_ENGINE_URL || "http://127.0.0.1:8000"}/generate-overlay`, {
+    const engineResponse = await fetch(`${getPythonEngineUrl()}/generate-overlay`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -500,7 +507,7 @@ export async function getFieldTile(request: Request, response: Response) {
     const redUrl = assets['red']?.href ?? assets['B04']?.href;
     const nirUrl = assets['nir']?.href ?? assets['B08']?.href;
     if (!redUrl || !nirUrl) { response.status(422).json({ error: 'Scene does not contain red and NIR assets' }); return; }
-    const engineResponse = await fetch(`${process.env.PYTHON_ENGINE_URL || "http://127.0.0.1:8000"}/tiles/${z}/${x}/${y}.png`, {
+    const engineResponse = await fetch(`${getPythonEngineUrl()}/tiles/${z}/${x}/${y}.png`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

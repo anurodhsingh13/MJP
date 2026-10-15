@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+    "dev": "concurrently --kill-others --names web,api,engine \"npm run dev:client\" \"npm run dev:server\" \"npm run dev:engine\"",
     "dev:client": "vite --config frontend/vite.config.ts",
     "dev:server": "tsx backend/api/server.ts",
     "typecheck": "tsc -b",
@@ -12,7 +12,13 @@
     "build": "npm run typecheck && vite --config frontend/vite.config.ts build",
     "lint": "oxlint frontend backend",
     "preview": "vite --config frontend/vite.config.ts preview",
-    "migrate": "node-pg-migrate up -j ts -m backend/database/migrations --envPath .env"
+    "migrate": "node-pg-migrate up -j ts -m backend/database/migrations --envPath .env",
+    "start": "node scripts/local.mjs start",
+    "stop": "node scripts/local.mjs stop",
+    "status": "node scripts/local.mjs status",
+    "dev:engine": "node scripts/local.mjs engine",
+    "test:smoke": "node scripts/smoke.mjs",
+    "test:ui": "playwright test"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.1.1",
@@ -29,6 +35,7 @@
     "ts-node": "^10.9.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/express": "^5.0.6",
     "@types/google.maps": "^3.66.0",
     "@types/node": "^24.13.3",

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { loadFieldEvents, createFieldEvent, deleteFieldEvent } from '../../lib/api';
 
@@ -6,40 +6,51 @@ export function FieldHistory() {
   const { field } = useOutletContext<{ field: any }>();
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const refreshEvents = useCallback(async () => {
+    setLoading(true); setError('');
+    try { setEvents(await loadFieldEvents(field.id)); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to load history'); }
+    finally { setLoading(false); }
+  }, [field.id]);
   
   const [type, setType] = useState('planting');
   const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
-    if (!field?.id) return;
-    loadFieldEvents(field.id).then(data => {
-      setEvents(data);
-      setLoading(false);
-    });
-  }, [field?.id]);
+    let cancelled = false;
+    loadFieldEvents(field.id).then(data => { if (!cancelled) setEvents(data); })
+      .catch(caught => { if (!cancelled) setError(caught.message || 'Unable to load history'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [field.id]);
 
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!type || !date) return;
+    if (!type || !date || saving) return;
+    setSaving(true); setError('');
     try {
-      await createFieldEvent(field.id, type, date, notes);
+      const created = await createFieldEvent(field.id, type, date, notes);
+      setEvents(current => [...current, created].sort((a, b) => b.event_date.localeCompare(a.event_date)));
       setType('planting');
       setDate('');
       setNotes('');
-      const updatedEvents = await loadFieldEvents(field.id);
-      setEvents(updatedEvents);
-    } catch {
-      alert("Failed to add event");
-    }
+
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Failed to add event');
+    } finally { setSaving(false); }
   };
 
   if (loading) return <div style={{ padding: '2rem' }}>Loading history...</div>;
 
   return (
-    <div style={{ padding: '2rem', display: 'grid', gridTemplateColumns: '1fr 300px', gap: '2rem' }}>
+    <div className="field-columns">
       <div>
         <h2 style={{ marginTop: 0 }}>Events & History</h2>
+        {error && <div role="alert">{error} <button type="button" onClick={refreshEvents}>Retry loading history</button></div>}
         {events.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {events.map(ev => (
@@ -50,11 +61,15 @@ export function FieldHistory() {
                 </div>
                 <div style={{ color: '#4b5563', fontWeight: '500' }}>
                   {new Date(ev.event_date).toLocaleDateString()}
-                  <button type="button" onClick={async () => {
+                  <button type="button" disabled={saving || deleting !== null} onClick={async () => {
                     if (!window.confirm('Delete this field event?')) return;
-                    await deleteFieldEvent(field.id, ev.id);
-                    setEvents(current => current.filter(item => item.id !== ev.id));
-                  }} style={{ display:'block', marginTop:'.5rem', border:0, background:'none', color:'#b91c1c', padding:0 }}>Delete</button>
+                    setDeleting(ev.id); setError('');
+                    try {
+                      await deleteFieldEvent(field.id, ev.id);
+                      setEvents(current => current.filter(item => item.id !== ev.id));
+                    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to delete event'); }
+                    finally { setDeleting(null); }
+                  }} style={{ display:'block', marginTop:'.5rem', border:0, background:'none', color:'#b91c1c', padding:0 }}>{deleting === ev.id ? 'Deleting…' : 'Delete'}</button>
                 </div>
               </div>
             ))}
@@ -86,8 +101,8 @@ export function FieldHistory() {
             Notes (Optional)
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #d1d5db', resize: 'vertical' }} />
           </label>
-          <button type="submit" style={{ background: '#4d7c0f', color: 'white', padding: '0.75rem', borderRadius: '4px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-            Save Event
+          <button type="submit" disabled={saving || deleting !== null} style={{ background: '#4d7c0f', color: 'white', padding: '0.75rem', borderRadius: '4px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+            {saving ? 'Saving…' : 'Save Event'}
           </button>
         </form>
       </div>

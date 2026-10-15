@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
+import { configureMaps } from './maps';
+import { importLibrary } from '@googlemaps/js-api-loader'
 
 type Props = { latitude: number; longitude: number; fieldName?: string; zoom?: number; stressGeojson?: Record<string, unknown> | null; boundaryGeojson?: Record<string, unknown> | null; overlay?: { image: string, bounds: any } | null; tileUrl?: string | null }
 
@@ -9,6 +10,7 @@ export function GoogleSatelliteMap({ latitude, longitude, fieldName = '', zoom =
   const markerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null)
   const overlayRef = useRef<google.maps.GroundOverlay | null>(null)
   const tileOverlayRef = useRef<google.maps.ImageMapType | null>(null)
+  const [attempt, setAttempt] = useState(0)
   const [mapReady, setMapReady] = useState(false)
   const [mapError, setMapError] = useState('')
   const configuredKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
@@ -19,7 +21,7 @@ export function GoogleSatelliteMap({ latitude, longitude, fieldName = '', zoom =
     if (!apiKey || !mapElement.current) return
     let cancelled = false
     setMapError('')
-    setOptions({ key: apiKey, v: 'weekly' })
+    configureMaps(apiKey)
     Promise.all([importLibrary('maps'), importLibrary('marker')]).then(([mapsLibrary, markerLibrary]) => {
       if (cancelled || !mapElement.current) return
       const position = { lat: latitude, lng: longitude }
@@ -41,7 +43,7 @@ export function GoogleSatelliteMap({ latitude, longitude, fieldName = '', zoom =
       setMapReady(true)
     }).catch(() => { if (!cancelled) setMapError('Google Maps could not be loaded. Verify the API key, billing and localhost restriction.') })
     return () => { cancelled = true; setMapReady(false); if (markerRef.current) markerRef.current.map = null; mapRef.current = null }
-  }, [apiKey, fieldName, latitude, longitude, mapId, zoom])
+  }, [apiKey, attempt, fieldName, latitude, longitude, mapId, zoom])
 
   useEffect(() => {
     if (mapRef.current) {
@@ -104,6 +106,6 @@ export function GoogleSatelliteMap({ latitude, longitude, fieldName = '', zoom =
   }, [mapReady, tileUrl]);
 
   if (!apiKey) return <div className="map-unavailable" role="alert">Google Maps is not configured. Add a browser-restricted VITE_GOOGLE_MAPS_API_KEY to display the map.</div>
-  if (mapError) return <div className="map-unavailable" role="alert">{mapError}</div>
+  if (mapError) return <div className="map-unavailable" role="alert">{mapError}<button type="button" onClick={() => { setMapError(''); setAttempt(value => value + 1) }}>Retry map</button></div>
   return <div ref={mapElement} className="google-map" aria-label={`Satellite map of ${fieldName}`} />
 }

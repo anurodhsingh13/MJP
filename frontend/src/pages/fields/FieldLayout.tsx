@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useModalDialog } from '../../lib/useModalDialog';
 import { deleteField, loadFields, updateField } from '../../lib/api';
 
 export function FieldLayout() {
@@ -11,6 +12,8 @@ export function FieldLayout() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+
+  useModalDialog(editing, () => setEditing(false), saving);
 
   const refreshField = useCallback(async () => {
     setError('');
@@ -34,8 +37,8 @@ export function FieldLayout() {
     return () => { cancelled = true; };
   }, [fieldId]);
 
-  if (error) return <div className="dashboard-shell"><div className="service-error" role="alert"><strong>Unable to open field</strong><span>{error}</span><button onClick={refreshField}>Retry</button></div></div>;
-  if (!field) return <div style={{ padding: '2rem' }}>Loading field...</div>;
+  if (error) return <div className="dashboard-shell"><div className="service-error" role="alert"><Link to="/">Back to Dashboard</Link><strong>Unable to open field</strong><span>{error}</span><button onClick={refreshField}>Retry</button></div></div>;
+  if (!field || field.id !== fieldId) return <div style={{ padding: '2rem' }}>Loading field...</div>;
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
@@ -48,14 +51,14 @@ export function FieldLayout() {
         <button type="button" onClick={() => { setFormError(''); setEditing(true); }} style={{ minHeight:'42px', padding:'.6rem 1rem', border:'1px solid #536b36', background:'#27371f', color:'#d9ea92', borderRadius:'4px' }}>Manage field</button>
       </div>
       
-      <div style={{ display: 'flex', gap: '2rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', marginBottom: '2rem' }}>
         <Link to={`/fields/${fieldId}/map`} style={{ fontWeight: location.pathname.includes('/map') ? 'bold' : 'normal', color: '#4d7c0f', textDecoration: 'none' }}>Satellite Map</Link>
         <Link to={`/fields/${fieldId}/analysis`} style={{ fontWeight: location.pathname.includes('/analysis') ? 'bold' : 'normal', color: '#4d7c0f', textDecoration: 'none' }}>Health Analysis</Link>
         <Link to={`/fields/${fieldId}/history`} style={{ fontWeight: location.pathname.includes('/history') ? 'bold' : 'normal', color: '#4d7c0f', textDecoration: 'none' }}>Events & History</Link>
       </div>
       
-      <div style={{ background: '#fff', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-        <Outlet context={{ field, refreshField }} />
+      <div className="field-content" style={{ background: '#fff', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+        <Outlet key={field.id} context={{ field, refreshField }} />
       </div>
       {editing && (
         <div className="wizard-modal" role="presentation">

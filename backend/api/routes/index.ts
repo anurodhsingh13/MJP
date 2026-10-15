@@ -12,6 +12,15 @@ import {
 } from '../controllers/fieldsController.ts';
 
 export const router = Router();
+for (const parameter of ['fieldId', 'alertId', 'eventId']) {
+  router.param(parameter, (_request, response, next, value: string) => {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
+      response.status(400).json({ error: `${parameter} must be a valid UUID` });
+      return;
+    }
+    next();
+  });
+}
 
 router.get('/health', getHealth);
 router.post('/assistant', askAssistant);

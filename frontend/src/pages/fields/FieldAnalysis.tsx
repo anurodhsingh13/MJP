@@ -15,30 +15,37 @@ export function FieldAnalysis() {
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [asking, setAsking] = useState(false);
+  const [error, setError] = useState('');
+  const [weatherMessage, setWeatherMessage] = useState('');
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     if (!field?.id) return;
-    Promise.all([
-      loadNdviAnalysis(field.id, language).catch(() => null),
-      loadNdvi(field.id).catch(() => []),
-      loadWeather(field.id).catch(() => [])
-    ]).then(([analysisData, ndviData, weatherData]) => {
-      setAnalysis(analysisData);
-      setObservations(ndviData);
-      setWeather(weatherData);
-      setLoading(false);
+    let cancelled = false;
+    Promise.allSettled([
+      loadNdviAnalysis(field.id, language), loadNdvi(field.id), loadWeather(field.id)
+    ]).then(results => {
+      if (cancelled) return;
+      const [analysisData, ndviData, weatherData] = results;
+      setAnalysis(analysisData.status === 'fulfilled' ? analysisData.value : null);
+      setObservations(ndviData.status === 'fulfilled' ? ndviData.value : []);
+      setWeather(weatherData.status === 'fulfilled' ? weatherData.value : []);
+      const errors = results.filter(result => result.status === 'rejected').map(result => result.reason instanceof Error ? result.reason.message : 'A service is unavailable');
+      setError(errors.join('. ')); setLoading(false);
     });
-  }, [field?.id, language]);
+    return () => { cancelled = true; };
+  }, [field?.id, language, reload]);
 
   const handleAsk = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!question.trim()) return;
+    if (!question.trim() || asking) return;
+    setAnswer('');
     setAsking(true);
     try {
       const res = await askFieldAssistant(question, field.id, language);
       setAnswer(res.answer);
-    } catch {
-      setAnswer("Sorry, I could not generate an answer right now.");
+    } catch (caught) {
+      setAnswer(caught instanceof Error ? caught.message : 'Assistant unavailable. Please try again.');
     } finally {
       setAsking(false);
     }
@@ -47,8 +54,9 @@ export function FieldAnalysis() {
   if (loading) return <div style={{ padding: '2rem' }}>Loading analysis...</div>;
 
   return (
-    <div style={{ padding: '2rem', display: 'grid', gridTemplateColumns: '1fr 300px', gap: '2rem' }}>
+    <div className="field-columns">
       <div>
+        {error && <div role="alert">{error} <button type="button" onClick={() => { setLoading(true); setReload(value => value + 1); }}>Retry analysis</button></div>}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <h2 style={{ margin: 0 }}>Health Analysis</h2>
           <select value={language} onChange={e => { setLoading(true); setLanguage(e.target.value); }} style={{ padding: '0.5rem', borderRadius: '4px' }}>
@@ -59,7 +67,7 @@ export function FieldAnalysis() {
 
         {analysis ? (
           <div style={{ background: '#f0fdf4', padding: '1.5rem', borderRadius: '8px', border: '1px solid #bbf7d0', marginBottom: '2rem' }}>
-            <h3 style={{ marginTop: 0, color: '#166534' }}>{analysis.statusLabel} (Trend: {analysis.trend})</h3>
+            <h3 style={{ marginTop: 0, color: '#166534' }}>{analysis.statusLabel}{analysis.trend ? ` (Trend: ${analysis.trend})` : ''}</h3>
             <p style={{ color: '#15803d', fontSize: '1.1rem', lineHeight: '1.5' }}>{analysis.summary}</p>
             {analysis.recommendation && (
               <div style={{ marginTop: '1rem', padding: '1rem', background: '#fff', borderRadius: '4px', borderLeft: '4px solid #166534' }}>
@@ -89,8 +97,8 @@ export function FieldAnalysis() {
                   <td style={{ padding: '0.75rem 0' }}>{new Date(obs.observed_on).toLocaleDateString()}</td>
                   <td>{obs.cloud_cover}%</td>
                   <td style={{ fontWeight: 'bold' }}>{typeof obs.ndvi_value === 'number' ? obs.ndvi_value.toFixed(3) : obs.ndvi_value}</td>
-                  <td>{obs.ndre_value ? Number(obs.ndre_value).toFixed(3) : '-'}</td>
-                  <td>{obs.ndmi_value ? Number(obs.ndmi_value).toFixed(3) : '-'}</td>
+                  <td>{obs.ndre_value != null ? Number(obs.ndre_value).toFixed(3) : '-'}</td>
+                  <td>{obs.ndmi_value != null ? Number(obs.ndmi_value).toFixed(3) : '-'}</td>
                 </tr>
               ))}
             </tbody>
@@ -103,13 +111,15 @@ export function FieldAnalysis() {
           <h3>NASA POWER Weather Insights</h3>
           <button 
             onClick={async () => {
-              setWeatherLoading(true);
+              if (weatherLoading) return;
+              setWeatherLoading(true); setWeatherMessage('');
               try {
-                await ingestWeather(field.id);
+                const result = await ingestWeather(field.id);
                 const data = await loadWeather(field.id);
                 setWeather(data);
+                setWeatherMessage(`Weather synced: ${result.imported} observations imported.`);
               } catch (e) {
-                console.error(e);
+                setWeatherMessage(e instanceof Error ? e.message : 'Weather sync failed. Try again.');
               } finally {
                 setWeatherLoading(false);
               }
@@ -121,6 +131,7 @@ export function FieldAnalysis() {
           </button>
         </div>
 
+        {weatherMessage && <p role="status">{weatherMessage}</p>}
         {weather.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <div style={{ height: '300px', width: '100%', background: '#fff', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '8px' }}>
@@ -167,12 +178,14 @@ export function FieldAnalysis() {
             onChange={e => setQuestion(e.target.value)} 
             placeholder="e.g. When should I irrigate next?" 
             rows={4}
+            maxLength={2000}
+            aria-label="Question for field assistant"
             style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #d1d5db', resize: 'vertical' }}
             required
           />
           <button 
             type="submit" 
-            disabled={asking}
+            disabled={asking || !question.trim()}
             style={{ background: '#4d7c0f', color: 'white', padding: '0.75rem', borderRadius: '4px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
           >
             {asking ? 'Thinking...' : 'Ask AI'}

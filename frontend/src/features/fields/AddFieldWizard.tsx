@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
+import { useModalDialog } from '../../lib/useModalDialog';
+import { configureMaps } from '../../lib/maps';
+import { importLibrary } from '@googlemaps/js-api-loader';
 
 type Step = 'basic' | 'dates' | 'boundary' | 'confirm';
 
@@ -25,21 +27,17 @@ export function AddFieldWizard({ onComplete, onCancel }: { onComplete: (fieldId:
   const boundaryFinishedRef = useRef(false);
   const boundaryPathRef = useRef<google.maps.LatLngLiteral[]>([]);
   
+  const closeWizard = () => savedFieldId ? onComplete(savedFieldId) : onCancel();
+
   const configuredKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const apiKey = configuredKey && !configuredKey.startsWith('your-') ? configuredKey : '';
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !saving) onCancel();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onCancel, saving]);
+  useModalDialog(true, closeWizard, saving);
 
   useEffect(() => {
     if (step === 'boundary' && apiKey && mapElement.current) {
       let isMounted = true;
-      setOptions({ key: apiKey, v: 'weekly' });
+      configureMaps(apiKey);
       Promise.all([
         importLibrary('maps'),
         importLibrary('geometry')
@@ -179,11 +177,12 @@ export function AddFieldWizard({ onComplete, onCancel }: { onComplete: (fieldId:
   return (
     <div className="wizard-modal" role="presentation">
       <div className="wizard-content" role="dialog" aria-modal="true" aria-labelledby="add-field-title">
+        <button type="button" onClick={closeWizard} disabled={saving} aria-label="Close add field" style={{ float: 'right' }}>Close</button>
         <h2 id="add-field-title">Add new field</h2>
         <p className="step-label">Step {(['basic', 'dates', 'boundary', 'confirm'] as Step[]).indexOf(step) + 1} of 4</p>
         
         {step === 'basic' && (
-          <form onSubmit={(e) => { e.preventDefault(); setStep('dates'); }}>
+          <form onSubmit={(e) => { e.preventDefault(); if (name.trim() && crop.trim()) setStep('dates'); else setError('Field name and crop are required.'); }}>
             <label>Field Name <input required value={name} onChange={e => setName(e.target.value)} placeholder="e.g. North block" /></label>
             <label>Crop Type <input required value={crop} onChange={e => setCrop(e.target.value)} placeholder="e.g. Wheat" /></label>
             <div className="actions">
@@ -194,9 +193,9 @@ export function AddFieldWizard({ onComplete, onCancel }: { onComplete: (fieldId:
         )}
 
         {step === 'dates' && (
-          <form onSubmit={(e) => { e.preventDefault(); setStep('boundary'); }}>
+          <form onSubmit={(e) => { e.preventDefault(); if (harvestDate && harvestDate < plantingDate) { setError('Harvest date must be on or after planting date.'); return; } setError(''); setStep('boundary'); }}>
             <label>Planting Date <input type="date" required value={plantingDate} onChange={e => setPlantingDate(e.target.value)} /></label>
-            <label>Expected Harvest (Optional) <input type="date" value={harvestDate} onChange={e => setHarvestDate(e.target.value)} /></label>
+            <label>Expected Harvest (Optional) <input type="date" min={plantingDate || undefined} value={harvestDate} onChange={e => setHarvestDate(e.target.value)} /></label>
             <div className="actions">
               <button type="button" onClick={() => setStep('basic')}>Back</button>
               <button type="submit">Next</button>
@@ -247,9 +246,10 @@ export function AddFieldWizard({ onComplete, onCancel }: { onComplete: (fieldId:
               </button>
             </div>
             {status && <p className="wizard-status" role="status">{status}</p>}
-            {error && <p className="wizard-error" role="alert">{error}</p>}
+            {savedFieldId && !saving && <button type="button" onClick={() => onComplete(savedFieldId)}>Open saved field</button>}
           </div>
         )}
+        {error && <p className="wizard-error" role="alert">{error}</p>}
       </div>
       <style dangerouslySetInnerHTML={{__html: `
         .wizard-modal {

@@ -9,6 +9,7 @@ export function FieldMap() {
   const [scenes, setScenes] = useState<any[]>([]);
   const [activeSceneId, setActiveSceneId] = useState<string>('');
   const [alerts, setAlerts] = useState<any[]>([]);
+  const [resolving, setResolving] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -23,17 +24,20 @@ export function FieldMap() {
 
   useEffect(() => {
     if (!fieldId) return;
+    let cancelled = false;
     loadScenes(fieldId).then(data => {
+      if (cancelled) return;
       setScenes(data);
       setActiveSceneId(data[0]?.scene_id || '');
-    }).catch(() => setError('Unable to load satellite observations.'));
+    }).catch(() => { if (!cancelled) setError('Unable to load satellite observations.'); });
     loadFieldAlerts(fieldId).then(alerts => {
-      setAlerts(alerts);
-    }).catch(() => setError('Unable to load field alerts.'));
+      if (!cancelled) setAlerts(alerts);
+    }).catch(() => { if (!cancelled) setError('Unable to load field alerts.'); });
+    return () => { cancelled = true; };
   }, [fieldId]);
 
   const tileUrl = fieldId && activeSceneId
-    ? `/api/fields/${fieldId}/tiles/${activeSceneId}/{z}/{x}/{y}.png`
+    ? `/api/fields/${fieldId}/tiles/${encodeURIComponent(activeSceneId)}/{z}/{x}/{y}.png`
     : null;
   const stressGeojson = alerts.find(alert => !alert.resolved && alert.severity === 'high' && alert.scene_id === activeSceneId)?.stress_geojson ?? null;
   const activeAlert = alerts.find(alert => !alert.resolved && alert.scene_id === activeSceneId);
@@ -62,14 +66,14 @@ export function FieldMap() {
     }
   };
 
-  const hasLocation = Number.isFinite(Number(field.latitude)) && Number.isFinite(Number(field.longitude));
+  const hasLocation = field.latitude != null && field.longitude != null && Number.isFinite(Number(field.latitude)) && Number.isFinite(Number(field.longitude));
 
   return (
     <div style={{ height: 'calc(100vh - 200px)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '1rem', background: '#f9fafb', display: 'flex', gap: '1rem', alignItems: 'center' }}>
         <label>
           <strong>Select Observation:</strong>
-          <select value={activeSceneId} onChange={e => setActiveSceneId(e.target.value)} style={{ marginLeft: '0.5rem' }}>
+          <select disabled={processing || !scenes.length} value={activeSceneId} onChange={e => setActiveSceneId(e.target.value)} style={{ marginLeft: '0.5rem' }}>
             {!scenes.length && <option value="">No observations available</option>}
             {scenes.map(s => (
               <option key={s.scene_id} value={s.scene_id}>
@@ -84,7 +88,13 @@ export function FieldMap() {
       </div>
       {message && <div role="status" style={{ padding: '.75rem 1rem', background: '#ecfccb', color: '#365314' }}>{message}</div>}
       {error && <div role="alert" style={{ padding: '.75rem 1rem', background: '#fee2e2', color: '#991b1b' }}>{error}</div>}
-      {activeAlert && <div role="alert" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'1rem', padding:'.75rem 1rem', background:'#fff7ed', color:'#9a3412' }}><span><strong>{activeAlert.title}</strong> for this observation</span><button type="button" onClick={async () => { if (!fieldId) return; await resolveFieldAlert(fieldId, activeAlert.id); setAlerts(current => current.map(alert => alert.id === activeAlert.id ? { ...alert, resolved:true } : alert)); }}>Mark resolved</button></div>}
+      {activeAlert && <div role="alert" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'1rem', padding:'.75rem 1rem', background:'#fff7ed', color:'#9a3412' }}><span><strong>{activeAlert.title}</strong> for this observation</span><button type="button" disabled={resolving} onClick={async () => {
+        if (!fieldId || resolving) return;
+        setResolving(true); setError('');
+        try { await resolveFieldAlert(fieldId, activeAlert.id); setAlerts(current => current.map(alert => alert.id === activeAlert.id ? { ...alert, resolved:true } : alert)); }
+        catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to resolve alert'); }
+        finally { setResolving(false); }
+      }}>{resolving ? 'Resolving…' : 'Mark resolved'}</button></div>}
       <div style={{ flex: 1, position: 'relative' }}>
         {hasLocation ? (
           <GoogleSatelliteMap
