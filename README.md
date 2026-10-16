@@ -102,6 +102,19 @@ npm test
 
 For the full submission check use `npm run submission:check`. A timestamped report is written to ignored `.local/submission-evidence/`. See [repository gap audit](docs/academic/REPOSITORY_GAP_AUDIT_2026-10-16.md) for unfinished items and the exact verification plan.
 
+## Full mock showcase (no API or PostgreSQL needed)
+
+```bash
+npm ci
+npm run demo
+```
+
+Open **http://localhost:5173/?demo=1**. The whole UI loads an in-memory sample backend: eight crop fields, example polygon boundaries and NDVI layers, two-date vegetation observations, 45 days of daily weather per field, satellite scenes, historical field events, tasks, alerts, scouting, report/CSV data, and six additional dataset cards. You can create example visits/notes and navigate between pages. No real database, Python engine or external satellite processing is used.
+
+Use **http://localhost:5173/?demo=0** to leave sample mode (if your real backend is running). All mock records reset on a browser refresh; original database records are untouched. The interface displays an unobtrusive Example Data Mode indicator to distinguish synthetic values from verified imagery.
+
+Run `npx playwright test tests/ui/showcase.spec.ts` for targeted checks. Never treat in-memory readings as real satellite evidence.
+
 ## Sync project data
 
 With native services running, run `npm run sync:data` to import 30 available days of NASA POWER weather and search the last 90 days of Sentinel-2 observations for saved field locations. NASA meteorological availability typically trails by 2–3 days; missing-value sentinels are excluded from measurements. Set `SYNC_WEATHER_DAYS` to choose 1–365 days. This sends saved coordinates to NASA POWER and Earth Search.
