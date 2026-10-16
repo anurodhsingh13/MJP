@@ -5,6 +5,7 @@ import L from 'leaflet';
 import type { GeoJsonObject } from 'geojson';
 import { Bot, CalendarDays, CloudSun, Droplets, Images, MapPinned, MoveDownRight, MoveUpRight, Minus, Thermometer, Waves, ArrowRight, Activity, Clock } from 'lucide-react';
 import { cropPhoto, cropPhotos } from '../../lib/cropPhotos';
+import { FieldHealthLeaderboard } from './FieldHealthLeaderboard';
 import { usePreferences } from '../../lib/preferencesContext';
 import { loadFieldEvents, loadFieldJobs, loadFieldTasks, loadNdvi, loadWeather, type DatabaseField, type FieldEvent, type FieldTask, type ProcessingJob, type VegetationIndexObservation, type WeatherObservation } from '../../lib/api';
 
@@ -127,6 +128,7 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
     </>:<p>{pending?t('Loading weather…','मौसम ला रहे हैं…'):t('No weather data available','मौसम की जानकारी नहीं मिली')}</p>}
    </article>
   </div>
+  <FieldHealthLeaderboard fields={fields}/>
   <article className="addon-card addon-insights"><h3><Activity size={19}/>{t('Crop insights','फ़सल के बदलाव')}</h3><div className="addon-insight-grid">{insights.length?insights.map(({field,latest,diff})=>{
    const direction=diff===null?'none':diff<-.03?'down':diff>.03?'up':'stable';
    const Icon=direction==='down'?MoveDownRight:direction==='up'?MoveUpRight:Minus;
