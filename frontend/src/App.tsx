@@ -6,6 +6,7 @@ import { CropAssistant } from './features/assistant/CropAssistant';
 import { PreferencesProvider } from './lib/preferences';
 import { usePreferences } from './lib/preferencesContext';
 
+const Profile = lazy(() => import('./pages/profile/Profile').then(module => ({default:module.Profile})));
 const CropGallery = lazy(() => import('./pages/gallery/CropGallery').then(module => ({ default: module.CropGallery })));
 const Datasets = lazy(() => import('./pages/datasets/Datasets').then(module => ({ default: module.Datasets })));
 const Dashboard = lazy(() => import('./pages/dashboard/Dashboard').then(module => ({ default: module.Dashboard })));
@@ -41,6 +42,7 @@ export default function App() {
         <Suspense fallback={<LoadingWorkspace/>}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/profile" element={<Profile/>} />
             <Route path="/datasets" element={<Datasets />} />
             <Route path="/gallery" element={<CropGallery />} />
             <Route path="/help" element={<Help />} />

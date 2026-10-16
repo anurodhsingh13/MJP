@@ -1,12 +1,14 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { usePreferences } from '../../lib/preferencesContext';
-import {UserRound,ChevronDown,LogOut} from 'lucide-react';
+import {UserRound} from 'lucide-react';
+import {Link} from 'react-router-dom';
+import {AccountSettingsContext} from './AccountSettingsContext';
+import {emptyProfile,validateProfile,type ProfileValues} from '../../../../shared/profile';
 import {PreferencesBar} from '../../lib/preferences';
 import {Notifications} from '../notifications/Notifications';
-import {useDisclosureDismiss} from '../../lib/useDisclosureDismiss';
 import { FarmerAccountContext } from './FarmerAccountContext';
 
-type Account = { id: string; email: string };
+type Account = { id: string; email: string; profile?:ProfileValues };
 type AuthSession = { mode: 'required' | 'local'; user: Account | null };
 
 async function readSession(): Promise<AuthSession> {
@@ -21,28 +23,26 @@ async function readSession(): Promise<AuthSession> {
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const {t}=usePreferences();
-  const accountDisclosure=useDisclosureDismiss();
   const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [preferredName, setPreferredName] = useState('');
-  const [nameDraft, setNameDraft] = useState('');
-  useEffect(() => {
-    const userId = session?.user?.id;
-    if (!userId) { setPreferredName(''); setNameDraft(''); return; }
-    try { const stored = localStorage.getItem('terrascope:display-name:' + userId) || ''; setPreferredName(stored); setNameDraft(stored); }
-    catch { setPreferredName(''); setNameDraft(''); }
-  }, [session?.user?.id]);
-  const savePreferredName = () => {
-    if (!session?.user) return;
-    const name = nameDraft.trim().slice(0, 60);
-    try { if (name) localStorage.setItem('terrascope:display-name:' + session.user.id, name);
-      else localStorage.removeItem('terrascope:display-name:' + session.user.id);
-      setPreferredName(name);
-    } catch { setError(t('Could not save the name on this device.', 'इस डिवाइस पर नाम सेव नहीं हुआ।')); }
-  };
+  const localKey='terrascope:profile:'+(document.documentElement.dataset.showcase==='true'?'demo':'local');
+  const [localProfile,setLocalProfile]=useState<ProfileValues>(()=>{try{return validateProfile(JSON.parse(sessionStorage.getItem(localKey)||'{}'));}catch{return {...emptyProfile};}});
+  const profile=session?.user?{...emptyProfile,...session.user.profile}:localProfile;
+  async function saveProfile(value:ProfileValues){
+    const validated=validateProfile(value);
+    if(!session?.user){sessionStorage.setItem(localKey,JSON.stringify(validated));setLocalProfile(validated);return;}
+    const response=await fetch('/api/auth/profile',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(validated)});
+    const payload=await response.json() as {user?:Account;error?:string};
+    if(!response.ok||!payload.user)throw new Error(payload.error||'Could not save profile');
+    setSession(current=>current?{...current,user:payload.user!}:current);
+  }
+  async function changePassword(currentPassword:string,newPassword:string){
+    const response=await fetch('/api/auth/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword,newPassword})});
+    const payload=await response.json() as {error?:string};if(!response.ok)throw new Error(payload.error||'Could not change password');
+  }
 
   useEffect(() => {
     let active = true;
@@ -68,7 +68,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password,...(registering?{name:String(form.get('name')??'')}: {}) }),
       });
       const payload = await response.json() as { user?: Account; error?: string };
       if (!response.ok) throw new Error(payload.error ?? 'Unable to sign in.');
@@ -90,6 +90,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       setSession({ mode: 'required', user: null });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Sign-out failed.');
+      throw reason;
     } finally {
       setBusy(false);
     }
@@ -105,6 +106,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
           <p className="eyebrow">{t('TerraScope • Crop health monitoring','TerraScope • फ़सल की निगरानी')}</p>
           <h1>{registering ? t('Create your account','अपना खाता बनाएँ') : t('Sign in to your fields','अपने खेत देखने के लिए साइन इन करें')}</h1>
           <p>{t('Your field records belong to your account. Old unclaimed fields must be assigned explicitly by the local administrator.', 'आपके खेत की जानकारी आपके खाते में रहती है। पुराने बिना खाते वाले खेत स्थानीय व्यवस्थापक को अलग से जोड़ने होंगे।')}</p>
+          {registering&&<><label htmlFor="auth-name">{t('Your name (optional)','आपका नाम (वैकल्पिक)')}</label><input id="auth-name" name="name" autoComplete="name" maxLength={60}/></>}
           <label htmlFor="auth-email">{t('Email','ईमेल')}</label>
           <input id="auth-email" name="email" type="email" autoComplete="email" required maxLength={160} />
           <label htmlFor="auth-password">{t('Password','पासवर्ड')}</label>
@@ -120,24 +122,16 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  const farmerAccount = session.user ? {id:session.user.id,email:session.user.email,displayName:preferredName || session.user.email.split('@')[0] || t('Farmer','किसान')} : null;
+  const farmerAccount = {id:session.user?.id||'local',email:session.user?.email||'',displayName:profile.name||t('Farmer','किसान')};
   return (
+    <AccountSettingsContext.Provider value={{email:session.user?.email||'',signedIn:Boolean(session.user),profile,saveProfile,changePassword,signOut}}>
     <FarmerAccountContext.Provider value={farmerAccount}>
       <PreferencesBar>
         <Notifications key={session.user?.id||'local'} accountId={session.user?.id||(document.documentElement.dataset.showcase==='true'?'demo':'local')}/>
-        <details className="farmer-account-menu header-disclosure" ref={accountDisclosure}>
-          <summary aria-label={t('Your account','आपका खाता')} className="header-profile-button"><span className="header-avatar"><UserRound size={20} aria-hidden="true"/></span><span className="header-profile-copy"><small>{session.user?t('Signed in','साइन इन है'):document.documentElement.dataset.showcase==='true'?t('Demo workspace','डेमो खाते'):t('Local workspace','स्थानीय खाते')}</small><strong>{farmerAccount?.displayName||t('Farmer','किसान')}</strong></span><ChevronDown size={14} aria-hidden="true"/></summary>
-          <div className="farmer-account-menu-content header-popover"><strong>{t('Your account','आपका खाता')}</strong>
-            {session.user ? <><span>{session.user.email}</span><label htmlFor="farmer-display-name">{t('Name for your greeting','स्वागत में दिखने वाला नाम')}</label>
-              <input id="farmer-display-name" maxLength={60} value={nameDraft} onChange={event => setNameDraft(event.target.value)} placeholder={t('Enter your name','अपना नाम लिखें')}/>
-              <button type="button" onClick={savePreferredName}>{t('Save name','नाम सेव करें')}</button>
-              <small>{t('Saved only in this browser, not synced to another device.','नाम केवल इस ब्राउज़र में सेव होता है, दूसरे डिवाइस पर नहीं जाएगा।')}</small>
-              <button type="button" onClick={signOut} disabled={busy}><LogOut size={16} aria-hidden="true"/> {busy ? t('Please wait…','कृपया रुकें…') : t('Sign out','साइन आउट करें')}</button></> : <p>{t('You are viewing a local workspace.','आप स्थानीय खाते देख रहे हैं।')}</p>}
-            {error&&<span role="alert">{error}</span>}
-          </div>
-        </details>
+        <Link to="/profile" aria-label={t('Your account','आपका खाता')} className="header-profile-button header-profile-link"><span className="header-avatar"><UserRound size={20} aria-hidden="true"/></span><span className="header-profile-copy"><small>{session.user?t('Signed in','साइन इन है'):t('Your profile','आपकी प्रोफ़ाइल')}</small><strong>{farmerAccount.displayName}</strong></span></Link>
       </PreferencesBar>
       {children}
     </FarmerAccountContext.Provider>
+    </AccountSettingsContext.Provider>
   );
 }

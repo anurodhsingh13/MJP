@@ -746,3 +746,7 @@ html[data-showcase="true"] .crop-assistant-launch{bottom:105px}
 .header-popover button { cursor:pointer; }.farmer-account-menu-content button { display:flex; align-items:center; justify-content:center; gap:7px; }
 @media(max-width:900px) { .preferences-bar { grid-template-columns:minmax(0,1fr) auto; gap:12px; }.preferences-bar .preference-controls { grid-row:2; grid-column:1 / -1; width:100%; justify-content:flex-start; }.header-account-actions { grid-row:1; grid-column:2; }.header-profile-copy { display:none; }.farmer-account-menu .header-profile-button { padding:3px; }.header-profile-button>svg { display:none; }.header-account-actions { gap:10px; }.notification-menu { position:static; }.notification-popover { top:65px; right:16px; width:min(350px,calc(100vw - 32px)); } }
 @media print { .header-popover { display:none !important; } }
+
+.header-profile-link { display:flex; align-items:center; gap:8px; padding:4px 12px 4px 4px; border:1px solid #567761; color:#fff; text-decoration:none; background:#ffffff0b; border-radius:99px; min-height:44px; box-sizing:border-box; }.header-profile-link:hover { background:#ffffff1c; }.header-profile-link:focus-visible { outline:3px solid #d7b958; outline-offset:3px; }
+
+@media(max-width:900px) { .header-profile-link { padding:3px; } }
