@@ -23,6 +23,7 @@
     "dev:engine": "node scripts/local.mjs engine",
     "test:smoke": "node scripts/smoke.mjs",
     "test:ui": "playwright test",
+    "submission:check": "node scripts/submission-preflight.mjs",
     "sync:data": "node scripts/sync-data.mjs",
     "data:import-demo": "node scripts/import-public-demo.mjs",
     "data:download": "node scripts/download-public-boundaries.mjs"
