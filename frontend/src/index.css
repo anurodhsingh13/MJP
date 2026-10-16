@@ -711,3 +711,6 @@ html[data-showcase="true"] .crop-assistant-launch{bottom:105px}
 .farmer-account-menu-content span { font-size:.8rem; }
 .farmer-account-menu-content small { color:#627264; font-size:.72rem; line-height:1.5; }
 .farmer-account-menu-content button { min-height:44px; border-radius:9px; border:1px solid #b9d5bd; color:#24563b; background:#f1f8ef; font:inherit; cursor:pointer; }
+
+.farmer-account-menu-content label { font-size:.78rem; font-weight:700; }
+.farmer-account-menu-content input { width:100%; min-height:44px; background:#fff; border:1px solid #b9d5bd; color:#244c36; padding:9px 11px; border-radius:9px; font:inherit; }
