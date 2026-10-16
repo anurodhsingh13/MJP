@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, NavLink } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, NavLink, Link } from 'react-router-dom';
 import { House, MapPinned, FileText, CircleHelp } from 'lucide-react';
 import { AuthGate } from './features/auth/AuthGate';
 import { PreferencesBar, PreferencesProvider } from './lib/preferences';
@@ -25,7 +25,7 @@ function FarmerMobileNavigation() {
   const { t } = usePreferences();
   return <nav className="farmer-mobile-nav" aria-label={t('Main mobile navigation', 'मोबाइल मुख्य नेविगेशन')}>
     <NavLink to="/" end><House aria-hidden="true" size={21}/><span>{t('Home', 'होम')}</span></NavLink>
-    <NavLink to="/" end={false} onClick={() => { if (window.location.pathname === '/') document.getElementById('my-fields')?.scrollIntoView({ behavior: 'smooth' }); }}><MapPinned aria-hidden="true" size={21}/><span>{t('Fields', 'खेत')}</span></NavLink>
+    <Link to="/#my-fields" onClick={() => { if (window.location.pathname === '/') document.getElementById('my-fields')?.scrollIntoView({ behavior: 'smooth' }); }}><MapPinned aria-hidden="true" size={21}/><span>{t('Fields', 'खेत')}</span></Link>
     <NavLink to="/reports"><FileText aria-hidden="true" size={21}/><span>{t('Reports', 'रिपोर्ट')}</span></NavLink>
     <NavLink to="/help"><CircleHelp aria-hidden="true" size={21}/><span>{t('Help', 'मदद')}</span></NavLink>
   </nav>;
