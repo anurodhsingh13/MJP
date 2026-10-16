@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, NavLink } from 'react-router-dom';
+import { House, MapPinned, FileText, CircleHelp } from 'lucide-react';
 import { AuthGate } from './features/auth/AuthGate';
 import { PreferencesBar, PreferencesProvider } from './lib/preferences';
 import { usePreferences } from './lib/preferencesContext';
@@ -18,6 +19,16 @@ const Help = lazy(() => import('./pages/help/Help').then(module => ({ default: m
 function LoadingWorkspace() {
   const {t}=usePreferences();
   return <div className="dashboard-shell" role="status">{t('Loading TerraScope…','TerraScope खोल रहे हैं…')}</div>;
+}
+
+function FarmerMobileNavigation() {
+  const { t } = usePreferences();
+  return <nav className="farmer-mobile-nav" aria-label={t('Main mobile navigation', 'मोबाइल मुख्य नेविगेशन')}>
+    <NavLink to="/" end><House aria-hidden="true" size={21}/><span>{t('Home', 'होम')}</span></NavLink>
+    <NavLink to="/" end={false} onClick={() => { if (window.location.pathname === '/') document.getElementById('my-fields')?.scrollIntoView({ behavior: 'smooth' }); }}><MapPinned aria-hidden="true" size={21}/><span>{t('Fields', 'खेत')}</span></NavLink>
+    <NavLink to="/reports"><FileText aria-hidden="true" size={21}/><span>{t('Reports', 'रिपोर्ट')}</span></NavLink>
+    <NavLink to="/help"><CircleHelp aria-hidden="true" size={21}/><span>{t('Help', 'मदद')}</span></NavLink>
+  </nav>;
 }
 
 export default function App() {
@@ -43,6 +54,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
+        <FarmerMobileNavigation />
       </AuthGate>
       </PreferencesProvider>
     </BrowserRouter>
