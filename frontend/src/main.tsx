@@ -3,6 +3,13 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 
+const params = new URLSearchParams(window.location.search);
+if (params.has('demo')) sessionStorage.setItem('terrascope-showcase', params.get('demo') === '1' ? '1' : '0');
+if (sessionStorage.getItem('terrascope-showcase') === '1') {
+  const { enableShowcase } = await import('./lib/showcase.ts');
+  enableShowcase();
+  document.documentElement.dataset.showcase = 'true';
+}
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
