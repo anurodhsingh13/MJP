@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import catalog from '../../../../datasets/catalog.json';
+import { showcaseDatasets } from '../../lib/showcaseDatasets';
 import { usePreferences } from '../../lib/preferencesContext';
 
 export function Datasets() {
@@ -8,7 +9,8 @@ export function Datasets() {
   const [query,setQuery]=useState('');
   const [status,setStatus]=useState('All');
   const statusText=(value:string)=>({All:t('All','सभी'),Connected:t('Connected','जुड़ा हुआ'),'Demo source':t('Demo source','डेमो का स्रोत'),'Reference only':t('Reference only','केवल संदर्भ')} as Record<string,string>)[value]||value;
-  const datasets=catalog.datasets.filter(item=>(status==='All'||item.status===status)&&`${item.name} ${item.category} ${item.provides.join(' ')}`.toLowerCase().includes(query.toLowerCase()));
+  const sourceDatasets = document.documentElement.dataset.showcase === 'true' ? [...catalog.datasets, ...showcaseDatasets] : catalog.datasets;
+  const datasets=sourceDatasets.filter(item=>(status==='All'||item.status===status)&&`${item.name} ${item.category} ${item.provides.join(' ')}`.toLowerCase().includes(query.toLowerCase()));
   return <main className="dashboard-shell"><Link className="back-link" to="/">← {t('Back to Dashboard','मेरे खेतों पर वापस जाएँ')}</Link><h1>{t('Help & data sources','मदद और जानकारी के स्रोत')}</h1>
     <section className="help-guide"><h2>{t('Using your field dashboard','अपने खेत की जानकारी कैसे देखें')}</h2>
       <details><summary>{t('Which field should I visit?','किस खेत में जाना चाहिए?')}</summary><p>{t('Start with fields under Needs inspection. Open the field, read what changed, then choose Plan a field visit. A vegetation decrease can have many causes; inspect the crop before deciding on treatment.','“खेत की जाँच करें” वाली सूची से शुरू करें। खेत खोलें, बदलाव पढ़ें और जाँच की तारीख़ तय करें। हरियाली कम होने की कई वजहें हो सकती हैं; इलाज तय करने से पहले खेत देखें।')}</p></details>
