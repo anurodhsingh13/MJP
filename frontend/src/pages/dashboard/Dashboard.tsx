@@ -32,7 +32,7 @@ export function Dashboard() {
   const inspection = real.filter(field => fieldAssessment(field).state === 'needs_inspection');
   const dataIssues = real.filter(field => ['image_too_old', 'not_enough_data', 'awaiting_analysis'].includes(fieldAssessment(field).state));
   const due = real.filter(field => Number(field.dueTasks) > 0);
-  const priority = inspection.length ? inspection : due.length ? due : dataIssues;
+  const priority = [...new Map([...inspection, ...due, ...dataIssues].map(field => [field.id, field])).values()];
   // Keep urgent real fields above routine fields, while making demo entries clearly secondary.
   const urgency = (field: DatabaseField) => {
     if (fieldAssessment(field).state === 'needs_inspection') return 0;
@@ -46,6 +46,7 @@ export function Dashboard() {
     .sort((a, b) => Number(isDemo(a)) - Number(isDemo(b)) || urgency(a) - urgency(b) || a.name.localeCompare(b.name, language === 'hi' ? 'hi' : 'en'));
   const choose = (value: string) => { setFilter(value); document.getElementById('my-fields')?.scrollIntoView({ behavior: 'smooth' }); };
   const hasFilters = Boolean(query || filter !== 'all');
+  const attentionCount = priority.length;
   return <main className="dashboard-shell simple-farm">
     <header className="dashboard-header overview-header farmer-hero">
       <div><span className="eyebrow">{t('YOUR DAILY FIELD COMPANION', 'हर दिन, आपके खेत का साथी')}</span>
@@ -61,14 +62,14 @@ export function Dashboard() {
     {!error && !loading && <>
       {real.length > 0 && <section id="overview" className={`attention-panel next-step-panel farmer-priority ${inspection.length ? 'needs-visit' : ''}`} aria-labelledby="attention-heading">
         <div className="next-step-heading"><span className="next-step-symbol" aria-hidden="true">{inspection.length || due.length ? <CalendarCheck/> : dataIssues.length ? <CloudSun/> : <Sprout/>}</span>
-          <div><span className="eyebrow">{t('START HERE', 'यहाँ से शुरू करें')}</span><h2 id="attention-heading">{inspection.length ? t('Visit these fields first', 'पहले इन खेतों को देखें') : due.length ? t('Your planned visits are due', 'तय जाँच का समय हो गया है') : dataIssues.length ? t('Let’s get a clearer picture', 'पहले साफ़ तस्वीर देखें') : t('Keep up your regular field visits', 'खेत की नियमित जाँच करते रहें')}</h2></div>
+          <div><span className="eyebrow">{t('START HERE', 'यहाँ से शुरू करें')}</span>{attentionCount > 0 && <span className="farmer-attention-count">{t(`${attentionCount} fields need attention`, `${attentionCount} खेतों पर ध्यान दें`)}</span><h2 id="attention-heading">{inspection.length ? t('Visit these fields first', 'पहले इन खेतों को देखें') : due.length ? t('Your planned visits are due', 'तय जाँच का समय हो गया है') : dataIssues.length ? t('Let’s get a clearer picture', 'पहले साफ़ तस्वीर देखें') : t('Keep up your regular field visits', 'खेत की नियमित जाँच करते रहें')}</h2></div>
         </div>
         {!inspection.length && !due.length && dataIssues.length > 0 && <p className="unknown-message">{t('We cannot tell how these crops are doing yet. A missing or old picture does not mean crop damage.', 'इन खेतों की फ़सल का हाल अभी साफ़ नहीं है। पुरानी या गायब तस्वीर का मतलब फ़सल खराब होना नहीं है।')}</p>}
         {priority.slice(0, 3).map(field => {
           const copy = fieldCopy(field, language);
           return <article className="attention-row" key={field.id}><div><strong>{field.name}</strong><p>{copy.explanation}</p></div><Link className="primary-action" to={fieldActionHref(field)}>{copy.actionLabel}<ArrowRight size={17} aria-hidden="true"/></Link></article>;
         })}
-        {priority.length > 3 && <button className="text-button" onClick={() => choose(inspection.length ? 'needs_inspection' : due.length ? 'due' : 'data')}>{t(`See all ${priority.length} fields`, `सभी ${priority.length} खेत देखें`)}</button>}
+        {priority.length > 3 && <button className="text-button" onClick={() => choose('all')}>{t(`See all ${priority.length} fields`, `सभी ${priority.length} खेत देखें`)}</button>}
         {!priority.length && <p>{t('No field is currently flagged for an urgent visit or missing picture. This is not a guarantee of crop health; keep checking in person.', 'अभी किसी खेत में ज़रूरी जाँच या तस्वीर की कमी का संकेत नहीं है। इसका मतलब फ़सल पूरी तरह स्वस्थ होना नहीं है; खेत में जाकर देखते रहें।')}</p>}
       </section>}
       {real.length > 0 && <section className="summary-grid compact-summary farmer-stats" aria-label={t('Farm summary', 'खेतों का सारांश')}>
