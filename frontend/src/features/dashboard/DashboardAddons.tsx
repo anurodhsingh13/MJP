@@ -103,7 +103,7 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
   ];
  }).filter(item=>item.date).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
  const visits:VisitItem[]=dataset.flatMap(field=>(details[field.id]?.tasks||[]).filter(task=>task.status!=='resolved')
-  .map(task=>({id:task.id,fieldId:field.id,fieldName:field.name,title:task.title,due:task.due_on,status:task.status})))
+  .map(task=>({id:task.id,fieldId:field.id,fieldName:field.name,title:task.title,due:task.due_on||'',status:task.status})))
   .filter(item=>item.due).sort((a,b)=>a.due.localeCompare(b.due)).slice(0,6);
  const insights=dataset.map(field=>{
   const obs=filteredReadings(details[field.id]?.observations||[],field);
