@@ -5,6 +5,7 @@ import { loadFields, type DatabaseField } from '../../lib/api';
 import { fieldActionHref, fieldAssessment, fieldCopy } from '../../lib/fieldCopy';
 import { usePreferences } from '../../lib/preferencesContext';
 import { AddFieldWizard } from '../../features/fields/AddFieldWizard';
+import { cropPhoto } from '../../lib/cropPhotos';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -90,7 +91,7 @@ export function Dashboard() {
           const active = field.latestJob && ['queued', 'running'].includes(field.latestJob.status);
           const ActionIcon = copy.action === 'visit' || copy.action === 'tasks' ? CalendarCheck : copy.action === 'images' ? CloudSun : Camera;
           return <article className={`field-card simple-field-card farmer-field-card card-${copy.assessment.state}`} key={field.id}>
-            <div className="field-card-top"><div className="field-card-name"><span className="field-avatar" aria-hidden="true"><Sprout size={24}/></span><div><h3><Link to={`/fields/${field.id}/overview`}>{field.name}</Link></h3><small>{!field.crop || field.crop === 'Unknown' ? t('Crop not added', 'फ़सल का नाम नहीं जोड़ा') : field.crop} · {area(field.area_hectares)}</small></div></div></div>
+            <div className="field-crop-photo"><img loading="lazy" src={cropPhoto(field.crop).src} alt={cropPhoto(field.crop).alt} onError={event => { event.currentTarget.style.display = "none"; }}/><span>{t("Crop photo", "फ़सल तस्वीर")}</span></div><div className="field-card-top"><div className="field-card-name"><span className="field-avatar" aria-hidden="true"><Sprout size={24}/></span><div><h3><Link to={`/fields/${field.id}/overview`}>{field.name}</Link></h3><small>{!field.crop || field.crop === 'Unknown' ? t('Crop not added', 'फ़सल का नाम नहीं जोड़ा') : field.crop} · {area(field.area_hectares)}</small></div></div></div>
             <div className="farmer-status-line"><span className={`evidence-status status-${copy.assessment.state}`}>{copy.title}</span></div><p className="card-explanation">{copy.explanation}</p>
             {isDemo(field) && <p className="demo-label">{t('Sample field · current crop is unverified', 'नमूना खेत · अभी की फ़सल सत्यापित नहीं')}</p>}
             {active && <p className="job-badge" role="status">{t('Looking for a clear picture…', 'साफ़ तस्वीर खोज रहे हैं…')}</p>}
