@@ -94,13 +94,22 @@ async function main() {
     console.log(`Frontend: http://localhost:${webPort}\nAPI: http://localhost:${apiPort}/api/health\nEngine: ${engine.href}health\nLogs: ${logFile}`);
     return;
   }
+  if (action === 'database') {
+    if (process.env.LOCAL_PG_BIN) {
+      if (!process.env.DATABASE_URL) throw new Error('Set DATABASE_URL in .env before starting the project-managed database.');
+      mkdirSync(runtime, { recursive: true });
+      localDatabase('start');
+      console.log('Project-managed PostgreSQL is running.');
+    }
+    return;
+  }
   if (action === 'engine') {
     const child = spawn(python, ['-m', 'uvicorn', 'backend.engine.main:app', '--host', '127.0.0.1', '--port', String(enginePort)], { stdio: 'inherit', env: { ...process.env, MPLBACKEND: 'Agg' } });
     child.on('error', error => { console.error(error.message); process.exitCode = 1; });
     child.on('exit', code => { process.exitCode = code ?? 1; });
     return;
   }
-  if (action !== 'start') throw new Error('Use start, stop, status or engine.');
+  if (action !== 'start') throw new Error('Use start, stop, status, database or engine.');
   if (runningPid()) { console.log('Local stack already running. Use npm run status.'); return; }
   mkdirSync(runtime, { recursive: true });
   localDatabase('start');
