@@ -22,6 +22,22 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [registering, setRegistering] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [preferredName, setPreferredName] = useState('');
+  const [nameDraft, setNameDraft] = useState('');
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) { setPreferredName(''); setNameDraft(''); return; }
+    try { const stored = localStorage.getItem('terrascope:display-name:' + userId) || ''; setPreferredName(stored); setNameDraft(stored); }
+    catch { setPreferredName(''); setNameDraft(''); }
+  }, [session?.user?.id]);
+  const savePreferredName = () => {
+    if (!session?.user) return;
+    const name = nameDraft.trim().slice(0, 60);
+    try { if (name) localStorage.setItem('terrascope:display-name:' + session.user.id, name);
+      else localStorage.removeItem('terrascope:display-name:' + session.user.id);
+      setPreferredName(name);
+    } catch { setError(t('Could not save the name on this device.', 'इस डिवाइस पर नाम सेव नहीं हुआ।')); }
+  };
 
   useEffect(() => {
     let active = true;
@@ -99,13 +115,16 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  const farmerAccount = session.user ? {id:session.user.id,email:session.user.email,displayName:session.user.email.split('@')[0] || t('Farmer','किसान')} : null;
+  const farmerAccount = session.user ? {id:session.user.id,email:session.user.email,displayName:preferredName || session.user.email.split('@')[0] || t('Farmer','किसान')} : null;
   return (
     <FarmerAccountContext.Provider value={farmerAccount}>
       {session.mode === 'required' && session.user && (
         <div className="auth-user-bar">
           <details className="farmer-account-menu"><summary aria-label={t('Your account','आपका खाता')}> <span aria-hidden="true">👤</span> {farmerAccount?.displayName}</summary>
-            <div className="farmer-account-menu-content"><strong>{t('Your account','आपका खाता')}</strong><span>{session.user.email}</span><small>{t('Display uses your email name until profile names are supported.','प्रोफ़ाइल नाम की सुविधा आने तक ईमेल का नाम दिखाया जा रहा है।')}</small>
+            <div className="farmer-account-menu-content"><strong>{t('Your account','आपका खाता')}</strong><span>{session.user.email}</span><label htmlFor="farmer-display-name">{t('Name for your greeting','स्वागत में दिखने वाला नाम')}</label>
+              <input id="farmer-display-name" maxLength={60} value={nameDraft} onChange={event => setNameDraft(event.target.value)} placeholder={t('Enter your name','अपना नाम लिखें')}/>
+              <button type="button" onClick={savePreferredName}>{t('Save name','नाम सेव करें')}</button>
+              <small>{t('Saved only in this browser, not synced to another device.','नाम केवल इस ब्राउज़र में सेव होता है, दूसरे डिवाइस पर नहीं जाएगा।')}</small>
               <button type="button" onClick={signOut} disabled={busy}>{busy ? t('Please wait…','कृपया रुकें…') : t('Sign out','साइन आउट करें')}</button>
             </div>
           </details>
