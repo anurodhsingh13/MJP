@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, NavLink, Link } from 'react-router-dom';
 import { House, MapPinned, FileText, CircleHelp } from 'lucide-react';
 import { AuthGate } from './features/auth/AuthGate';
+import { CropAssistant } from './features/assistant/CropAssistant';
 import { PreferencesBar, PreferencesProvider } from './lib/preferences';
 import { usePreferences } from './lib/preferencesContext';
 
@@ -55,6 +56,7 @@ export default function App() {
           </Routes>
         </Suspense>
         <FarmerMobileNavigation />
+        <CropAssistant />
       </AuthGate>
       </PreferencesProvider>
     </BrowserRouter>
