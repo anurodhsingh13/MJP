@@ -527,3 +527,15 @@ input[type=range] { padding:0; accent-color:var(--green); }
  .farmer-field-card { padding:18px; }
 }
 @media(prefers-reduced-motion:reduce) { .farmer-stats .summary-tile,.farmer-field-card { transition:none; } .farmer-stats .summary-tile:hover { transform:none; } }
+
+
+/* Mobile-first primary navigation; field analysis and reports remain accessible. */
+.farmer-mobile-nav { display:none; }
+@media(max-width:760px) {
+  body { padding-bottom:calc(76px + env(safe-area-inset-bottom,0px)); }
+  .farmer-mobile-nav { position:fixed; z-index:1000; bottom:0; left:0; right:0; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:2px; padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px)); background:#fff; border-top:1px solid #d9e5d8; box-shadow:0 -6px 25px #183d2412; }
+  .farmer-mobile-nav a { min-height:54px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:#566b5b; font-size:.72rem; font-weight:650; text-decoration:none; border-radius:12px; }
+  .farmer-mobile-nav a.active,.farmer-mobile-nav a[aria-current=page] { color:#176b45; background:#eaf3e9; }
+  .farmer-mobile-nav a:focus-visible { outline:3px solid #277a54; outline-offset:-3px; }
+  .farmer-mobile-nav svg { flex-shrink:0; }
+}
