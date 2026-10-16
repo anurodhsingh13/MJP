@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowRight, CalendarCheck, Camera, CloudSun, MapPin, Sprout, Search, SlidersHorizontal } from 'lucide-react';
 import { loadFields, type DatabaseField } from '../../lib/api';
 import { fieldActionHref, fieldAssessment, fieldCopy } from '../../lib/fieldCopy';
@@ -8,6 +8,10 @@ import { AddFieldWizard } from '../../features/fields/AddFieldWizard';
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
+  useEffect(() => {
+    if (location.hash === '#my-fields') document.getElementById('my-fields')?.scrollIntoView();
+  }, [location.hash]);
   const { t, language, date, area } = usePreferences();
   const [fields, setFields] = useState<DatabaseField[]>([]);
   const [adding, setAdding] = useState(false);
