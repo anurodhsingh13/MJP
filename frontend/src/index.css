@@ -597,3 +597,40 @@ body:has(.simple-farm) .eyebrow,body:has(.field-shell) .eyebrow { color:#4e7959;
  .field-shell .field-tabs { overflow-x:auto; flex-wrap:nowrap; scrollbar-width:thin; }
  .field-shell .field-tabs a { flex-shrink:0; white-space:nowrap; }
 }
+
+
+/* Farmer-first phase completion: shared visual language across the whole workspace. */
+:root { color-scheme:light; }
+body:has(.field-shell) .field-shell,body:has(.simple-farm) .dashboard-shell { color:#213e2c; }
+.farmer-attention-count { display:inline-flex; margin-left:10px; padding:5px 10px; border-radius:999px; background:#fff2d6; color:#79531c; font-size:.75rem; font-weight:800; letter-spacing:0; }
+.field-shell .field-tabs a { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:11px 14px; font-weight:700; text-decoration:none; }
+.field-shell .field-tabs a svg { flex-shrink:0; }
+.field-shell .back-link { display:inline-flex; align-items:center; gap:6px; text-decoration:none; font-weight:700; }
+.field-shell .field-content > div { max-width:100%; }
+.field-shell .field-content h2,.field-shell .field-content h3 { color:#183e2a; letter-spacing:-.025em; line-height:1.3; }
+.field-shell .field-content p { line-height:1.65; }
+.field-shell .field-content :is(button,select,input,textarea) { font:inherit; }
+.field-shell .field-content :is(button,a,summary,input,select,textarea):focus-visible { outline:3px solid #2c8a59; outline-offset:3px; }
+.field-shell .field-content :is(input,select,textarea) { min-height:44px; border-radius:10px; }
+.field-shell .field-content :is(.condition-card,.analysis-summary,.vegetation-trends,.technical-observations,.picture-change,.field-map-toolbar,.field-map-panel,.report-list,.field-overview > section) { border-radius:18px; }
+.field-shell .field-content :is(.condition-card,.analysis-summary,.vegetation-trends,.picture-change,.field-overview > section) { background:#fff; border:1px solid #dce8da; color:#284734; box-shadow:0 6px 24px #214a3010; }
+.field-shell .field-content .field-next-step { border-radius:14px; background:#e9f4e7; padding:16px; }
+.field-shell .field-content .field-next-step .primary-action { background:#176b45; color:#fff; border-color:#176b45; }
+.field-shell .field-content .picture-change strong { color:#194c32; }
+.field-shell .field-content details { accent-color:#176b45; }
+.field-shell .field-content details summary { cursor:pointer; font-weight:700; }
+.field-shell .field-content .error-notice { border-radius:12px; }
+.field-shell .field-content :is(.field-map-panel,.analysis-layout,.field-overview) { min-width:0; }
+.field-shell .field-content :is(.field-map-toolbar,.analysis-controls) { gap:12px; }
+.field-shell .field-content :is(.analysis-controls,.field-map-toolbar) label { color:#2c5037; font-weight:650; }
+.field-shell .field-content :is(.analysis-controls,.field-map-toolbar) select { background:#fff; color:#254331; border:1px solid #bcd2be; }
+@media(max-width:760px) {
+ .farmer-attention-count { margin:8px 0 0; }
+ .field-shell .field-tabs { position:relative; scroll-snap-type:x proximity; }
+ .field-shell .field-tabs a { scroll-snap-align:start; }
+ .field-shell .field-content :is(.analysis-controls,.field-map-toolbar) { flex-wrap:wrap; }
+ .field-shell .field-content :is(.analysis-controls,.field-map-toolbar) label { min-width:min(100%,220px); flex:1; }
+}
+@media(prefers-reduced-motion:reduce) {
+ .field-shell .field-tabs,.simple-farm * { scroll-behavior:auto !important; transition-duration:.01ms !important; animation-duration:.01ms !important; }
+}
