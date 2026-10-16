@@ -53,7 +53,19 @@ async function respond(path:string,method:string,body:Record<string,unknown>,sea
   }
   return json(fields.map(f=>({...f,latestJob:jobs.get(f.id)?.[0]||null,dueTasks:(tasks.get(f.id)||[]).filter(t=>t.status!=='resolved'&&String(t.due_on)<=date(0)).length})));
  }
- if(path==='/api/assistant')return json({answer:'The illustrative readings suggest checking the field in person before deciding on a treatment.',model:'showcase',languageCode:body.languageCode||'en-IN',evidenceDates:[date(3)]});
+ if(path==='/api/assistant') {
+  const question=String(body.message||'').toLowerCase();
+  const field=fields.find(f=>f.id===body.fieldId);
+  const hindi=body.languageCode==='hi-IN';
+  const subject=field?.name|| (hindi?'आपका खेत':'your field');
+  const ndvi=field?.latestObservation?.ndvi_value;
+  const answer= /weather|rain|temperature|मौसम|बारिश|तापमान/.test(question)
+    ? (hindi?`पिछले 45 दिनों के नमूना मौसम रिकॉर्ड में तापमान, बारिश और नमी देख सकते हैं। ${subject} की मौसम जानकारी Changes over time में देखें।`:`The example weather history contains 45 days of temperature, rainfall and humidity readings. Open Changes over time to review the weather for ${subject}.`)
+    : /ndvi|green|satellite|हरियाली|सैटेलाइट/.test(question)
+      ? (hindi?`${subject} की हाल की नमूना NDVI रीडिंग ${ndvi??'उपलब्ध नहीं'} है। NDVI हरियाली का संकेत है, बीमारी की निश्चित पहचान नहीं।`:`The latest example NDVI for ${subject} is ${ndvi??'unavailable'}. NDVI indicates vegetation greenness, not a confirmed disease diagnosis.`)
+      : (hindi?`${subject} में पत्तियाँ, पानी, मिट्टी और कीटों के निशान देखें। नक्शे और डायरी की मदद से अगली जाँच का रिकॉर्ड बनाएँ।`:`For ${subject}, inspect leaves, water, soil and signs of pests. Use the map and field diary to record your next visit.`);
+  return json({answer,model:'showcase',languageCode:body.languageCode||'en-IN',evidenceDates:field?.latestObservation?[field.latestObservation.observed_on]:[]});
+ }
  const match=path.match(/^\/api\/fields\/([^/]+)(?:\/(.*))?$/);if(!match)return json({error:'Not found'},404);
  const fieldId=match[1],section=match[2]||'',field=result(fieldId);if(!field)return json({error:'Field not found'},404);
  const data=observations.get(fieldId)||[];
