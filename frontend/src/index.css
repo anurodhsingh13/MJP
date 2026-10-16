@@ -639,3 +639,28 @@ body:has(.field-shell) .field-shell,body:has(.simple-farm) .dashboard-shell { co
 /* Standalone in-browser showcase, visually separated from connected farm data. */
 html[data-showcase="true"] body::before { content:"EXAMPLE DATA MODE"; position:fixed; bottom:78px; right:10px; z-index:3000; background:#173b2a; color:#fff; font:700 10px 'Manrope',sans-serif; letter-spacing:.08em; padding:7px 10px; border-radius:999px; box-shadow:0 4px 15px #0003; pointer-events:none; }
 @media(min-width:761px){html[data-showcase="true"] body::before{bottom:14px;}}
+
+
+/* Field-aware Sarvam assistant and example-mode assistant */
+.crop-assistant-launch{position:fixed;right:20px;bottom:24px;z-index:1100;display:flex;align-items:center;gap:9px;border:0;border-radius:100px;background:#126e44;color:#fff;font:700 14px inherit;padding:13px 19px;box-shadow:0 8px 28px #092e2160;cursor:pointer}
+.crop-assistant-window{position:fixed;right:18px;bottom:85px;z-index:1101;width:min(390px,calc(100vw - 30px));height:min(540px,calc(100dvh - 120px));display:flex;flex-direction:column;border-radius:20px;overflow:hidden;background:#fff;color:#193528;border:1px solid #c9dfce;box-shadow:0 12px 55px #08271f45}
+.crop-assistant-header{background:#14583a;color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.crop-assistant-header strong{display:flex;align-items:center;gap:8px;font-size:16px}
+.crop-assistant-header small{display:block;color:#d2f4dc;font-size:12px;margin-top:4px}
+.crop-assistant-header button{border:0;background:transparent;color:#fff;cursor:pointer;padding:6px}
+.crop-assistant-messages{padding:16px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:12px}
+.crop-assistant-intro{margin:0;color:#42634c}
+.crop-assistant-prompts{display:grid;gap:9px}
+.crop-assistant-prompts button{padding:11px;text-align:left;color:#175737;background:#f0f7f0;border:1px solid #d0e6d4;border-radius:12px;cursor:pointer}
+.crop-assistant-messages .assistant-user-message,.crop-assistant-messages .assistant-answer-message{padding:11px 13px;border-radius:13px;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;line-height:1.5}
+.assistant-user-message{background:#e2f3e6;align-self:flex-end;max-width:92%}
+.assistant-answer-message{background:#f2f4f1;align-self:flex-start;max-width:96%}
+.crop-assistant-messages p span{display:block;font-size:11px;font-weight:700;margin-bottom:5px}
+.crop-assistant-error{color:#8f2020;background:#fff0f0;margin:0;padding:8px 16px;font-size:13px}
+.crop-assistant-input{display:flex;gap:7px;padding:11px;border-top:1px solid #dce8de}
+.crop-assistant-input input{flex:1;min-width:0;border:1px solid #b4ccbc;border-radius:12px;padding:11px;color:#203b2b;background:#fff}
+.crop-assistant-input button{display:grid;place-items:center;min-width:44px;border:0;border-radius:12px;background:#146d47;color:#fff;cursor:pointer}
+.crop-assistant-input button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:760px){.crop-assistant-launch{bottom:82px;right:13px;padding:12px 14px}.crop-assistant-window{bottom:140px;right:8px;height:min(510px,calc(100dvh - 165px));width:calc(100vw - 16px)}}
+html[data-showcase="true"] .crop-assistant-launch{bottom:105px}
+@media(min-width:761px){html[data-showcase="true"] .crop-assistant-launch{bottom:48px}}
