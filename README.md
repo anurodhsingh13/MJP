@@ -156,3 +156,20 @@ The dashboard now starts with a field visit, due task or picture search. Cards g
 This UI revision adds no database migrations, dependencies or environment keys. Preserve the current account, CHM database and .env. Apply any previously unapplied migrations as described above when pulling from an older revision.
 
 For the academic demonstration, use [Submission readiness](docs/academic/SUBMISSION_READINESS.md), [Design and requirement traceability](docs/academic/DESIGN_AND_TRACEABILITY.md), [Phase II](docs/academic/PHASE_II_PLANNING_DESIGN.md) and [Phase III](docs/academic/PHASE_III_IMPLEMENTATION_VALIDATION.md). They distinguish local UI/unit verification, isolated database CI, controlled rendering performance and outstanding live/field validation. They do not claim faculty marks, signatures, publications or agricultural accuracy.
+
+## Updating while the managed database is stopped
+
+`npm run migrate` now runs a `premigrate` step that starts only the PostgreSQL cluster configured by `LOCAL_PG_BIN` / `LOCAL_PG_DATA`. It does not require the app schema or Python engine to be ready. An already running cluster is reused; a start failure stops the migration. Externally managed PostgreSQL still needs to be started with its usual service/tool.
+
+For an existing installation, keep `.env`, back up the CHM database, then:
+
+```bash
+npm stop &&
+git pull --ff-only origin main &&
+npm run migrate &&
+npm start &&
+npm run status &&
+npm run test:smoke
+```
+
+If an older launcher first reported `ECONNREFUSED` during migration and then `column "client_key" does not exist` during start, its start attempt has brought the managed database up but the migration is still pending. Run `npm run migrate && npm start && npm run status` directly. There is no need to reset the database or manually add the column. `npm run db:start` also starts only the configured managed cluster. `npm run test:launcher` checks stopped/running/failing/external database startup paths using an isolated fake pg_ctl; CI additionally performs real PostGIS migrations.

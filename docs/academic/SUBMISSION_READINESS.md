@@ -64,6 +64,8 @@ npm run status
 
 Open the frontend URL printed by status, normally http://localhost:5173. Confirm the database, API and Python health checks. Sign in with the existing account. Empty fields after a new sign-in can mean legacy fields have no owner; use only the explicit, UUID-scoped claim process in README, not an authentication bypass.
 
+`npm run migrate` starts the configured project-managed PostgreSQL cluster before applying migrations. If PostgreSQL is managed externally, start it with its normal tool first. Chain update commands with `&&` so a failure stops later commands.
+
 Run `npm run test:smoke` against the configured local services before the presentation. It creates and removes its own temporary field. Do not point fixture/integration tests at the normal farm database; those use the isolated chm_integration database.
 
 ## Six-minute demonstration

@@ -41,3 +41,7 @@ Verification: final UI production build/typecheck and lint pass; 20 ordinary API
 Academic additions: `docs/academic/SUBMISSION_READINESS.md`, `DESIGN_AND_TRACEABILITY.md`, updated Phase III evidence and the raw ten-sample controlled browser performance JSON. The controlled 20-card rendering median is 942 ms, nearest-rank p95 1042 ms; API responses were mocked. This is not live backend or satellite throughput.
 
 No dependencies, migrations, credentials, auth behavior or scientific thresholds were changed. The remaining diagnosis, forecast, offline, field-truth and release-hardening limitations still apply. Guide/team details and real demo-machine validation must come from the student and faculty.
+
+## Managed database migration recovery
+
+A local update exposed a launcher ordering problem: `npm stop` also stops the configured PostgreSQL cluster, while migration previously expected it to already be running. `npm start` brought PostgreSQL up but then correctly refused the missing `field_tasks.client_key` schema. A new `premigrate` hook starts only the configured managed cluster before migration, without app-schema or Python preflight. Already-running clusters are reused, startup errors stop the migration, and external PostgreSQL is untouched. Four isolated launcher regressions cover these cases, and the existing CI applies real PostGIS migrations. Existing schema migrations/data are unchanged.
