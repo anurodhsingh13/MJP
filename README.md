@@ -91,6 +91,17 @@ The original database backup is `.local-database-backup.dump` and is ignored by 
 
 Browser tests use Chrome on macOS and Playwright Chromium on Linux (`npx playwright install --with-deps chromium`). API responses and OpenStreetMap tiles are fixture-backed; the actual Leaflet map, drawing controls, navigation, forms and HTTP requests run in the browser. These tests do not verify live provider access or a real satellite observation.
 
+## Synthetic farmer demo scenarios (safe, no database writes)
+
+For academic screenshots and regression checks, this repository includes **20 explicitly fictional field scenarios**: five basic dashboard states in `tests/fixtures/demo-scenarios.json` and 15 extra crop/evidence edge cases in `tests/fixtures/extended-farmer-scenarios.json`. They run behind mocked browser API routes. **They are not live Sentinel-2 measurements, and they do not populate existing farm tables.**
+
+```bash
+npx playwright test tests/ui/demo-dashboard.spec.ts tests/ui/extended-demo.spec.ts
+npm test
+```
+
+For the full submission check use `npm run submission:check`. A timestamped report is written to ignored `.local/submission-evidence/`. See [repository gap audit](docs/academic/REPOSITORY_GAP_AUDIT_2026-10-16.md) for unfinished items and the exact verification plan.
+
 ## Sync project data
 
 With native services running, run `npm run sync:data` to import 30 available days of NASA POWER weather and search the last 90 days of Sentinel-2 observations for saved field locations. NASA meteorological availability typically trails by 2–3 days; missing-value sentinels are excluded from measurements. Set `SYNC_WEATHER_DAYS` to choose 1–365 days. This sends saved coordinates to NASA POWER and Earth Search.
