@@ -71,7 +71,7 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
  const [oldScene,setOldScene]=useState('');
  const [newScene,setNewScene]=useState('');
  const [pending,setPending]=useState(true);
- const [expanded,setExpanded]=useState(false);
+ const [expanded,setExpanded]=useState(true);
  const dataset=fields.filter(f=>!f.isDemo&&f.provenance!=='demo'&&f.provenance!=='public_boundary');
  useEffect(()=>{
   if(!dataset.length){setPending(false);return;}
