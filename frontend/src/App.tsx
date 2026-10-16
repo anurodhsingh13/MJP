@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, NavLink, Link } from 'react-rou
 import { House, MapPinned, FileText, CircleHelp } from 'lucide-react';
 import { AuthGate } from './features/auth/AuthGate';
 import { CropAssistant } from './features/assistant/CropAssistant';
-import { PreferencesBar, PreferencesProvider } from './lib/preferences';
+import { PreferencesProvider } from './lib/preferences';
 import { usePreferences } from './lib/preferencesContext';
 
 const CropGallery = lazy(() => import('./pages/gallery/CropGallery').then(module => ({ default: module.CropGallery })));
@@ -37,7 +37,6 @@ export default function App() {
   return (
     <BrowserRouter>
       <PreferencesProvider>
-      <PreferencesBar/>
       <AuthGate>
         <Suspense fallback={<LoadingWorkspace/>}>
           <Routes>

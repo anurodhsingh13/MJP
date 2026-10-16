@@ -720,3 +720,29 @@ html[data-showcase="true"] .crop-assistant-launch{bottom:105px}
 .sample-field-notice button { flex-shrink:0; min-height:44px; padding:10px 16px; border:1px solid #73957a; border-radius:10px; background:white; color:#264e36; font:inherit; cursor:pointer; }
 .sample-field-notice button[aria-pressed="true"] { background:#264e36; color:white; }
 @media(max-width:600px) { .sample-field-notice { align-items:stretch; flex-direction:column; padding:16px; } }
+
+/* Account and field notifications share the top navigation. */
+.preferences-bar { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:24px; position:relative; z-index:800; }
+.header-account-actions { display:flex; align-items:center; gap:12px; justify-self:end; min-width:0; }
+.header-disclosure { position:relative; }
+.header-disclosure summary { list-style:none; cursor:pointer; }
+.header-disclosure summary::-webkit-details-marker { display:none; }
+.header-icon-button { position:relative; width:44px; height:44px; display:grid; place-items:center; border:1px solid #567761; border-radius:50%; color:#f4faed; background:#ffffff0b; }
+.header-icon-button:hover { background:#ffffff1c; }
+.notification-count { position:absolute; top:-4px; right:-5px; min-width:20px; height:20px; padding:0 4px; display:grid; place-items:center; border-radius:20px; background:#e5b85c; color:#183f2d; font-size:10px; font-weight:800; border:2px solid #183f2d; }
+.farmer-account-menu .header-profile-button { display:flex; align-items:center; gap:8px; max-width:210px; padding:4px 9px 4px 4px; border:1px solid #567761; color:#fff; background:#ffffff0b; border-radius:99px; }
+.header-avatar { width:36px; height:36px; flex-shrink:0; display:grid; place-items:center; color:#183f2d; background:#e5eecb; border-radius:50%; }
+.header-profile-copy { display:grid; gap:2px; min-width:0; text-align:left; }
+.header-profile-copy small { color:#c1d5c6; font-size:10px; font-weight:400; }
+.header-profile-copy strong { font-size:12px; max-width:125px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.header-popover { position:absolute; right:0; top:calc(100% + 12px); width:min(350px,calc(100vw - 32px)); max-height:min(520px,70dvh); overflow:auto; background:#fff; border:1px solid #d1dfd1; border-radius:16px; box-shadow:0 16px 50px #0e2c2840; color:#204e37; text-align:left; font-size:14px; }
+.header-disclosure summary:focus-visible,.header-popover a:focus-visible,.header-popover button:focus-visible { outline:3px solid #d7b958; outline-offset:3px; }
+.notification-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:18px 16px 14px; border-bottom:1px solid #e5ece3; }
+.notification-heading>div { display:grid; gap:4px; }.notification-heading strong { font-size:17px; }.notification-heading small { color:#647567; font-size:12px; }
+.notification-read-all { display:flex; align-items:center; gap:5px; border:0; border-radius:7px; padding:8px; background:#eef5e8; color:#286142; font:inherit; font-size:11px; cursor:pointer; }
+.notification-list { list-style:none; padding:5px 0; margin:0; }.notification-item { display:flex; align-items:center; gap:11px; padding:14px 16px; color:#234d35; text-decoration:none; border-bottom:1px solid #f0f3ee; }.notification-item:hover { background:#f0f6ec; }.notification-item.is-unread { background:#f5f8ee; }.notification-item>span:nth-child(2) { display:grid; gap:5px; min-width:0; flex:1; }.notification-item strong { font-size:13px; overflow-wrap:anywhere; }.notification-item small { font-size:12px; line-height:1.5; color:#637364; }
+.notification-symbol { display:grid; place-items:center; width:34px; height:34px; border-radius:10px; background:#e4eee1; flex-shrink:0; }.notice-visit,.notice-job { background:#fff0da; color:#946020; }.notification-unread-dot { width:7px; height:7px; background:#387749; border-radius:50%; flex-shrink:0; }
+.notification-empty { display:grid; justify-items:center; gap:10px; text-align:center; padding:30px 20px; }.notification-empty p { margin:0; color:#647567; line-height:1.6; font-size:13px; }.notification-popover>p { padding:0 16px; }
+.header-popover button { cursor:pointer; }.farmer-account-menu-content button { display:flex; align-items:center; justify-content:center; gap:7px; }
+@media(max-width:900px) { .preferences-bar { grid-template-columns:minmax(0,1fr) auto; gap:12px; }.preferences-bar .preference-controls { grid-row:2; grid-column:1 / -1; width:100%; justify-content:flex-start; }.header-account-actions { grid-row:1; grid-column:2; }.header-profile-copy { display:none; }.farmer-account-menu .header-profile-button { padding:3px; }.header-profile-button>svg { display:none; }.header-account-actions { gap:10px; }.notification-menu { position:static; }.notification-popover { top:65px; right:16px; width:min(350px,calc(100vw - 32px)); } }
+@media print { .header-popover { display:none !important; } }

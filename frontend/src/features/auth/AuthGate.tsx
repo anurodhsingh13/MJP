@@ -1,5 +1,9 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { usePreferences } from '../../lib/preferencesContext';
+import {UserRound,ChevronDown,LogOut} from 'lucide-react';
+import {PreferencesBar} from '../../lib/preferences';
+import {Notifications} from '../notifications/Notifications';
+import {useDisclosureDismiss} from '../../lib/useDisclosureDismiss';
 import { FarmerAccountContext } from './FarmerAccountContext';
 
 type Account = { id: string; email: string };
@@ -17,6 +21,7 @@ async function readSession(): Promise<AuthSession> {
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const {t}=usePreferences();
+  const accountDisclosure=useDisclosureDismiss();
   const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
@@ -90,12 +95,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
     }
   }
 
-  if (loading) return <main className="auth-shell" role="status">{t('Checking sign-in status…','साइन इन की स्थिति जाँच रहे हैं…')}</main>;
-  if (error && !session) return <main className="auth-shell" role="alert"><p>{t('Sign-in service is unavailable. Please retry.', 'साइन इन सेवा उपलब्ध नहीं है। फिर कोशिश करें।')}</p><button onClick={() => window.location.reload()}>{t('Retry','फिर कोशिश करें')}</button></main>;
-  if (!session) return <main className="auth-shell" role="alert"><p>Sign-in status is unavailable.</p></main>;
+  if (loading) return <><PreferencesBar/><main className="auth-shell" role="status">{t('Checking sign-in status…','साइन इन की स्थिति जाँच रहे हैं…')}</main></>;
+  if (error && !session) return <><PreferencesBar/><main className="auth-shell" role="alert"><p>{t('Sign-in service is unavailable. Please retry.', 'साइन इन सेवा उपलब्ध नहीं है। फिर कोशिश करें।')}</p><button onClick={() => window.location.reload()}>{t('Retry','फिर कोशिश करें')}</button></main></>;
+  if (!session) return <><PreferencesBar/><main className="auth-shell" role="alert"><p>Sign-in status is unavailable.</p></main></>;
   if (session.mode === 'required' && !session.user) {
     return (
-      <main className="auth-shell">
+      <><PreferencesBar/><main className="auth-shell">
         <form className="auth-card" onSubmit={submit}>
           <p className="eyebrow">{t('TerraScope • Crop health monitoring','TerraScope • फ़सल की निगरानी')}</p>
           <h1>{registering ? t('Create your account','अपना खाता बनाएँ') : t('Sign in to your fields','अपने खेत देखने के लिए साइन इन करें')}</h1>
@@ -111,26 +116,27 @@ export function AuthGate({ children }: { children: ReactNode }) {
             {registering ? t('Already have an account? Sign in','पहले से खाता है? साइन इन करें') : t('New to TerraScope? Create an account','पहली बार आए हैं? खाता बनाएँ')}
           </button>
         </form>
-      </main>
+      </main></>
     );
   }
 
   const farmerAccount = session.user ? {id:session.user.id,email:session.user.email,displayName:preferredName || session.user.email.split('@')[0] || t('Farmer','किसान')} : null;
   return (
     <FarmerAccountContext.Provider value={farmerAccount}>
-      {session.mode === 'required' && session.user && (
-        <div className="auth-user-bar">
-          <details className="farmer-account-menu"><summary aria-label={t('Your account','आपका खाता')}> <span aria-hidden="true">👤</span> {farmerAccount?.displayName}</summary>
-            <div className="farmer-account-menu-content"><strong>{t('Your account','आपका खाता')}</strong><span>{session.user.email}</span><label htmlFor="farmer-display-name">{t('Name for your greeting','स्वागत में दिखने वाला नाम')}</label>
+      <PreferencesBar>
+        <Notifications key={session.user?.id||'local'} accountId={session.user?.id||(document.documentElement.dataset.showcase==='true'?'demo':'local')}/>
+        <details className="farmer-account-menu header-disclosure" ref={accountDisclosure}>
+          <summary aria-label={t('Your account','आपका खाता')} className="header-profile-button"><span className="header-avatar"><UserRound size={20} aria-hidden="true"/></span><span className="header-profile-copy"><small>{session.user?t('Signed in','साइन इन है'):document.documentElement.dataset.showcase==='true'?t('Demo workspace','डेमो खाते'):t('Local workspace','स्थानीय खाते')}</small><strong>{farmerAccount?.displayName||t('Farmer','किसान')}</strong></span><ChevronDown size={14} aria-hidden="true"/></summary>
+          <div className="farmer-account-menu-content header-popover"><strong>{t('Your account','आपका खाता')}</strong>
+            {session.user ? <><span>{session.user.email}</span><label htmlFor="farmer-display-name">{t('Name for your greeting','स्वागत में दिखने वाला नाम')}</label>
               <input id="farmer-display-name" maxLength={60} value={nameDraft} onChange={event => setNameDraft(event.target.value)} placeholder={t('Enter your name','अपना नाम लिखें')}/>
               <button type="button" onClick={savePreferredName}>{t('Save name','नाम सेव करें')}</button>
               <small>{t('Saved only in this browser, not synced to another device.','नाम केवल इस ब्राउज़र में सेव होता है, दूसरे डिवाइस पर नहीं जाएगा।')}</small>
-              <button type="button" onClick={signOut} disabled={busy}>{busy ? t('Please wait…','कृपया रुकें…') : t('Sign out','साइन आउट करें')}</button>
-            </div>
-          </details>
-          {error && <span role="alert">{t(error,'साइन आउट नहीं हुआ। फिर कोशिश करें।')}</span>}
-        </div>
-      )}
+              <button type="button" onClick={signOut} disabled={busy}><LogOut size={16} aria-hidden="true"/> {busy ? t('Please wait…','कृपया रुकें…') : t('Sign out','साइन आउट करें')}</button></> : <p>{t('You are viewing a local workspace.','आप स्थानीय खाते देख रहे हैं।')}</p>}
+            {error&&<span role="alert">{error}</span>}
+          </div>
+        </details>
+      </PreferencesBar>
       {children}
     </FarmerAccountContext.Provider>
   );
