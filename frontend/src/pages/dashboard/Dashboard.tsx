@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, CalendarCheck, Camera, CloudSun, MapPin, Sprout } from 'lucide-react';
+import { ArrowRight, CalendarCheck, Camera, CloudSun, MapPin, Sprout, Search, SlidersHorizontal } from 'lucide-react';
 import { loadFields, type DatabaseField } from '../../lib/api';
 import { fieldActionHref, fieldAssessment, fieldCopy } from '../../lib/fieldCopy';
 import { usePreferences } from '../../lib/preferencesContext';
@@ -16,6 +16,7 @@ export function Dashboard() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [includeDemo, setIncludeDemo] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [reload, setReload] = useState(0);
   useEffect(() => {
     let cancelled = false;
@@ -42,19 +43,19 @@ export function Dashboard() {
   const choose = (value: string) => { setFilter(value); document.getElementById('my-fields')?.scrollIntoView({ behavior: 'smooth' }); };
   const hasFilters = Boolean(query || filter !== 'all');
   return <main className="dashboard-shell simple-farm">
-    <header className="dashboard-header overview-header">
+    <header className="dashboard-header overview-header farmer-hero">
       <div><span className="eyebrow">{t('YOUR DAILY FIELD COMPANION', 'हर दिन, आपके खेत का साथी')}</span>
         <h1>{t('Your farm. Your next step.', 'आपके खेत। अब क्या करें?')}</h1>
         <p>{t('Choose a field, see what needs doing, and keep a note of your visit.', 'खेत चुनें, अगला काम देखें और खेत में जो दिखे उसे सेव करें।')}</p>
       </div>
       <button className="primary-action" onClick={() => setAdding(true)}>{t('+ Add field', '+ खेत जोड़ें')}</button>
     </header>
-    <nav className="overview-nav" aria-label={t('Main navigation', 'मुख्य नेविगेशन')}>
+    <nav className="overview-nav farmer-quick-nav" aria-label={t('Main navigation', 'मुख्य नेविगेशन')}>
       <a href="#my-fields">{t('My fields', 'मेरे खेत')}</a><Link to="/reports">{t('Reports', 'रिपोर्ट')}</Link><Link to="/help">{t('How to use', 'कैसे इस्तेमाल करें')}</Link>
     </nav>
     {error && <div className="service-error" role="alert"><strong>{t('Fields unavailable', 'खेतों की जानकारी नहीं मिली')}</strong><span>{t('Check your connection and try again. Your saved fields are safe.', 'कनेक्शन देखकर फिर कोशिश करें। आपके सेव किए खेत सुरक्षित हैं।')}</span><button onClick={() => { setLoading(true); setError(false); setReload(value => value + 1); }}>{t('Retry', 'फिर कोशिश करें')}</button></div>}
     {!error && !loading && <>
-      {real.length > 0 && <section id="overview" className={`attention-panel next-step-panel ${inspection.length ? 'needs-visit' : ''}`} aria-labelledby="attention-heading">
+      {real.length > 0 && <section id="overview" className={`attention-panel next-step-panel farmer-priority ${inspection.length ? 'needs-visit' : ''}`} aria-labelledby="attention-heading">
         <div className="next-step-heading"><span className="next-step-symbol" aria-hidden="true">{inspection.length || due.length ? <CalendarCheck/> : dataIssues.length ? <CloudSun/> : <Sprout/>}</span>
           <div><span className="eyebrow">{t('START HERE', 'यहाँ से शुरू करें')}</span><h2 id="attention-heading">{inspection.length ? t('Visit these fields first', 'पहले इन खेतों को देखें') : due.length ? t('Your planned visits are due', 'तय जाँच का समय हो गया है') : dataIssues.length ? t('Let’s get a clearer picture', 'पहले साफ़ तस्वीर देखें') : t('Keep up your regular field visits', 'खेत की नियमित जाँच करते रहें')}</h2></div>
         </div>
@@ -66,26 +67,26 @@ export function Dashboard() {
         {priority.length > 3 && <button className="text-button" onClick={() => choose(inspection.length ? 'needs_inspection' : due.length ? 'due' : 'data')}>{t(`See all ${priority.length} fields`, `सभी ${priority.length} खेत देखें`)}</button>}
         {!priority.length && <p>{t('No field is currently flagged for an urgent visit or missing picture. This is not a guarantee of crop health; keep checking in person.', 'अभी किसी खेत में ज़रूरी जाँच या तस्वीर की कमी का संकेत नहीं है। इसका मतलब फ़सल पूरी तरह स्वस्थ होना नहीं है; खेत में जाकर देखते रहें।')}</p>}
       </section>}
-      {real.length > 0 && <section className="summary-grid compact-summary" aria-label={t('Farm summary', 'खेतों का सारांश')}>
+      {real.length > 0 && <section className="summary-grid compact-summary farmer-stats" aria-label={t('Farm summary', 'खेतों का सारांश')}>
         <button className="summary-tile inspection-tile" aria-pressed={filter === 'needs_inspection'} onClick={() => choose('needs_inspection')}><Sprout aria-hidden="true"/><strong>{inspection.length}</strong><span>{t('Fields to visit', 'जाकर देखने वाले खेत')}</span></button>
         <button className="summary-tile" aria-pressed={filter === 'data'} onClick={() => choose('data')}><CloudSun aria-hidden="true"/><strong>{dataIssues.length}</strong><span>{t('Waiting for pictures', 'तस्वीर चाहिए')}</span></button>
         <button className="summary-tile" aria-pressed={filter === 'due'} onClick={() => choose('due')}><CalendarCheck aria-hidden="true"/><strong>{due.length}</strong><span>{t('Visits / tasks due', 'तय काम बाकी')}</span></button>
         <button className="summary-tile" aria-pressed={filter === 'all'} onClick={() => choose('all')}><MapPin aria-hidden="true"/><strong>{real.length}</strong><span>{t('Your saved fields', 'आपके खेत')}</span></button>
       </section>}
-      <section id="my-fields" aria-labelledby="fields-heading">
+      <section id="my-fields" className="farmer-fields-section" aria-labelledby="fields-heading">
         <div className="section-heading"><div><h2 id="fields-heading">{t('My fields', 'मेरे खेत')}</h2><p className="section-caption">{t('Urgent field visits appear first, followed by fields waiting for pictures.', 'पहले ज़रूरी जाँच वाले खेत, फिर तस्वीर की प्रतीक्षा वाले खेत दिखेंगे।')}</p></div>{real.length > 0 && <span>{t(`${visible.length} shown`, `${visible.length} दिख रहे हैं`)}</span>}</div>
-        {fields.length > 0 && <div className="field-filters">
-          <label>{t('Search fields', 'खेत खोजें')}<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={t('Field name or crop', 'खेत या फ़सल का नाम')}/></label>
+        {fields.length > 0 && <div className="farmer-filter-area"><div className="farmer-search-row"><label className="farmer-search-label"><Search size={19} aria-hidden="true"/><span className="sr-only">{t("Search fields", "खेत खोजें")}</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={t("Search your fields or crops", "खेत या फ़सल खोजें")}/></label><button type="button" className="farmer-filter-toggle" aria-expanded={showAdvancedFilters} onClick={() => setShowAdvancedFilters(value => !value)}><SlidersHorizontal size={18} aria-hidden="true"/>{t("Filters", "फ़िल्टर")}{filter !== "all" ? " •" : ""}</button></div>{showAdvancedFilters && <div className="field-filters">
+
           <label>{t('Show fields', 'कौन से खेत दिखाएँ')}<select value={filter} onChange={event => setFilter(event.target.value)}><option value="all">{t('All fields', 'सभी खेत')}</option><option value="needs_inspection">{t('Fields to visit', 'जाकर देखने वाले खेत')}</option><option value="data">{t('Waiting for pictures', 'तस्वीर चाहिए')}</option><option value="due">{t('Visits / tasks due', 'तय काम बाकी')}</option><option value="no_unusual_change">{t('No big change seen', 'बड़ा बदलाव नहीं दिखा')}</option></select></label>
           {fields.some(isDemo) && <label className="checkbox-label"><input type="checkbox" checked={includeDemo} onChange={event => setIncludeDemo(event.target.checked)}/>{t('Show demo & public parcels', 'डेमो और सार्वजनिक खेत दिखाएँ')}</label>}
-        </div>}
-        {visible.length ? <div className="field-grid">{visible.map(field => {
+        </div>}</div>}
+        {visible.length ? <div className="field-grid farmer-field-grid">{visible.map(field => {
           const copy = fieldCopy(field, language);
           const active = field.latestJob && ['queued', 'running'].includes(field.latestJob.status);
           const ActionIcon = copy.action === 'visit' || copy.action === 'tasks' ? CalendarCheck : copy.action === 'images' ? CloudSun : Camera;
-          return <article className={`field-card simple-field-card card-${copy.assessment.state}`} key={field.id}>
+          return <article className={`field-card simple-field-card farmer-field-card card-${copy.assessment.state}`} key={field.id}>
             <div className="field-card-top"><div className="field-card-name"><span className="field-avatar" aria-hidden="true"><Sprout size={24}/></span><div><h3><Link to={`/fields/${field.id}/overview`}>{field.name}</Link></h3><small>{!field.crop || field.crop === 'Unknown' ? t('Crop not added', 'फ़सल का नाम नहीं जोड़ा') : field.crop} · {area(field.area_hectares)}</small></div></div></div>
-            <span className={`evidence-status status-${copy.assessment.state}`}>{copy.title}</span><p className="card-explanation">{copy.explanation}</p>
+            <div className="farmer-status-line"><span className={`evidence-status status-${copy.assessment.state}`}>{copy.title}</span></div><p className="card-explanation">{copy.explanation}</p>
             {isDemo(field) && <p className="demo-label">{t('Sample field · current crop is unverified', 'नमूना खेत · अभी की फ़सल सत्यापित नहीं')}</p>}
             {active && <p className="job-badge" role="status">{t('Looking for a clear picture…', 'साफ़ तस्वीर खोज रहे हैं…')}</p>}
             {field.latestJob?.status === 'failed' && <p className="job-badge job-failed">{t('Picture search stopped. Open this field to try again.', 'तस्वीर की खोज पूरी नहीं हुई। खेत खोलकर फिर कोशिश करें।')}</p>}
