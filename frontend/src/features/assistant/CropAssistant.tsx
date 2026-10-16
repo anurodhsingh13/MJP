@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Bot, MessageCircle, Send, X } from 'lucide-react';
 import { useLocation, useParams } from 'react-router-dom';
 import { askFieldAssistant } from '../../lib/api';
@@ -23,6 +23,16 @@ export function CropAssistant() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
+
+  useEffect(() => {
+    const onQuestion=(event:Event)=>{
+      const detail=(event as CustomEvent<{question?:string}>).detail;
+      if(typeof detail?.question === 'string')setQuestion(detail.question);
+      setOpen(true);
+    };
+    window.addEventListener('terrascope:assistant-question',onQuestion);
+    return ()=>window.removeEventListener('terrascope:assistant-question',onQuestion);
+  },[]);
 
   async function send(text:string) {
     const value = text.trim();
