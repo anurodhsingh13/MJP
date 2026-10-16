@@ -64,7 +64,7 @@ export function FieldHealthLeaderboard({ fields }: { fields: DatabaseField[] }) 
           <option value="priority">{t('Action needed', 'ज़रूरी काम')}</option>
           <option value="change">{t('Largest NDVI decrease', 'सबसे अधिक हरियाली कमी')}</option>
           <option value="date">{t('Newest observation', 'नई तस्वीर')}</option>
-          <option value="name">{t('Field name', 'खेत का नाम')}</option>
+          <option value="name">{t('Alphabetical', 'अक्षर क्रम')}</option>
         </select>
       </label></div>
     </header>
