@@ -1,0 +1,30 @@
+{
+  "kind": "synthetic-test-only",
+  "scenarios": [
+    {
+      "name": "Wheat",
+      "state": "needs_inspection",
+      "dueTasks": 0
+    },
+    {
+      "name": "Rice",
+      "state": "no_unusual_change",
+      "dueTasks": 2
+    },
+    {
+      "name": "Mustard",
+      "state": "image_too_old",
+      "dueTasks": 0
+    },
+    {
+      "name": "Maize",
+      "state": "no_unusual_change",
+      "dueTasks": 0
+    },
+    {
+      "name": "New field",
+      "state": "awaiting_analysis",
+      "dueTasks": 0
+    }
+  ]
+}
