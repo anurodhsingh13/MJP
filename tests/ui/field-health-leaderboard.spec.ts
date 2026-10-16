@@ -15,7 +15,7 @@ test('field comparison shows only verified observations and exports original dat
   await page.getByRole('button', { name: 'Download comparison CSV' }).click();
   const file = await download;
   expect(file.suggestedFilename()).toBe('terrascope-field-comparison.csv');
-  await expect(page.locator('.health-leaderboard')).toContainText('A satellite change');
+  await expect(page.locator('.health-leaderboard')).toContainText('Satellite changes require');
   expect(state.errors).toEqual([]);
 });
 
