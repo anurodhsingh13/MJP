@@ -46,3 +46,12 @@ test('mobile navigation is visible and reaches reports',async({page})=>{
   await expect(nav.getByRole('link',{name:'Reports'})).toBeVisible();
   await expect(nav.getByRole('link',{name:'Help'})).toBeVisible();
 });
+
+test('attention section retains inspection, due visits and missing-imagery priorities together',async({page})=>{
+  await page.goto('/');
+  const priority=page.locator('.farmer-priority');
+  await expect(priority).toContainText('TEST Wheat');
+  await expect(priority).toContainText('TEST Rice');
+  await expect(priority).toContainText('TEST Mustard');
+  await expect(priority).toContainText('4 fields need attention');
+});
