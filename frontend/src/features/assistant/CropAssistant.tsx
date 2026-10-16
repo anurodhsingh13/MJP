@@ -45,7 +45,7 @@ export function CropAssistant() {
     </button>
     {open && <section id="crop-assistant-window" className="crop-assistant-window no-print" aria-label={t('Crop assistant chat','फ़सल सहायक चैट')}>
       <header className="crop-assistant-header">
-        <div><strong><Bot size={21} aria-hidden="true"/> {t('Crop assistant','फ़सल सहायक')}</strong><small>{isDemo ? t('Example answers · offline demo','नमूना जवाब · ऑफ़लाइन डेमो') : 'Sarvam AI'}{selectedField ? t(' · Selected field',' · चुना हुआ खेत') : ''}</small></div>
+        <div><strong><Bot size={21} aria-hidden="true"/> {t('Crop assistant','फ़सल सहायक')}</strong><small>{isDemo ? t('Sarvam AI interface · example answers','Sarvam AI इंटरफ़ेस · नमूना जवाब') : 'Sarvam AI'}{selectedField ? t(' · Selected field',' · चुना हुआ खेत') : ''}</small></div>
         <button type="button" aria-label={t('Close assistant','सहायक बंद करें')} onClick={() => setOpen(false)}><X size={20}/></button>
       </header>
       <div className="crop-assistant-messages" role="log" aria-live="polite" aria-relevant="additions text">
