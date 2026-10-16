@@ -1,0 +1,10 @@
+.map-inspection-guide{margin:18px 0 24px;padding:clamp(16px,2.5vw,24px);border:1px solid #d4e4d5;background:#fff;border-radius:18px;box-shadow:0 7px 24px #193e2710;color:#244a34}
+.map-inspection-guide-header{display:flex;align-items:start;gap:12px}.map-inspection-guide-header>svg{color:#217449;flex:none}
+.map-inspection-guide-header h2{margin:0;font-size:clamp(1.1rem,2vw,1.4rem);color:#18422e}.map-inspection-guide-header p{color:#586e5e;font-size:.82rem;margin:6px 0 0}
+.map-inspection-guide-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(200px,1fr);gap:20px;margin-top:16px}
+.map-inspection-guide-steps strong{display:flex;align-items:center;gap:8px;color:#265d3a}.map-inspection-guide-steps ol{padding-left:1.5rem;margin:10px 0;display:grid;gap:8px;font-size:.87rem;line-height:1.55}
+.map-inspection-guide-actions{display:grid;gap:8px}.map-inspection-guide-actions a{display:flex;align-items:center;gap:10px;min-height:44px;padding:10px 13px;background:#eef7eb;border:1px solid #c9dfc9;border-radius:10px;text-decoration:none;color:#1c5d3b;font-size:.85rem;font-weight:700}
+.map-inspection-guide-actions a:hover{background:#e3f2df}
+.map-inspection-guide-note{display:flex;align-items:flex-start;gap:8px;margin:16px 0 0;font-size:.78rem;color:#6a5a2e;background:#fff8e8;border-radius:10px;padding:11px;line-height:1.5}
+.map-inspection-guide-note svg{flex:none}
+@media(max-width:680px){.map-inspection-guide-grid{grid-template-columns:minmax(0,1fr)}}
