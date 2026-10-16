@@ -41,7 +41,7 @@ export const authRouter=Router();
 authRouter.get('/session',(_req,res)=>res.json({mode:authRequired()?'required':'local',user:actor(res)}));
 authRouter.post('/logout',async(req,res)=>{await pool.query('delete from app_sessions where token_hash=$1',[hashToken(token(req))]);res.clearCookie(cookieName,{path:'/api'});res.json({ok:true});});
 for(const action of ['register','login'] as const)authRouter.post('/'+action,async(req,res)=>{
- const {email,password}=req.body as {email?:unknown;password?:unknown};
+ const {email,password}=(req.body ?? {}) as {email?:unknown;password?:unknown};
  if(typeof email!=='string'||!/^\S+@\S+\.\S+$/.test(email)||email.length>160||typeof password!=='string'||password.length<12||password.length>256){res.status(400).json({error:'Use a valid email and a password of 12–256 characters'});return;}
  try{
   const key=hashToken((req.ip||'local')+':'+email.toLowerCase());

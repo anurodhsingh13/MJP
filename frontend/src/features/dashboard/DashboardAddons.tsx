@@ -41,7 +41,8 @@ function FarmMap({fields}:{fields:DatabaseField[]}){
      if(layer.getBounds().isValid()){
       layer.addTo(map);all.push(layer.getBounds());position=layer.getBounds().getCenter();
       layer.on('click',()=>navigate('/fields/'+field.id+'/overview'));
-      layer.bindTooltip(field.name,{sticky:true});
+      const label=document.createElement('span');label.textContent=field.name;
+      layer.bindTooltip(label,{sticky:true});
      }
     }catch{/* bad polygon: point marker can still appear */}
    }
@@ -50,7 +51,8 @@ function FarmMap({fields}:{fields:DatabaseField[]}){
    }
    if(position){
     const marker=L.circleMarker(position,{radius:7,color:'#fff',weight:2,fillColor:color,fillOpacity:1}).addTo(map);
-    marker.bindTooltip(field.name);
+    const label=document.createElement('span');label.textContent=field.name;
+    marker.bindTooltip(label);
     marker.on('click',()=>navigate('/fields/'+field.id+'/overview'));
     if(!all.length||!field.boundary_geojson)all.push(L.latLngBounds(position,position));
    }
@@ -75,7 +77,7 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
  const [newScene,setNewScene]=useState('');
  const [pending,setPending]=useState(true);
  const [expanded,setExpanded]=useState(true);
- const dataset=fields.filter(f=>!f.isDemo&&f.provenance!=='demo'&&f.provenance!=='public_boundary');
+ const dataset=useMemo(()=>fields.filter(f=>!f.isDemo&&f.provenance!=='demo'&&f.provenance!=='public_boundary'),[fields]);
  useEffect(()=>{
   if(!dataset.length){setPending(false);return;}
   let cancelled=false;setPending(true);
@@ -87,7 +89,7 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
    return [field.id,{observations:read(0,[] as VegetationIndexObservation[]),weather:read(1,[] as WeatherObservation[]),events:read(2,[] as FieldEvent[]),tasks:read(3,[] as FieldTask[]),jobs:read(4,[] as ProcessingJob[])}] as const;
   })).then(entries=>{if(!cancelled){setDetails(Object.fromEntries(entries));setPending(false);}}).catch(()=>{if(!cancelled)setPending(false);});
   return ()=>{cancelled=true;};
- },[fields]);
+ },[dataset]);
  const inspected=useMemo(()=>dataset.filter(field=>filteredReadings(details[field.id]?.observations||[],field).length>=2),[dataset,details]);
  const current=inspected.find(f=>f.id===selectedId)||inspected[0];
  const readings=current?filteredReadings(details[current.id]?.observations||[],current):[];

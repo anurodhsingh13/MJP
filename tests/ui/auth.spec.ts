@@ -24,7 +24,8 @@ test('account gate keeps field screens behind sign-in and supports sign-out',asy
  await page.getByLabel('Password').fill('a-long-test-password');
  await page.getByRole('button',{name:'Sign in',exact:true}).click();
  await expect(page.getByRole('heading',{name:'My fields'})).toBeVisible();
- await expect(page.getByText('Signed in as farmer@example.invalid')).toBeVisible();
+ await page.getByLabel('Your account',{exact:true}).click();
+ await expect(page.getByText('farmer@example.invalid',{exact:true})).toBeVisible();
  expect(fieldRequests).toBeGreaterThan(0);
  await page.getByRole('button',{name:'Sign out'}).click();
  await expect(page.getByRole('heading',{name:'Sign in to your fields'})).toBeVisible();

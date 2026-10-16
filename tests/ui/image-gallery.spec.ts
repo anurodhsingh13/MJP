@@ -10,7 +10,7 @@ test('photo references show in standalone demo dashboard and image gallery',asyn
 });
 test('field overview provides crop image source reference',async({page})=>{
  await page.goto('/?demo=1');
- await page.getByRole('link',{name:'Wheat North'}).first().click();
+ await page.getByRole('heading',{name:'Wheat North',exact:true}).getByRole('link').click();
  await expect(page.locator('.field-overview-photo img')).toHaveCount(1);
  await expect(page.locator('.field-overview-photo a')).toHaveAttribute('href',/unsplash\.com/);
 });

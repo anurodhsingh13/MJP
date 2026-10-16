@@ -2,6 +2,12 @@ import express, {type ErrorRequestHandler} from 'express';
 import { router } from './routes/index.ts';
 
 export const app = express();
+app.disable('x-powered-by');
+app.use((_request,response,next)=>{
+  response.setHeader('X-Content-Type-Options','nosniff');
+  response.setHeader('Referrer-Policy','same-origin');
+  next();
+});
 app.use(express.json({
   limit:'128kb',
   type:request=>!(request.method==='POST'&&/^\/api\/fields\/[^/]+\/scouting$/.test((request.url||'').split('?')[0])),

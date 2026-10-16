@@ -17,7 +17,7 @@ test('AI assistant appears and answers a Hindi crop question in demo mode',async
 
 test('AI assistant receives selected crop field context',async({page})=>{
  await page.goto('/?demo=1');
- await page.getByRole('link',{name:'Wheat North'}).first().click();
+ await page.getByRole('heading',{name:'Wheat North',exact:true}).getByRole('link').click();
  await expect(page).toHaveURL(/\/fields\/.*\/overview/);
  await page.getByRole('button',{name:'Ask crop assistant'}).click();
  await page.getByRole('button',{name:'Explain the weather data'}).click();

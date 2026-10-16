@@ -29,3 +29,33 @@ test('dashboard image comparison changes when different field is selected',async
  await expect(area).toContainText('Rice East');
  await expect(area.locator('.addon-satellite-tile')).toHaveCount(2);
 });
+
+test('dashboard map treats saved field names as text, including HTML',async({page})=>{
+ const name='<img src=x onerror="window.chmInjected=true">';
+ await page.route('**/api/**',route=>{
+  const path=new URL(route.request().url()).pathname;
+  const json=path==='/api/auth/session'?{mode:'local',user:null}:path==='/api/fields'?[{id:'00000000-0000-0000-0000-000000000099',name,crop:'Wheat',area_hectares:1,latitude:28,longitude:77}]:[];
+  return route.fulfill({json});
+ });
+ await page.goto('/');
+ const marker=page.locator('.addon-map .leaflet-interactive').first();
+ await expect(marker).toBeVisible();
+ await marker.dispatchEvent('mouseover');
+ const tooltip=page.locator('.addon-map .leaflet-tooltip');
+ await expect(tooltip).toHaveText(name);
+ await expect(tooltip.locator('img')).toHaveCount(0);
+ expect(await page.evaluate(()=>Reflect.get(window,'chmInjected'))).toBeUndefined();
+});
+
+test('sample fields are discoverable without opening advanced filters',async({page})=>{
+ await page.route('**/api/**',route=>{
+  const path=new URL(route.request().url()).pathname;
+  return route.fulfill({json:path==='/api/auth/session'?{mode:'local',user:null}:path==='/api/fields'?[{id:'00000000-0000-0000-0000-000000000099',name:'Sample wheat',crop:'Wheat',area_hectares:1,isDemo:true,provenance:'demo'}]:[]});
+ });
+ await page.goto('/');
+ await expect(page.getByRole('heading',{name:'Sample wheat',exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Show sample fields',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Sample wheat',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Hide sample fields',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Sample wheat',exact:true})).toHaveCount(0);
+});
