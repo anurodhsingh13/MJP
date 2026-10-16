@@ -637,8 +637,6 @@ body:has(.field-shell) .field-shell,body:has(.simple-farm) .dashboard-shell { co
 
 
 /* Standalone in-browser showcase, visually separated from connected farm data. */
-html[data-showcase="true"] body::before { content:"EXAMPLE DATA MODE"; position:fixed; bottom:78px; right:10px; z-index:3000; background:#173b2a; color:#fff; font:700 10px 'Manrope',sans-serif; letter-spacing:.08em; padding:7px 10px; border-radius:999px; box-shadow:0 4px 15px #0003; pointer-events:none; }
-@media(min-width:761px){html[data-showcase="true"] body::before{bottom:14px;}}
 
 
 /* Field-aware Sarvam assistant and example-mode assistant */
