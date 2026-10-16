@@ -2,6 +2,24 @@
 
 This checklist supplements [SUBMISSION_READINESS.md](SUBMISSION_READINESS.md) and the university Phase II/III rubric. **No commands below were executed by this document's author on the student's computer.** Preserve the current `.env`, account and farm data.
 
+## One-command submission evidence (run before tomorrow's demo)
+
+After pulling latest `main` and installing dependencies, run from the project root:
+
+```bash
+npm run submission:check
+```
+
+This executes the production build, lint, Node tests, Python engine tests and browser tests. It writes a timestamped `summary.json` plus individual logs under **`.local/submission-evidence/`** (ignored by Git). It does not reset the database or insert test fixtures into existing farm tables. Exit code 1 means at least one check failed; inspect the corresponding log rather than claiming success.
+
+With the local stack already healthy, add the explicit smoke check:
+
+```bash
+npm run submission:check -- --smoke
+```
+
+The smoke test creates/removes a temporary field, so run it only against the expected local development instance; skip `--smoke` when testing a production/sharing environment. Archive the logs and the exact commit SHA from `summary.json` as honest Phase III evidence. **Do not report success for checks that were not run.**
+
 ## A. Update safely
 1. Save work and back up the existing TerraScope database using the current PostgreSQL tools.
 2. In the CHM project root, run sequentially:
