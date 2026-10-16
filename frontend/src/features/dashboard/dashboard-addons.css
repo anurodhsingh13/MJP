@@ -64,3 +64,6 @@
 .dashboard-addons .addon-footer{font-size:12px}
 @media(max-width:900px){.dashboard-addons .addon-primary-grid{grid-template-columns:1fr}.dashboard-addons .addon-insight-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.dashboard-addons{gap:14px}.dashboard-addons .addon-heading{align-items:start}.dashboard-addons .addon-secondary-grid{grid-template-columns:1fr}.dashboard-addons .addon-card{padding:15px}.dashboard-addons .addon-map{height:245px}.dashboard-addons .addon-insight-grid{gap:9px}.dashboard-addons .addon-weather-grid strong{font-size:15px}.dashboard-addons .addon-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-addons .addon-gallery-grid img{height:100px}}
+
+/* Prevent the existing fixed AI launcher covering modal actions on small screens. */
+body:has(.wizard-modal) .crop-assistant-launch,body:has([role="dialog"][aria-modal="true"]) .crop-assistant-launch{display:none}
