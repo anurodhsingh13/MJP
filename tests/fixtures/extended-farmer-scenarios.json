@@ -186,14 +186,14 @@
       "expectedState": "needs_inspection"
     },
     {
-      "key": "date-error",
-      "name": "Unusable date",
+      "key": "coverage-unknown",
+      "name": "Unknown coverage - cannot assess",
       "crop": "Unknown",
       "latestNdvi": 0.5,
       "previousNdvi": 0.6,
-      "coverage": 91,
-      "pixels": 470,
-      "latestDaysAgo": -1,
+      "coverage": null,
+      "pixels": null,
+      "latestDaysAgo": 1,
       "previousDaysAgo": 9,
       "dueTasks": 0,
       "expectedState": "not_enough_data"
