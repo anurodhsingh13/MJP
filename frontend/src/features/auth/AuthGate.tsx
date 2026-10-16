@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { usePreferences } from '../../lib/preferencesContext';
+import { FarmerAccountContext } from './FarmerAccountContext';
 
 type Account = { id: string; email: string };
 type AuthSession = { mode: 'required' | 'local'; user: Account | null };
@@ -98,16 +99,20 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
+  const farmerAccount = session.user ? {id:session.user.id,email:session.user.email,displayName:session.user.email.split('@')[0] || t('Farmer','किसान')} : null;
   return (
-    <>
+    <FarmerAccountContext.Provider value={farmerAccount}>
       {session.mode === 'required' && session.user && (
         <div className="auth-user-bar">
-          <span>{t('Signed in as','साइन इन किया')} {session.user.email}</span>
+          <details className="farmer-account-menu"><summary aria-label={t('Your account','आपका खाता')}> <span aria-hidden="true">👤</span> {farmerAccount?.displayName}</summary>
+            <div className="farmer-account-menu-content"><strong>{t('Your account','आपका खाता')}</strong><span>{session.user.email}</span><small>{t('Display uses your email name until profile names are supported.','प्रोफ़ाइल नाम की सुविधा आने तक ईमेल का नाम दिखाया जा रहा है।')}</small>
+              <button type="button" onClick={signOut} disabled={busy}>{busy ? t('Please wait…','कृपया रुकें…') : t('Sign out','साइन आउट करें')}</button>
+            </div>
+          </details>
           {error && <span role="alert">{t(error,'साइन आउट नहीं हुआ। फिर कोशिश करें।')}</span>}
-          <button type="button" onClick={signOut} disabled={busy}>{busy ? t('Please wait…','कृपया रुकें…') : t('Sign out','साइन आउट करें')}</button>
         </div>
       )}
       {children}
-    </>
+    </FarmerAccountContext.Provider>
   );
 }
