@@ -4,7 +4,8 @@ import './index.css'
 import App from './App.tsx'
 
 const params = new URLSearchParams(window.location.search);
-if (params.has('demo')) sessionStorage.setItem('terrascope-showcase', params.get('demo') === '1' ? '1' : '0');
+if (import.meta.env.MODE === 'showcase') sessionStorage.setItem('terrascope-showcase', '1');
+else if (params.has('demo')) sessionStorage.setItem('terrascope-showcase', params.get('demo') === '1' ? '1' : '0');
 if (sessionStorage.getItem('terrascope-showcase') === '1') {
   const { enableShowcase } = await import('./lib/showcase.ts');
   enableShowcase();
