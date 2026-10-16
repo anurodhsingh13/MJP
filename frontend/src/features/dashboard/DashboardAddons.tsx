@@ -52,7 +52,7 @@ function FarmMap({fields}:{fields:DatabaseField[]}){
     if(!all.length||!field.boundary_geojson)all.push(L.latLngBounds(position,position));
    }
   });
-  if(all.length){const allBounds=all.reduce((acc,bounds)=>acc.extend(bounds),L.latLngBounds(all[0]));map.fitBounds(allBounds.pad(.22),{maxZoom:15,animate:false});}
+  if(all.length){const allBounds=all[0];for(const bounds of all.slice(1))allBounds.extend(bounds);map.fitBounds(allBounds.pad(.22),{maxZoom:15,animate:false});}
   map.invalidateSize();
   return ()=>{map.remove();};
  },[fields,navigate]);
@@ -65,7 +65,7 @@ function VegetationPreview({value,scene}:{value:number;scene:string}){
   </div>;
 }
 export function DashboardAddons({fields}:{fields:DatabaseField[]}){
- const {t,date,language}=usePreferences();
+ const {t,date}=usePreferences();
  const [details,setDetails]=useState<Record<string,FieldExtra>>({});
  const [selectedId,setSelectedId]=useState('');
  const [oldScene,setOldScene]=useState('');
@@ -135,7 +135,7 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
   <div className="addon-secondary-grid">
    <article className="addon-card addon-comparison"><h3><Images size={19}/>{t('Compare two satellite dates','सैटेलाइट की दो तारीख़ें तुलना करें')}</h3>
     {current&&older&&newer?<><label>{t('Field','खेत')} <select value={current.id} onChange={e=>{setSelectedId(e.target.value);setOldScene('');setNewScene('');}}>{inspected.map(field=><option key={field.id} value={field.id}>{field.name}</option>)}</select></label>
-     <div className="addon-comparison-controls"><label>{t('Before','पहले')}<select value={older.scene_id} onChange={e=>setOldScene(e.target.value)}>{readings.filter(o=>o.scene_id!==newer.scene_id).map(o=><option value={o.scene_id} key={o.scene_id}>{date(o.observed_on)}</option>)}</select></label><label>{t('After','बाद में')}<select value={newer.scene_id} onChange={e=>setNewScene(e.target.value)}>{readings.filter(o=>o.scene_id!==older.scene_id).map(o=><option value={o.scene_id} key={o.scene_id}>{date(o.observed_on)}</option>)}</select></label></div>
+     <div className="addon-comparison-controls"><label>{t('Before','पहले')}<select value={older.scene_id??''} onChange={e=>setOldScene(e.target.value)}>{readings.filter(o=>o.scene_id!==newer.scene_id).map(o=><option value={o.scene_id??''} key={o.scene_id}>{date(o.observed_on)}</option>)}</select></label><label>{t('After','बाद में')}<select value={newer.scene_id??''} onChange={e=>setNewScene(e.target.value)}>{readings.filter(o=>o.scene_id!==older.scene_id).map(o=><option value={o.scene_id} key={o.scene_id}>{date(o.observed_on)}</option>)}</select></label></div>
      <div className="addon-comparison-images"><div><VegetationPreview value={Number(older.ndvi_value)} scene={date(older.observed_on)}/><small>{t('Earlier image representation','पहली तस्वीर का चित्रण')}</small></div><div><VegetationPreview value={Number(newer.ndvi_value)} scene={date(newer.observed_on)}/><small>{t('Later image representation','बाद की तस्वीर का चित्रण')}</small></div></div>
      <p className="addon-change-note">{t('Greenness difference','हरियाली का अंतर')}: <strong>{(Number(newer.ndvi_value)-Number(older.ndvi_value)).toFixed(2)}</strong> · {t('Illustrative colour representation from NDVI readings, not original satellite pixels.','NDVI से बनाया रंगीन चित्र, असली सैटेलाइट पिक्सल नहीं।')}</p>
      <Link to={'/fields/'+current.id+'/analysis'}>{t('Open detailed trend','पूरा ग्राफ़ देखें')} <ArrowRight size={16}/></Link>
