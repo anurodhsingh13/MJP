@@ -1,0 +1,69 @@
+.dashboard-addons{margin:32px 0;display:grid;gap:20px;min-width:0;color:#20432e}
+.dashboard-addons *{box-sizing:border-box}
+.dashboard-addons .addon-heading{display:flex;justify-content:space-between;align-items:end;gap:18px}
+.dashboard-addons h2{font-size:clamp(22px,2.7vw,29px);margin:5px 0;color:#19462f}
+.dashboard-addons h3{font-size:17px;display:flex;align-items:center;gap:9px;color:#1c4c32;margin:0 0 12px}
+.dashboard-addons h3 svg{color:#2b7850;flex-shrink:0}
+.dashboard-addons p{color:#526859;line-height:1.55;margin:5px 0 12px}
+.dashboard-addons .addon-toggle{border:1px solid #c9dfcd;border-radius:12px;padding:10px 13px;background:#fff;color:#225c3e;font-weight:700;cursor:pointer;white-space:nowrap}
+.dashboard-addons .addon-card{background:#fff;border:1px solid #d8e6da;border-radius:20px;padding:19px;box-shadow:0 8px 28px #123e2310;min-width:0;overflow:hidden}
+.dashboard-addons .addon-primary-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px}
+.dashboard-addons .addon-secondary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.dashboard-addons .addon-map-wrap{position:relative;border:1px solid #d5e3d8;border-radius:14px;overflow:hidden}
+.dashboard-addons .addon-map{height:320px;width:100%;z-index:0}
+.dashboard-addons .addon-map-legend{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:9px 12px;background:#f2f7ef;color:#3a5e44;font-size:12px}
+.dashboard-addons .addon-map-legend span{display:inline-flex;align-items:center;gap:5px}
+.dashboard-addons .addon-dot{display:inline-block;height:11px;width:11px;border-radius:50%}
+.dashboard-addons .addon-dot.red{background:#d56e31}.dashboard-addons .addon-dot.green{background:#27884d}.dashboard-addons .addon-dot.amber{background:#c3a040}
+.dashboard-addons .addon-weather-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:20px 0}
+.dashboard-addons .addon-weather-grid>div{display:flex;flex-direction:column;gap:7px;background:#edf6ef;padding:13px 9px;border-radius:13px;align-items:center;text-align:center}
+.dashboard-addons .addon-weather-grid svg{width:22px;color:#327e55}
+.dashboard-addons .addon-weather-grid strong{font-size:clamp(15px,1.5vw,23px)}
+.dashboard-addons .addon-weather-grid span{font-size:11px;line-height:1.35;color:#526858}
+.dashboard-addons .addon-weather-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;margin-top:16px}
+.dashboard-addons .addon-weather-days div{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:12px}
+.dashboard-addons .addon-weather-days small,.dashboard-addons .addon-weather-days span{font-size:10px;color:#597365}
+.dashboard-addons .addon-subtle{font-size:12px}
+.dashboard-addons .addon-insight-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.dashboard-addons .addon-insight{border:1px solid #d9e7da;border-radius:14px;padding:13px;background:#f7faf6;color:#275638;text-decoration:none;display:flex;flex-direction:column;gap:5px}
+.dashboard-addons .addon-insight strong{font-size:15px;overflow-wrap:anywhere}
+.dashboard-addons .addon-insight span{font-size:12px;line-height:1.5}
+.dashboard-addons .addon-insight small{font-size:11px;color:#65796a}
+.dashboard-addons .addon-insight-icon{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:#2a8252;background:#e4f1e7;margin-bottom:5px}
+.dashboard-addons .addon-insight-icon.down{color:#a25a23;background:#fff1df}
+.dashboard-addons .addon-insight-icon.stable{color:#547064;background:#e9f1ed}
+.dashboard-addons .addon-comparison label{font-size:12px;display:flex;gap:8px;align-items:center;font-weight:700;flex-wrap:wrap}
+.dashboard-addons select{min-width:0;max-width:100%;background:#fff;color:#264e36;border:1px solid #c8d9ca;border-radius:9px;padding:9px;font:inherit}
+.dashboard-addons .addon-comparison-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}
+.dashboard-addons .addon-comparison-controls label{display:flex;align-items:stretch;flex-direction:column}
+.dashboard-addons .addon-comparison-images{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dashboard-addons .addon-comparison-images>div{min-width:0}
+.dashboard-addons .addon-comparison-images small{font-size:11px;color:#607568}
+.dashboard-addons .addon-satellite-tile{position:relative;min-height:155px;overflow:hidden;border-radius:12px;display:flex;flex-direction:column;justify-content:space-between;padding:12px;color:#fff;text-shadow:0 1px 3px #15351d}
+.dashboard-addons .addon-satellite-furrows{position:absolute;inset:-60%;transform:rotate(-23deg);opacity:.25;background:repeating-linear-gradient(90deg,transparent 0,transparent 12px,#143b22 12px,#143b22 20px,transparent 20px,transparent 31px,#e2e4a3 31px,#e2e4a3 38px)}
+.dashboard-addons .addon-satellite-tile span,.dashboard-addons .addon-satellite-tile small{z-index:1}
+.dashboard-addons .addon-satellite-tile span{font-weight:700}
+.dashboard-addons .addon-change-note{font-size:12px}
+.dashboard-addons .addon-comparison>a{display:inline-flex;align-items:center;gap:5px;font-weight:700;color:#21764b;font-size:13px}
+.dashboard-addons .addon-activity ul,.dashboard-addons .addon-calendar ul{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.dashboard-addons .addon-activity li{border-bottom:1px solid #e5eee5;padding:0 0 10px;display:grid;gap:4px;font-size:12px}
+.dashboard-addons .addon-activity li>span{color:#7a8b7d}.dashboard-addons .addon-activity a{color:#276543;text-decoration:none}
+.dashboard-addons .addon-activity small{color:#566c5e}
+.dashboard-addons .addon-calendar li{display:flex;align-items:center;gap:10px;background:#f4f8f3;border-radius:10px;padding:10px}
+.dashboard-addons .addon-calendar-day{font-size:11px;background:#e0ece1;color:#245537;padding:9px;border-radius:8px;white-space:nowrap}
+.dashboard-addons .addon-calendar li div{flex:1;min-width:0;display:grid;gap:4px}.dashboard-addons .addon-calendar li b{font-size:13px}.dashboard-addons .addon-calendar li small{font-size:11px;color:#66776a}
+.dashboard-addons .addon-calendar li a{color:#166b44}
+.dashboard-addons .addon-ai{background:linear-gradient(125deg,#e4f4e7,#fff)}
+.dashboard-addons .addon-ai-prompts{display:grid;gap:8px;margin-top:20px}
+.dashboard-addons .addon-ai-prompts button{padding:12px 14px;border:1px solid #c2dfc6;background:#fff;border-radius:11px;color:#245b3b;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dashboard-addons .addon-gallery-title{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.dashboard-addons .addon-gallery-title a{font-size:12px;display:flex;gap:4px;align-items:center;color:#21764b;font-weight:700}
+.dashboard-addons .addon-gallery-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.dashboard-addons .addon-gallery-grid a{display:grid;gap:8px;color:#274d34;font-weight:700;text-decoration:none;font-size:13px}
+.dashboard-addons .addon-gallery-grid img{width:100%;height:120px;object-fit:cover;border-radius:12px;background:#d6e6d4}
+.dashboard-addons .addon-footer{font-size:12px}
+@media(max-width:900px){.dashboard-addons .addon-primary-grid{grid-template-columns:1fr}.dashboard-addons .addon-insight-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.dashboard-addons{gap:14px}.dashboard-addons .addon-heading{align-items:start}.dashboard-addons .addon-secondary-grid{grid-template-columns:1fr}.dashboard-addons .addon-card{padding:15px}.dashboard-addons .addon-map{height:245px}.dashboard-addons .addon-insight-grid{gap:9px}.dashboard-addons .addon-weather-grid strong{font-size:15px}.dashboard-addons .addon-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-addons .addon-gallery-grid img{height:100px}}
+
+/* Prevent the existing fixed AI launcher covering modal actions on small screens. */
+body:has(.wizard-modal) .crop-assistant-launch,body:has([role="dialog"][aria-modal="true"]) .crop-assistant-launch{display:none}

@@ -30,7 +30,7 @@ for(const width of [320,390,768,1440]){
   await expect(page.getByRole('heading',{name:'Public demo parcel'})).toHaveCount(0);
   await page.screenshot({path:test.info().outputPath(`overview-${width}.png`),fullPage:true});
   await page.getByLabel('Search fields').fill('River');await expect(page.locator('.field-card')).toHaveCount(1);
-  await page.getByLabel('Search fields').fill('');await page.getByLabel('Show demo & public parcels').check();await expect(page.getByRole('heading',{name:'Public demo parcel'})).toBeVisible();
+  await page.getByLabel('Search fields').fill('');await page.getByRole('button',{name:'Filters'}).click();await page.getByLabel('Show demo & public parcels').check();await expect(page.getByRole('heading',{name:'Public demo parcel'})).toBeVisible();
   await page.goto(`/fields/${seed.id}/analysis`,{waitUntil:'domcontentloaded'});
   await expect(page.getByRole('region',{name:'Field evidence'})).toContainText('Visit this field');
   await expect(page.getByRole('region',{name:'Field evidence'})).toContainText('91%');

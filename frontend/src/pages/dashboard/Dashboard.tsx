@@ -6,6 +6,7 @@ import { fieldActionHref, fieldAssessment, fieldCopy } from '../../lib/fieldCopy
 import { usePreferences } from '../../lib/preferencesContext';
 import { AddFieldWizard } from '../../features/fields/AddFieldWizard';
 import { cropPhoto } from '../../lib/cropPhotos';
+import { DashboardAddons } from '../../features/dashboard/DashboardAddons';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -79,6 +80,7 @@ export function Dashboard() {
         <button className="summary-tile" aria-pressed={filter === 'due'} onClick={() => choose('due')}><CalendarCheck aria-hidden="true"/><strong>{due.length}</strong><span>{t('Visits / tasks due', 'तय काम बाकी')}</span></button>
         <button className="summary-tile" aria-pressed={filter === 'all'} onClick={() => choose('all')}><MapPin aria-hidden="true"/><strong>{real.length}</strong><span>{t('Your saved fields', 'आपके खेत')}</span></button>
       </section>}
+      {real.length > 0 && <DashboardAddons fields={fields}/>}
       <section id="my-fields" className="farmer-fields-section" aria-labelledby="fields-heading">
         <div className="section-heading"><div><h2 id="fields-heading">{t('My fields', 'मेरे खेत')}</h2><p className="section-caption">{t('Urgent field visits appear first, followed by fields waiting for pictures.', 'पहले ज़रूरी जाँच वाले खेत, फिर तस्वीर की प्रतीक्षा वाले खेत दिखेंगे।')}</p></div>{real.length > 0 && <span>{t(`${visible.length} shown`, `${visible.length} दिख रहे हैं`)}</span>}</div>
         {fields.length > 0 && <div className="farmer-filter-area"><div className="farmer-search-row"><label className="farmer-search-label"><Search size={19} aria-hidden="true"/><span className="sr-only">{t("Search fields", "खेत खोजें")}</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={t("Search your fields or crops", "खेत या फ़सल खोजें")}/></label><button type="button" className="farmer-filter-toggle" aria-expanded={showAdvancedFilters} onClick={() => setShowAdvancedFilters(value => !value)}><SlidersHorizontal size={18} aria-hidden="true"/>{t("Filters", "फ़िल्टर")}{filter !== "all" ? " •" : ""}</button></div>{showAdvancedFilters && <div className="field-filters">
