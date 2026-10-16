@@ -15,7 +15,7 @@ export function VegetationChart({ observations, index = 'ndvi_value', events = [
     .filter(item => Number.isFinite(item.date) && item.value !== null && Number.isFinite(item.value))
     .sort((a,b)=>a.date-b.date);
   const first = chart[0], last = chart.at(-1);
-  const difference = first && last && chart.length > 1 ? Number(last.value)-Number(first.value) : null;
+  const difference = first && last && chart.length > 1 ? Number(last?.value ?? 0)-Number(first.value) : null;
   const direction = difference == null ? 'unknown' : difference < -0.03 ? 'down' : difference > 0.03 ? 'up' : 'stable';
   const conclusion = direction === 'down' ? t('Greenness decreased','हरियाली घटी')
     : direction === 'up' ? t('Greenness increased','हरियाली बढ़ी')
@@ -29,7 +29,7 @@ export function VegetationChart({ observations, index = 'ndvi_value', events = [
       <span className="farmer-chart-arrow" aria-hidden="true">{icon}</span>
       <div><strong>{conclusion}</strong><p>{difference == null
         ? t('Only one picture date is available.','अभी केवल एक तस्वीर की तारीख़ उपलब्ध है।')
-        : t(`From ${valueLabel(Number(first.value))} to ${valueLabel(Number(last.value))} · change ${difference > 0 ? '+' : ''}${difference.toFixed(2)}`,`पहले ${valueLabel(Number(first.value))}, अब ${valueLabel(Number(last.value))} · बदलाव ${difference > 0 ? '+' : ''}${difference.toFixed(2)}`)}</p>
+        : t(`From ${valueLabel(Number(first.value))} to ${valueLabel(Number(last?.value ?? 0))} · change ${difference > 0 ? '+' : ''}${difference.toFixed(2)}`,`पहले ${valueLabel(Number(first.value))}, अब ${valueLabel(Number(last?.value ?? 0))} · बदलाव ${difference > 0 ? '+' : ''}${difference.toFixed(2)}`)}</p>
       {range && <small>{range} · {chart.length} {t('pictures','तस्वीरें')}</small>}</div>
     </div>}
     {simple && <div className="farmer-graph-explainer"><span><b>●</b> {t('Dots = satellite picture dates','बिंदु = सैटेलाइट तस्वीर की तारीख़ें')}</span><span><b>↗</b> {t('Up = more vegetation signal','ऊपर = अधिक हरियाली का संकेत')}</span><span><b>↘</b> {t('Down = less vegetation signal','नीचे = कम हरियाली का संकेत')}</span></div>}
