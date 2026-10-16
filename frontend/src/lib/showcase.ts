@@ -31,7 +31,7 @@ const fields:Field[]=crops.map(([name,crop,ndvi,previous,age,due],i)=>{
  id,name,crop,area_hectares:Number((1+i*.34).toFixed(2)),health_score:null,health_delta:null,canopy_coverage:0,
  ndvi_average:ndvi,latitude:28.554+i*.008,longitude:77.414+i*.014,boundary_geojson:polygon(i),boundary_version:1,
  planting_date:date(42+i),harvest_date:null,expected_yield_tons:null,last_observation:latest?.observed_on||null,
- provenance:'user_reported',isDemo:false,latestObservation:latest,previousObservation:older,
+ provenance:'user_reported' as const,isDemo:false,latestObservation:latest,previousObservation:older,
  assessment:assessEvidence(latest,older),dueTasks:due,latestJob:null,latest_scene_id:latest?.scene_id||null,
  };
 });
@@ -42,7 +42,6 @@ const weather=(id:string)=>Array.from({length:45},(_,i)=>({
 }));
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json'}});
 const result=(fieldId:string)=>fields.find(f=>f.id===fieldId);
-function updateSummary(f:Field){const obs=observations.get(f.id)||[]; f.latestObservation=obs[0]||null;f.previousObservation=obs[1]||null;f.assessment=assessEvidence(f.latestObservation||null,f.previousObservation||null);f.last_observation=f.latestObservation?.observed_on||null;f.latest_scene_id=f.latestObservation?.scene_id||null;}
 const mockTiles=new Response('<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect width="256" height="256" fill="#619f58" opacity=".55"/><path d="M0 80L256 140M-20 190L280 30" stroke="#daec72" stroke-width="52" opacity=".4"/><path d="M60 0L120 256" stroke="#317f4a" stroke-width="36" opacity=".5"/></svg>',{headers:{'content-type':'image/svg+xml'}});
 async function respond(path:string,method:string,body:Record<string,unknown>,search:string):Promise<Response>{
  if(path==='/api/auth/session')return json({mode:'local',user:null});
