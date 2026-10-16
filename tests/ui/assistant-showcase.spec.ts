@@ -7,7 +7,7 @@ test('AI assistant appears and answers a Hindi crop question in demo mode',async
  await launcher.click();
  const panel=page.getByRole('region',{name:'Crop assistant chat'});
  await expect(panel).toBeVisible();
- await expect(panel).toContainText('Example answers');
+ await expect(panel).toContainText('example answers');
  await page.getByRole('button',{name:'Why is NDVI decreasing?'}).click();
  await expect(panel).toContainText('NDVI');
  await expect(panel).toContainText('vegetation greenness');
