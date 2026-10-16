@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import './dashboard-addons.css';
 import { Link, useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import type { GeoJsonObject } from 'geojson';
