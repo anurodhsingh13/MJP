@@ -5,6 +5,7 @@ import { createFieldTask, loadFieldTasks, updateFieldTask, type DatabaseField, t
 import { fieldActionHref, fieldCopy } from '../../lib/fieldCopy';
 import { usePreferences } from '../../lib/preferencesContext';
 import { ImageCheckPanel } from '../../features/fields/ImageCheckPanel';
+import { FieldNextSteps } from '../../features/fields/FieldNextSteps';
 import { cropPhoto } from '../../lib/cropPhotos';
 
 const today = () => new Date().toLocaleDateString('en-CA');
@@ -57,6 +58,7 @@ export function FieldOverview() {
         <div><dt>{t('Field area', 'खेत का क्षेत्रफल')}</dt><dd>{area(field.area_hectares)}</dd></div></dl><p className="quiet">{t('Pictures show changes in greenness. A field visit helps explain why. The clear-view percentage describes the picture, not crop health.', 'तस्वीरें हरियाली का बदलाव दिखाती हैं। वजह खेत जाकर समझें। साफ़ दिखा प्रतिशत तस्वीर का है, फ़सल की सेहत का नहीं।')}</p></details>
       {(field.isDemo || field.provenance === 'public_boundary' || field.provenance === 'demo') && <p className="demo-label">{t('Demo / public parcel. Current crop and dates are unverified.', 'डेमो / सार्वजनिक खेत। अभी की फ़सल और तारीख़ें सत्यापित नहीं हैं।')}</p>}
     </section>
+    <FieldNextSteps field={field}/>
     {copy.action === 'images' && <ImageCheckPanel field={field} onComplete={refreshField}/>}
     <section className="quick-actions field-shortcuts no-print" aria-label={t('Field shortcuts', 'खेत के काम')}>
       {copy.action !== 'visit' && <button type="button" onClick={() => { setParams({ action: 'visit' }); setSaved(false); }}><CalendarCheck aria-hidden="true"/><strong>{t('Plan a field visit', 'खेत की जाँच तय करें')}</strong></button>}
