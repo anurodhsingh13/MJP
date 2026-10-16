@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import './dashboard-addons.css';
 import './observation-quality.css';
 import { ObservationQualityPanel } from './ObservationQualityPanel';
+import { FieldHealthLeaderboard } from './FieldHealthLeaderboard';
 import { Link, useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import type { GeoJsonObject } from 'geojson';
@@ -131,6 +132,7 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
    </article>
   </div>
   <ObservationQualityPanel fields={dataset}/>
+  <FieldHealthLeaderboard fields={fields}/>
   <article className="addon-card addon-insights"><h3><Activity size={19}/>{t('Crop insights','फ़सल के बदलाव')}</h3><div className="addon-insight-grid">{insights.length?insights.map(({field,latest,diff})=>{
    const direction=diff===null?'none':diff<-.03?'down':diff>.03?'up':'stable';
    const Icon=direction==='down'?MoveDownRight:direction==='up'?MoveUpRight:Minus;
