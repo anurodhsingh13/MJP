@@ -1,0 +1,10 @@
+
+.dashboard-addons .addon-quality { display:grid;gap:10px; }
+.dashboard-addons .addon-quality-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:10px; }
+.dashboard-addons .addon-quality-row { display:grid;grid-template-columns:minmax(0,1fr) auto 18px;gap:10px;align-items:center;min-height:64px;padding:12px;background:#f6faf5;border:1px solid #dfecdd;border-radius:12px;color:#1b4d32;text-decoration:none; }
+.dashboard-addons .addon-quality-row:hover { border-color:#7da98a; }
+.dashboard-addons .addon-quality-row span:first-child { display:grid;gap:4px;min-width:0; }
+.dashboard-addons .addon-quality-row strong { font-size:.86rem;overflow-wrap:anywhere; }
+.dashboard-addons .addon-quality-row small { font-size:.72rem;color:#5a7562;overflow-wrap:anywhere; }
+.dashboard-addons .addon-quality-row span:nth-child(2) { display:inline-flex;gap:4px;align-items:center;font-size:.79rem;white-space:nowrap; }
+.dashboard-addons .addon-quality-note { font-size:.77rem; }

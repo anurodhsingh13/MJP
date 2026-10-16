@@ -69,3 +69,6 @@
 body:has(.wizard-modal) .crop-assistant-launch,body:has([role="dialog"][aria-modal="true"]) .crop-assistant-launch{display:none}
 
 body:has(.wizard-modal) .farmer-mobile-nav,body:has([role="dialog"][aria-modal="true"]) .farmer-mobile-nav{display:none}
+
+/* Optional advanced dashboard views honor native hidden state. */
+.dashboard-addons .addon-more-detail[hidden] { display:none !important; }

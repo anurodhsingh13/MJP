@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './dashboard-addons.css';
+import './observation-quality.css';
+import { ObservationQualityPanel } from './ObservationQualityPanel';
+import { FieldHealthLeaderboard } from './FieldHealthLeaderboard';
 import { Link, useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import type { GeoJsonObject } from 'geojson';
 import { Bot, CalendarDays, CloudSun, Droplets, Images, MapPinned, MoveDownRight, MoveUpRight, Minus, Thermometer, Waves, ArrowRight, Activity, Clock } from 'lucide-react';
 import { cropPhoto, cropPhotos } from '../../lib/cropPhotos';
-import { FieldHealthLeaderboard } from './FieldHealthLeaderboard';
 import { usePreferences } from '../../lib/preferencesContext';
 import { loadFieldEvents, loadFieldJobs, loadFieldTasks, loadNdvi, loadWeather, type DatabaseField, type FieldEvent, type FieldTask, type ProcessingJob, type VegetationIndexObservation, type WeatherObservation } from '../../lib/api';
 
@@ -72,7 +74,7 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
  const [oldScene,setOldScene]=useState('');
  const [newScene,setNewScene]=useState('');
  const [pending,setPending]=useState(true);
- const [expanded,setExpanded]=useState(false);
+ const [expanded,setExpanded]=useState(true);
  const dataset=fields.filter(f=>!f.isDemo&&f.provenance!=='demo'&&f.provenance!=='public_boundary');
  useEffect(()=>{
   if(!dataset.length){setPending(false);return;}
@@ -94,8 +96,9 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
  const allWeather=dataset.flatMap(f=>(details[f.id]?.weather||[]).map(w=>({...w,fieldName:f.name})));
  const latestWeatherField=dataset.find(f=>(details[f.id]?.weather||[]).length>0);
  const weather=(latestWeatherField?details[latestWeatherField.id]?.weather||[]:[]).slice().sort((a,b)=>b.observed_on.localeCompare(a.observed_on)).slice(0,7);
- const mean=(key:'temperature_c'|'humidity_percent')=>weather.length?weather.reduce((sum,w)=>sum+(validNumber(w[key])||0),0)/weather.length:null;
- const rain=weather.length?weather.reduce((sum,w)=>sum+(validNumber(w.precipitation_mm)||0),0):null;
+ const mean=(key:'temperature_c'|'humidity_percent')=>{const available=weather.map(w=>validNumber(w[key])).filter((n):n is number=>n!==null);return available.length?available.reduce((sum,n)=>sum+n,0)/available.length:null;};
+ const rainfall=weather.map(w=>validNumber(w.precipitation_mm)).filter((n):n is number=>n!==null); 
+ const rain=rainfall.length?rainfall.reduce((sum,n)=>sum+n,0):null;
  const activity:FeedItem[]=dataset.flatMap(field=>{
   const e=details[field.id]||empty;
   return [
@@ -118,23 +121,24 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
   window.dispatchEvent(new CustomEvent('terrascope:assistant-question',{detail:{question}}));
  };
  return <section className="dashboard-addons" aria-label={t('Farm insights and previews','खेतों की जानकारी और झलक')}>
-  <div className="addon-heading"><div><span className="eyebrow">{t('ADDITIONAL FARM TOOLS','खेतों के अतिरिक्त साधन')}</span><h2>{t('Your farm at a glance','आपके खेत एक नज़र में')}</h2><p>{t('Explore your fields, recent readings and upcoming actions.','खेत, हाल की रीडिंग और अगले काम देखें।')}</p></div><button type="button" onClick={()=>setExpanded(value=>!value)} className="addon-toggle" aria-expanded={expanded}>{expanded?t('Show less','कम दिखाएँ'):t('Show more details','और जानकारी')}</button></div>
+  <div className="addon-heading"><div><span className="eyebrow">{t('ADDITIONAL FARM TOOLS','खेतों के अतिरिक्त साधन')}</span><h2>{t('Your farm at a glance','आपके खेत एक नज़र में')}</h2><p>{t('Explore your fields, recent readings and upcoming actions.','खेत, हाल की रीडिंग और अगले काम देखें।')}</p></div><button type="button" onClick={()=>setExpanded(value=>!value)} className="addon-toggle" aria-expanded={expanded} aria-controls="addon-advanced-section">{expanded?t('Show less','कम दिखाएँ'):t('Show more details','और जानकारी')}</button></div>
   <div className="addon-primary-grid">
    <article className="addon-card addon-map-card"><h3><MapPinned size={19}/>{t('All fields on one map','सभी खेत एक नक्शे पर')}</h3><p>{t('Tap a field boundary to open its details.','खेत पर दबाकर उसकी जानकारी खोलें।')}</p><FarmMap fields={dataset}/></article>
    <article className="addon-card addon-weather-card"><h3><CloudSun size={19}/>{t('Weather · last 7 days','मौसम · पिछले 7 दिन')}</h3>
-    {weather.length?<><p className="addon-subtle">{latestWeatherField?.name} · {date(weather[0]?.observed_on)} {t('and earlier','और उससे पहले')}</p>
-     <div className="addon-weather-grid"><div><Thermometer/><strong>{mean('temperature_c')?.toFixed(1)}°C</strong><span>{t('Average temperature','औसत तापमान')}</span></div><div><Droplets/><strong>{rain?.toFixed(1)} mm</strong><span>{t('Total rain','कुल बारिश')}</span></div><div><Waves/><strong>{mean('humidity_percent')?.toFixed(0)}%</strong><span>{t('Average humidity','औसत नमी')}</span></div></div>
-     <div className="addon-weather-days">{weather.slice().reverse().map(w=><div key={w.id+w.observed_on}><small>{date(w.observed_on).split(' ')[0]}</small><b>{Math.round(Number(w.temperature_c))}°</b><span>{Number(w.precipitation_mm).toFixed(0)} mm</span></div>)}</div>
+    {weather.length?<><p className="addon-subtle">{t('Historical NASA POWER data; not a forecast.','NASA POWER का पुराना मौसम डेटा; भविष्यवाणी नहीं।')} · {latestWeatherField?.name} · {date(weather[0]?.observed_on)} {t('and earlier','और उससे पहले')}</p>
+     <div className="addon-weather-grid"><div><Thermometer/><strong>{mean('temperature_c')===null?t('Not available','उपलब्ध नहीं'):`${mean('temperature_c')!.toFixed(1)}°C`}</strong><span>{t('Average temperature','औसत तापमान')}</span></div><div><Droplets/><strong>{rain===null?t('Not available','उपलब्ध नहीं'):`${rain.toFixed(1)} mm`}</strong><span>{t('Total rain','कुल बारिश')}</span></div><div><Waves/><strong>{mean('humidity_percent')===null?t('Not available','उपलब्ध नहीं'):`${mean('humidity_percent')!.toFixed(0)}%`}</strong><span>{t('Average humidity','औसत नमी')}</span></div></div>
+     <div className="addon-weather-days">{weather.slice().reverse().map(w=><div key={w.id+w.observed_on}><small>{date(w.observed_on).split(' ')[0]}</small><b>{validNumber(w.temperature_c)===null?'—':`${Math.round(validNumber(w.temperature_c)!)}°`}</b><span>{validNumber(w.precipitation_mm)===null?'—':`${validNumber(w.precipitation_mm)!.toFixed(0)} mm`}</span></div>)}</div>
     </>:<p>{pending?t('Loading weather…','मौसम ला रहे हैं…'):t('No weather data available','मौसम की जानकारी नहीं मिली')}</p>}
    </article>
   </div>
+  <ObservationQualityPanel fields={dataset}/>
   <FieldHealthLeaderboard fields={fields}/>
   <article className="addon-card addon-insights"><h3><Activity size={19}/>{t('Crop insights','फ़सल के बदलाव')}</h3><div className="addon-insight-grid">{insights.length?insights.map(({field,latest,diff})=>{
    const direction=diff===null?'none':diff<-.03?'down':diff>.03?'up':'stable';
    const Icon=direction==='down'?MoveDownRight:direction==='up'?MoveUpRight:Minus;
    return <Link key={field.id} to={'/fields/'+field.id+'/analysis'} className="addon-insight"><div className={'addon-insight-icon '+direction}><Icon/></div><strong>{field.name}</strong><span>{direction==='down'?t('Less green than before','पहले से हरियाली कम'):direction==='up'?t('Greener than before','पहले से ज़्यादा हरियाली'):direction==='stable'?t('Almost the same','लगभग समान'):t('One image available','एक तस्वीर उपलब्ध')}</span><small>{date(latest.observed_on)} · NDVI {Number(latest.ndvi_value).toFixed(2)}</small></Link>;
   }):<p>{pending?t('Checking satellite readings…','रीडिंग देख रहे हैं…'):t('Two clear image dates are needed for trends.','बदलाव के लिए दो तस्वीरें चाहिए।')}</p>}</div></article>
-  <div className="addon-secondary-grid">
+  <div className="addon-secondary-grid addon-more-detail" id="addon-advanced-section" hidden={!expanded}>
    <article className="addon-card addon-comparison"><h3><Images size={19}/>{t('Compare two satellite dates','सैटेलाइट की दो तारीख़ें तुलना करें')}</h3>
     {current&&older&&newer?<><label>{t('Field','खेत')} <select value={current.id} onChange={e=>{setSelectedId(e.target.value);setOldScene('');setNewScene('');}}>{inspected.map(field=><option key={field.id} value={field.id}>{field.name}</option>)}</select></label>
      <div className="addon-comparison-controls"><label>{t('Before','पहले')}<select value={older.scene_id??''} onChange={e=>setOldScene(e.target.value)}>{readings.filter(o=>o.scene_id!==newer.scene_id).map(o=><option value={o.scene_id??''} key={o.scene_id}>{date(o.observed_on)}</option>)}</select></label><label>{t('After','बाद में')}<select value={newer.scene_id??''} onChange={e=>setNewScene(e.target.value)}>{readings.filter(o=>o.scene_id!==older.scene_id).map(o=><option value={o.scene_id??''} key={o.scene_id}>{date(o.observed_on)}</option>)}</select></label></div>
@@ -147,7 +151,7 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
     {activity.length?<ul>{activity.map(item=><li key={item.id}><span>{date(item.date)}</span><Link to={'/fields/'+item.fieldId+'/history'}><b>{item.fieldName}</b> · {item.title}</Link><small>{item.description}</small></li>)}</ul>:<p>{t('No field activity recorded yet.','अभी कोई गतिविधि दर्ज नहीं है।')}</p>}
    </article>
   </div>
-  <div className="addon-secondary-grid">
+  <div className="addon-secondary-grid addon-more-detail" hidden={!expanded}>
    <article className="addon-card addon-calendar"><h3><CalendarDays size={19}/>{t('Upcoming field visits','आने वाली खेत-जाँच')}</h3>
     {visits.length?<ul>{visits.map(visit=><li key={visit.fieldId+visit.id}><span className="addon-calendar-day">{date(visit.due)}</span><div><b>{visit.title}</b><small>{visit.fieldName} · {visit.status}</small></div><Link to={'/fields/'+visit.fieldId+'/overview?action=visit'} aria-label={t('Open field visit','जाँच खोलें')+': '+visit.fieldName}><ArrowRight size={17}/></Link></li>)}</ul>:<p>{t('No visits scheduled. Plan one from a field overview.','कोई जाँच तय नहीं है। खेत खोलकर तारीख़ तय करें।')}</p>}
    </article>
@@ -159,7 +163,7 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
     ].map(([label,key])=><button key={key} type="button" onClick={()=>openAI(label)}>{label}<ArrowRight size={16}/></button>)}</div>
    </article>
   </div>
-  <article className="addon-card addon-gallery"><div className="addon-gallery-title"><h3><Images size={19}/>{t('Crop photo gallery','फ़सल तस्वीरें')}</h3><Link to="/gallery">{t('See all photos','सभी तस्वीरें')} <ArrowRight size={16}/></Link></div><div className="addon-gallery-grid">{photoFields.map(field=><Link key={field.id} to={'/fields/'+field.id+'/overview'}><img src={cropPhoto(field.crop).src} alt={cropPhoto(field.crop).alt} loading="lazy"/><span>{field.name}</span></Link>)}{!photoFields.length&&<Link to="/gallery"><img src={cropPhotos.wheat.src} alt={cropPhotos.wheat.alt}/><span>{t('Explore crop images','फ़सल तस्वीरें देखें')}</span></Link>}</div></article>
+  <article className="addon-card addon-gallery addon-more-detail" hidden={!expanded}><div className="addon-gallery-title"><h3><Images size={19}/>{t('Crop photo gallery','फ़सल तस्वीरें')}</h3><Link to="/gallery">{t('See all photos','सभी तस्वीरें')} <ArrowRight size={16}/></Link></div><div className="addon-gallery-grid">{photoFields.map(field=><Link key={field.id} to={'/fields/'+field.id+'/overview'}><img src={cropPhoto(field.crop).src} alt={cropPhoto(field.crop).alt} loading="lazy"/><span>{field.name}</span></Link>)}{!photoFields.length&&<Link to="/gallery"><img src={cropPhotos.wheat.src} alt={cropPhotos.wheat.alt}/><span>{t('Explore crop images','फ़सल तस्वीरें देखें')}</span></Link>}</div></article>
   {expanded&&<p className="addon-footer">{t('Weather preview uses the most recent field with available data; map colours indicate visit priorities. All original dashboard sections remain unchanged.','मौसम उपलब्ध खेत की जानकारी है; नक्शे के रंग काम की प्राथमिकता दिखाते हैं। पुराने डैशबोर्ड में कोई बदलाव नहीं।')} {allWeather.length?t(`${allWeather.length} weather records across fields`,`खेतों में ${allWeather.length} मौसम रिकॉर्ड`):''}</p>}
  </section>;
 }
