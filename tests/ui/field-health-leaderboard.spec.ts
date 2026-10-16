@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setup, seed, latest, previous } from './fixtures';
+import { setup, seed, previous } from './fixtures';
 
 test('field comparison shows only verified observations and exports original data', async ({ page }) => {
   const state = await setup(page);
