@@ -28,9 +28,17 @@ export function Dashboard() {
   const dataIssues = real.filter(field => ['image_too_old', 'not_enough_data', 'awaiting_analysis'].includes(fieldAssessment(field).state));
   const due = real.filter(field => Number(field.dueTasks) > 0);
   const priority = inspection.length ? inspection : due.length ? due : dataIssues;
+  // Keep urgent real fields above routine fields, while making demo entries clearly secondary.
+  const urgency = (field: DatabaseField) => {
+    if (fieldAssessment(field).state === 'needs_inspection') return 0;
+    if (Number(field.dueTasks) > 0) return 1;
+    if (['image_too_old', 'not_enough_data', 'awaiting_analysis'].includes(fieldAssessment(field).state)) return 2;
+    return 3;
+  };
   const visible = fields.filter(field => (includeDemo || !isDemo(field))
-    && `${field.name} ${field.crop}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())
-    && (filter === 'all' || (filter === 'data' ? ['image_too_old', 'not_enough_data', 'awaiting_analysis'].includes(fieldAssessment(field).state) : filter === 'due' ? Number(field.dueTasks) > 0 : fieldAssessment(field).state === filter)));
+    && `${field.name} ${field.crop}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
+    && (filter === 'all' || (filter === 'data' ? ['image_too_old', 'not_enough_data', 'awaiting_analysis'].includes(fieldAssessment(field).state) : filter === 'due' ? Number(field.dueTasks) > 0 : fieldAssessment(field).state === filter)))
+    .sort((a, b) => Number(isDemo(a)) - Number(isDemo(b)) || urgency(a) - urgency(b) || a.name.localeCompare(b.name, language === 'hi' ? 'hi' : 'en'));
   const choose = (value: string) => { setFilter(value); document.getElementById('my-fields')?.scrollIntoView({ behavior: 'smooth' }); };
   const hasFilters = Boolean(query || filter !== 'all');
   return <main className="dashboard-shell simple-farm">
@@ -56,7 +64,7 @@ export function Dashboard() {
           return <article className="attention-row" key={field.id}><div><strong>{field.name}</strong><p>{copy.explanation}</p></div><Link className="primary-action" to={fieldActionHref(field)}>{copy.actionLabel}<ArrowRight size={17} aria-hidden="true"/></Link></article>;
         })}
         {priority.length > 3 && <button className="text-button" onClick={() => choose(inspection.length ? 'needs_inspection' : due.length ? 'due' : 'data')}>{t(`See all ${priority.length} fields`, `सभी ${priority.length} खेत देखें`)}</button>}
-        {!priority.length && <p>{t('No large drop was found in the last two clear pictures of your fields. Keep checking your crops in person.', 'पिछली दो साफ़ तस्वीरों में हरियाली की बड़ी कमी नहीं दिखी। खेत में जाकर फ़सल देखते रहें।')}</p>}
+        {!priority.length && <p>{t('No field is currently flagged for an urgent visit or missing picture. This is not a guarantee of crop health; keep checking in person.', 'अभी किसी खेत में ज़रूरी जाँच या तस्वीर की कमी का संकेत नहीं है। इसका मतलब फ़सल पूरी तरह स्वस्थ होना नहीं है; खेत में जाकर देखते रहें।')}</p>}
       </section>}
       {real.length > 0 && <section className="summary-grid compact-summary" aria-label={t('Farm summary', 'खेतों का सारांश')}>
         <button className="summary-tile inspection-tile" aria-pressed={filter === 'needs_inspection'} onClick={() => choose('needs_inspection')}><Sprout aria-hidden="true"/><strong>{inspection.length}</strong><span>{t('Fields to visit', 'जाकर देखने वाले खेत')}</span></button>
@@ -65,7 +73,7 @@ export function Dashboard() {
         <button className="summary-tile" aria-pressed={filter === 'all'} onClick={() => choose('all')}><MapPin aria-hidden="true"/><strong>{real.length}</strong><span>{t('Your saved fields', 'आपके खेत')}</span></button>
       </section>}
       <section id="my-fields" aria-labelledby="fields-heading">
-        <div className="section-heading"><div><h2 id="fields-heading">{t('My fields', 'मेरे खेत')}</h2><p className="section-caption">{t('Each card tells you what to do next.', 'हर कार्ड पर खेत का अगला काम देखें।')}</p></div>{real.length > 0 && <span>{t(`${visible.length} shown`, `${visible.length} दिख रहे हैं`)}</span>}</div>
+        <div className="section-heading"><div><h2 id="fields-heading">{t('My fields', 'मेरे खेत')}</h2><p className="section-caption">{t('Urgent field visits appear first, followed by fields waiting for pictures.', 'पहले ज़रूरी जाँच वाले खेत, फिर तस्वीर की प्रतीक्षा वाले खेत दिखेंगे।')}</p></div>{real.length > 0 && <span>{t(`${visible.length} shown`, `${visible.length} दिख रहे हैं`)}</span>}</div>
         {fields.length > 0 && <div className="field-filters">
           <label>{t('Search fields', 'खेत खोजें')}<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={t('Field name or crop', 'खेत या फ़सल का नाम')}/></label>
           <label>{t('Show fields', 'कौन से खेत दिखाएँ')}<select value={filter} onChange={event => setFilter(event.target.value)}><option value="all">{t('All fields', 'सभी खेत')}</option><option value="needs_inspection">{t('Fields to visit', 'जाकर देखने वाले खेत')}</option><option value="data">{t('Waiting for pictures', 'तस्वीर चाहिए')}</option><option value="due">{t('Visits / tasks due', 'तय काम बाकी')}</option><option value="no_unusual_change">{t('No big change seen', 'बड़ा बदलाव नहीं दिखा')}</option></select></label>
