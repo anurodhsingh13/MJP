@@ -120,7 +120,7 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
   button?.click();
   window.dispatchEvent(new CustomEvent('terrascope:assistant-question',{detail:{question}}));
  };
- return <section className="dashboard-addons" aria-label={t('Farm insights and previews','खेतों की जानकारी और झलक')}>
+ return <section id="farm-addons" className="dashboard-addons" aria-label={t('Farm insights and previews','खेतों की जानकारी और झलक')}>
   <div className="addon-heading"><div><span className="eyebrow">{t('ADDITIONAL FARM TOOLS','खेतों के अतिरिक्त साधन')}</span><h2>{t('Your farm at a glance','आपके खेत एक नज़र में')}</h2><p>{t('Explore your fields, recent readings and upcoming actions.','खेत, हाल की रीडिंग और अगले काम देखें।')}</p></div><button type="button" onClick={()=>setExpanded(value=>!value)} className="addon-toggle" aria-expanded={expanded} aria-controls="addon-advanced-section">{expanded?t('Show less','कम दिखाएँ'):t('Show more details','और जानकारी')}</button></div>
   <div className="addon-primary-grid">
    <article className="addon-card addon-map-card"><h3><MapPinned size={19}/>{t('All fields on one map','सभी खेत एक नक्शे पर')}</h3><p>{t('Tap a field boundary to open its details.','खेत पर दबाकर उसकी जानकारी खोलें।')}</p><FarmMap fields={dataset}/></article>

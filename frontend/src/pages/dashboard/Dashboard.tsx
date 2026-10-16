@@ -7,6 +7,7 @@ import { usePreferences } from '../../lib/preferencesContext';
 import { AddFieldWizard } from '../../features/fields/AddFieldWizard';
 import { cropPhoto } from '../../lib/cropPhotos';
 import { DashboardAddons } from '../../features/dashboard/DashboardAddons';
+import { FarmerWelcome } from '../../features/dashboard/FarmerWelcome';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -50,6 +51,7 @@ export function Dashboard() {
   const hasFilters = Boolean(query || filter !== 'all');
   const attentionCount = priority.length;
   return <main className="dashboard-shell simple-farm">
+    {!error && !loading && <FarmerWelcome fields={fields}/> }
     <header className="dashboard-header overview-header farmer-hero">
       <div><span className="eyebrow">{t('YOUR DAILY FIELD COMPANION', 'हर दिन, आपके खेत का साथी')}</span>
         <h1>{t('Your farm. Your next step.', 'आपके खेत। अब क्या करें?')}</h1>
