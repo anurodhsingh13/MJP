@@ -113,6 +113,20 @@ test('field owners cannot read or mutate another account’s field through the A
   const headers={cookie:`chm_session=${tokens[0]}`,origin:'http://localhost:5173'};
   const owned=await fetch(base,{headers});assert.equal(owned.status,200);
   const records=await owned.json() as Array<{id:string}>;assert.deepEqual(records.map(record=>record.id),[fields[0]]);
+  // Optional field metadata must survive a partial edit; an explicit null clears it.
+  const patchOwned = (body: Record<string, unknown>) => fetch(`${base}/${fields[0]}`, {
+   method:'PATCH', headers:{...headers,'content-type':'application/json'}, body:JSON.stringify(body),
+  });
+  const dated = await patchOwned({planting_date:'2026-10-01',harvest_date:'2026-11-01',expected_yield_tons:5});
+  assert.equal(dated.status,200);
+  const renamed = await patchOwned({name:'Renamed owned field'});
+  assert.equal(renamed.status,200);
+  const retained = await renamed.json() as {planting_date:string|null;harvest_date:string|null;expected_yield_tons:string|number|null};
+  assert.equal(retained.planting_date,'2026-10-01');assert.equal(retained.harvest_date,'2026-11-01');assert.equal(Number(retained.expected_yield_tons),5);
+  const clearedResponse = await patchOwned({planting_date:null,harvest_date:null,expected_yield_tons:null});
+  assert.equal(clearedResponse.status,200);
+  const cleared = await clearedResponse.json() as typeof retained;
+  assert.equal(cleared.planting_date,null);assert.equal(cleared.harvest_date,null);assert.equal(cleared.expected_yield_tons,null);
   for(const path of [`/${fields[1]}`,`/${fields[1]}/scenes`,`/${fields[1]}/alerts`,`/${fields[1]}/ndvi`,`/${fields[1]}/events`,`/${fields[1]}/scouting`,`/${fields[1]}/tasks`,`/${fields[1]}/jobs`]){
    const response=await fetch(base+path,{headers});assert.equal(response.status,404,path);
   }

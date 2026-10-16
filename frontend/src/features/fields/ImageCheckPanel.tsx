@@ -55,8 +55,8 @@ export function ImageCheckPanel({ field, onComplete }: { field: DatabaseField; o
     : job.status === 'failed' ? t('Image check could not finish. Your field and previous image are safe. Try again.', 'तस्वीर की जाँच पूरी नहीं हुई। खेत और पिछली तस्वीर सुरक्षित हैं। दोबारा कोशिश करें।')
     : job.result?.accepted ? t('A usable image was found. The field summary has been updated.', 'साफ़ तस्वीर मिल गई। खेत की जानकारी अपडेट हो गई है।')
     : t('No usable new image was found. Previous measurements remain available. Try again later.', 'नई साफ़ तस्वीर नहीं मिली। पिछली जानकारी उपलब्ध है। बाद में फिर कोशिश करें।');
-  return <section className="image-check no-print" aria-label={t('Satellite image check', 'Satellite तस्वीर की जाँच')}>
-    <div><h3>{t('Satellite image check', 'Satellite तस्वीर की जाँच')}</h3><p role="status" aria-live="polite">{message}</p>
+  return <section id="image-check" tabIndex={-1} className="image-check no-print" aria-label={t('Satellite image check', 'उपग्रह की तस्वीर खोजें')}>
+    <div><h3>{t('Find a clear picture', 'साफ़ तस्वीर खोजें')}</h3><p role="status" aria-live="polite">{message}</p>
       {job?.finished_at && <small>{t('Last check', 'पिछली जाँच')}: {date(job.finished_at)}</small>}
       {active && <p className="quiet">{t('Progress is saved. Reopening this field will show the same check.', 'जाँच की स्थिति सेव है। खेत दोबारा खोलने पर यही जाँच दिखेगी।')}</p>}
       {error && <p role="alert">{t('Unable to check progress. Check your connection and retry.', 'स्थिति नहीं मिल रही। इंटरनेट कनेक्शन देखकर फिर कोशिश करें।')}</p>}

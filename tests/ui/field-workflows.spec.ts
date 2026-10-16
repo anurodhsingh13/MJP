@@ -75,23 +75,23 @@ test('same-date map scenes select exact latest evidence and keep scene/boundary 
   await expect(observationSelect).toHaveValue('accepted-b');
   await page.getByText('Technical image details',{exact:true}).click();
   const evidence = page.getByRole('region', { name: 'Selected image evidence' });
-  await expect(evidence).toContainText('Latest accepted observation');
+  await expect(evidence).toContainText('Latest clear picture');
   await expect(evidence).toContainText('Scene ID: accepted-b');
   await expect(evidence).toContainText('87%');
   await expect(evidence).toContainText('Current field boundary version: 2');
 
   await observationSelect.selectOption('newer-id');
-  await expect(evidence).toContainText('Not accepted for crop-health evidence');
+  await expect(evidence).toContainText('Picture too unclear to use');
   await expect(evidence).toContainText('21%');
   await expect(evidence).toContainText('Not accepted: Not enough usable field pixels');
 
   await observationSelect.selectOption('older-boundary');
-  await expect(evidence).toContainText('Not analysed for the current boundary');
+  await expect(evidence).toContainText('Picture not checked for this field outline');
   await expect(evidence).toContainText('Usable field coverage: Unavailable');
   await expect(evidence).toContainText('Selected evidence boundary version: Unavailable');
 
   await observationSelect.selectOption('historical-a');
-  await expect(evidence).toContainText('Historical accepted observation');
+  await expect(evidence).toContainText('Older clear picture');
   await page.getByRole('button', { name: 'Check for a new image' }).click();
   await expect(page.getByRole('status')).toContainText('No usable new image');
   await expect(observationSelect).toHaveValue('historical-a');

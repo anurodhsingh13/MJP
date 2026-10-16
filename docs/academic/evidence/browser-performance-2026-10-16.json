@@ -1,0 +1,29 @@
+{
+  "measured_at": "2026-10-16T14:42:37.150Z",
+  "metric": "Navigation to 20 rendered field cards",
+  "unit": "ms",
+  "samples": [
+    1042,
+    983,
+    967,
+    950,
+    950,
+    932,
+    934,
+    933,
+    916,
+    917
+  ],
+  "median_ms": 942,
+  "p95_ms": 1042,
+  "environment": {
+    "node": "v24.19.0",
+    "browser": "153.0.8010.0",
+    "platform": "linux",
+    "architecture": "x64",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "viewport": "1440x900",
+    "server": "Vite development server"
+  },
+  "limitations": "Controlled browser fixture; APIs mocked, external fonts blocked. Not live backend, database, provider latency or agricultural validation."
+}

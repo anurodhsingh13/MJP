@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useOutletContext, useSearchParams } from 'react-router-dom';
 import { CalendarCheck, Camera, Map, Sprout, ArrowRight } from 'lucide-react';
 import { createFieldTask, loadFieldTasks, updateFieldTask, type DatabaseField, type FieldTask, type TaskState } from '../../lib/api';
-import { fieldCopy } from '../../lib/fieldCopy';
+import { fieldActionHref, fieldCopy } from '../../lib/fieldCopy';
 import { usePreferences } from '../../lib/preferencesContext';
 import { ImageCheckPanel } from '../../features/fields/ImageCheckPanel';
 
@@ -11,6 +11,7 @@ export function FieldOverview() {
   const { field, refreshField } = useOutletContext<{ field: DatabaseField; refreshField: () => Promise<void> }>();
   const { t, language, date, area } = usePreferences();
   const [params, setParams] = useSearchParams();
+  const { hash } = useLocation();
   const copy = fieldCopy(field, language);
   const [tasks, setTasks] = useState<FieldTask[]>([]);
   const [loadError, setLoadError] = useState(false);
@@ -30,6 +31,7 @@ export function FieldOverview() {
     return () => { stopped = true; };
   }, [field.id, reload]);
   useEffect(() => { if (planning) document.getElementById('visit-title')?.focus(); }, [planning]);
+  useEffect(() => { if (hash) document.getElementById(hash.slice(1))?.focus(); }, [hash]);
   async function save(event: FormEvent) {
     event.preventDefault(); if (saving) return;
     setSaving(true); setSaveError(false); setSaved(false);
@@ -44,19 +46,21 @@ export function FieldOverview() {
   const taskLabel = (status: TaskState) => ({ open: t('Planned', 'तय की गई'), acknowledged: t('Seen', 'देख लिया'), action_taken: t('Visit / action done', 'जाँच / काम किया'), resolved: t('Closed', 'बंद') })[status];
   return <div className="field-overview">
     <section className={`condition-card condition-${copy.assessment.state}`} aria-label={t('Field summary', 'खेत की स्थिति')}>
-      <span className="eyebrow">{t('YOUR FIELD TODAY', 'आज आपके खेत की स्थिति')}</span>
+      <span className="eyebrow">{t('WHAT WE KNOW', 'अभी क्या जानकारी है')}</span>
       <h2><Sprout aria-hidden="true" size={28}/>{copy.title}</h2><p className="condition-explanation">{copy.explanation}</p>
-      <dl className="field-facts"><div><dt>{t('Satellite image', 'Satellite तस्वीर')}</dt><dd>{field.latestObservation ? date(field.latestObservation.observed_on) : t('Not available yet', 'अभी उपलब्ध नहीं')}</dd></div>
+      <div className="field-next-step"><span className="eyebrow">{t('YOUR NEXT STEP', 'अब यह करें')}</span><p>{copy.actionHint}</p>{copy.action !== 'images' && (copy.action === 'visit' ? <button type="button" className="primary-action" onClick={() => { setParams({ action: 'visit' }); setSaved(false); }}>{copy.actionLabel}<ArrowRight size={17} aria-hidden="true"/></button> : <Link className="primary-action" to={fieldActionHref(field)}>{copy.actionLabel}<ArrowRight size={17} aria-hidden="true"/></Link>)}</div>
+      <details className="condition-details"><summary>{t('Why am I seeing this?', 'यह जानकारी किस आधार पर है?')}</summary><dl className="field-facts"><div><dt>{t('Last clear picture', 'पिछली साफ़ तस्वीर')}</dt><dd>{field.latestObservation ? date(field.latestObservation.observed_on) : t('Not available yet', 'अभी उपलब्ध नहीं')}</dd></div>
         <div><dt>{t('Image age', 'तस्वीर कितनी पुरानी')}</dt><dd>{copy.assessment.ageDays == null ? t('Not available', 'उपलब्ध नहीं') : t(`${copy.assessment.ageDays} days`, `${copy.assessment.ageDays} दिन`)}</dd></div>
         <div><dt>{t('Field visible clearly', 'खेत का साफ़ दिखा हिस्सा')}</dt><dd>{field.latestObservation?.valid_coverage_percent != null ? `${field.latestObservation.valid_coverage_percent}%` : t('Not available', 'उपलब्ध नहीं')}</dd></div>
-        <div><dt>{t('Field area', 'खेत का क्षेत्रफल')}</dt><dd>{area(field.area_hectares)}</dd></div></dl>
+        <div><dt>{t('Field area', 'खेत का क्षेत्रफल')}</dt><dd>{area(field.area_hectares)}</dd></div></dl><p className="quiet">{t('Pictures show changes in greenness. A field visit helps explain why. The clear-view percentage describes the picture, not crop health.', 'तस्वीरें हरियाली का बदलाव दिखाती हैं। वजह खेत जाकर समझें। साफ़ दिखा प्रतिशत तस्वीर का है, फ़सल की सेहत का नहीं।')}</p></details>
       {(field.isDemo || field.provenance === 'public_boundary' || field.provenance === 'demo') && <p className="demo-label">{t('Demo / public parcel. Current crop and dates are unverified.', 'डेमो / सार्वजनिक खेत। अभी की फ़सल और तारीख़ें सत्यापित नहीं हैं।')}</p>}
-      <p className="quiet">{t('Satellite images show vegetation changes. A field visit is needed to understand their cause.', 'Satellite तस्वीरें हरियाली में बदलाव दिखाती हैं। वजह समझने के लिए खेत में जाँच ज़रूरी है।')}</p>
     </section>
-    <section className="quick-actions no-print" aria-label={t('What to do next', 'अब क्या करें')}>
-      <button type="button" onClick={() => { setParams({ action: 'visit' }); setSaved(false); }}><CalendarCheck aria-hidden="true"/><strong>{t('Plan a field visit', 'खेत की जाँच तय करें')}</strong><span>{t('Choose a date and save a reminder in your field tasks.', 'तारीख़ चुनकर खेत के कामों में सेव करें।')}</span></button>
-      <Link to={`/fields/${field.id}/history?photo=1#scouting-title`}><Camera aria-hidden="true"/><strong>{t('Add photo & note', 'फ़ोटो और नोट जोड़ें')}</strong><span>{t('Record what you see in the field.', 'खेत में जो दिखे उसे दर्ज करें।')}</span></Link>
-      <Link to={`/fields/${field.id}/map`}><Map aria-hidden="true"/><strong>{t('See field map', 'खेत का नक्शा देखें')}</strong><span>{t('Find the areas you want to inspect.', 'जाँच के लिए जगह देखें।')}</span></Link>
+    {copy.action === 'images' && <ImageCheckPanel field={field} onComplete={refreshField}/>}
+    <section className="quick-actions field-shortcuts no-print" aria-label={t('Field shortcuts', 'खेत के काम')}>
+      {copy.action !== 'visit' && <button type="button" onClick={() => { setParams({ action: 'visit' }); setSaved(false); }}><CalendarCheck aria-hidden="true"/><strong>{t('Plan a field visit', 'खेत की जाँच तय करें')}</strong></button>}
+      {copy.action !== 'photo' && <Link to={`/fields/${field.id}/history?photo=1#scouting-title`}><Camera aria-hidden="true"/><strong>{t('Add photo & note', 'फ़ोटो और नोट जोड़ें')}</strong></Link>}
+      <Link to={`/fields/${field.id}/map`}><Map aria-hidden="true"/><strong>{t('See field map', 'खेत का नक्शा देखें')}</strong></Link>
+      <Link to="/help"><ArrowRight aria-hidden="true"/><strong>{t('How to use', 'कैसे इस्तेमाल करें')}</strong></Link>
     </section>
     {planning && <section className="visit-form no-print" aria-labelledby="visit-heading"><h2 id="visit-heading">{t('Plan a field visit', 'खेत की जाँच तय करें')}</h2>
       <form onSubmit={save}><label>{t('Visit title', 'जाँच का नाम')}<input id="visit-title" value={title} maxLength={200} placeholder={t(`Visit ${field.name}`, `${field.name} की जाँच`)} onChange={event => setTitle(event.target.value)}/></label>
@@ -67,8 +71,8 @@ export function FieldOverview() {
         <div className="button-row"><button type="submit" className="primary-action" disabled={saving}>{saving ? t('Saving…', 'सेव कर रहे हैं…') : t('Save visit', 'जाँच सेव करें')}</button><button type="button" disabled={saving} onClick={() => setParams({})}>{t('Cancel', 'रद्द करें')}</button></div>
       </form></section>}
     {saved && <p className="success-notice" role="status">{t('Field visit saved.', 'खेत की जाँच सेव हो गई।')}</p>}
-    <ImageCheckPanel field={field} onComplete={refreshField}/>
-    <section className="overview-tasks" aria-labelledby="overview-tasks-title"><div className="section-heading"><h2 id="overview-tasks-title">{t('Planned visits & tasks', 'तय जाँच और काम')}</h2><Link to={`/fields/${field.id}/history`}>{t('Open field diary', 'खेत की डायरी खोलें')} <ArrowRight size={16} aria-hidden="true"/></Link></div>
+    {copy.action !== 'images' && <details className="optional-image-check"><summary>{t('Check for a newer picture', 'नई तस्वीर खोजना चाहते हैं?')}</summary><ImageCheckPanel field={field} onComplete={refreshField}/></details>}
+    <section id="planned-tasks" tabIndex={-1} className="overview-tasks" aria-labelledby="overview-tasks-title"><div className="section-heading"><h2 id="overview-tasks-title">{t('Planned visits & tasks', 'तय जाँच और काम')}</h2><Link to={`/fields/${field.id}/history`}>{t('Open field diary', 'खेत की डायरी खोलें')} <ArrowRight size={16} aria-hidden="true"/></Link></div>
       {loadError && <p role="alert">{t('Tasks could not be loaded.', 'कामों की सूची नहीं मिली।')} <button type="button" onClick={() => setReload(value => value + 1)}>{t('Retry', 'फिर कोशिश करें')}</button></p>}
       {!loadError && !tasks.length && <p>{t('No visits planned. Use “Plan a field visit” to choose a date.', 'अभी कोई जाँच तय नहीं है। तारीख़ चुनने के लिए “खेत की जाँच तय करें” दबाएँ।')}</p>}
       {tasks.map(task => <article className="task-row" key={task.id}><div><strong>{task.title}</strong><p>{task.due_on ? date(task.due_on) : t('No date chosen', 'तारीख़ तय नहीं')}{task.status !== 'resolved' && task.due_on && task.due_on < today() ? ` · ${t('Overdue', 'तारीख़ निकल गई')}` : ''}</p>{task.reason && <p className="quiet">{task.reason}</p>}</div>

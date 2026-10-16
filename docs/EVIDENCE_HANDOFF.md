@@ -31,3 +31,13 @@ The database CI uses disposable PostGIS, applies all migrations, and runs the se
 - No validated/licensed photo diagnosis provider, forecast weather adapter or offline/PWA synchronization is implemented.
 - Sarvam still needs configured credentials. In-app visits do not send phone notifications. Device preferences are local, not account-synced.
 - Public/shared production hardening remains a separate release task. Authentication is not disabled to make tests pass.
+
+## Plain-language submission revision
+
+Based on main `8e5cb67d7149f3dfb9abcabc781c24463704dcca`. The dashboard now presents a short next-step queue, compact filter counts and field cards with one action. The missing-imagery empty state no longer claims no vegetation decrease. Sample-only accounts offer add-field/sample actions. Overview shows the recommended action before optional measurement detail; maps use picture labels instead of UTC jargon; an in-app bilingual Help page explains the complete workflow and limitations. The trend page provides a dated plain-language change statement; exact measurements remain under advanced details and in reports.
+
+Verification: final UI production build/typecheck and lint pass; 20 ordinary API/unit checks pass (3 DB-dependent cases skipped by that command); 34 browser cases pass locally, including five new regressions. Browser screenshots at mobile/desktop and Hindi layouts were inspected. PostgreSQL/Python gates are run by the existing GitHub workflow; use the submitted revision's Actions result for their outcome. No live accepted scene or configured-machine smoke run is claimed by this environment.
+
+Academic additions: `docs/academic/SUBMISSION_READINESS.md`, `DESIGN_AND_TRACEABILITY.md`, updated Phase III evidence and the raw ten-sample controlled browser performance JSON. The controlled 20-card rendering median is 942 ms, nearest-rank p95 1042 ms; API responses were mocked. This is not live backend or satellite throughput.
+
+No dependencies, migrations, credentials, auth behavior or scientific thresholds were changed. The remaining diagnosis, forecast, offline, field-truth and release-hardening limitations still apply. Guide/team details and real demo-machine validation must come from the student and faculty.

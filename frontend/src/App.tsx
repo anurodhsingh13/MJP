@@ -13,6 +13,7 @@ const FieldHistory = lazy(() => import('./pages/fields/FieldHistory').then(modul
 const FieldOverview = lazy(() => import('./pages/fields/FieldOverview').then(module => ({ default: module.FieldOverview })));
 const FieldReport = lazy(() => import('./pages/fields/FieldReport').then(module => ({ default: module.FieldReport })));
 const Reports = lazy(() => import('./pages/fields/FieldReport').then(module => ({ default: module.Reports })));
+const Help = lazy(() => import('./pages/help/Help').then(module => ({ default: module.Help })));
 
 function LoadingWorkspace() {
   const {t}=usePreferences();
@@ -29,6 +30,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/datasets" element={<Datasets />} />
+            <Route path="/help" element={<Help />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/fields/:fieldId" element={<FieldLayout />}>
               <Route index element={<Navigate to="overview" replace />} />
