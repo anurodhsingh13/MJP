@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 test('dashboard preserves existing fields and shows all eight additive panels in standalone demo',async({page})=>{
  await page.goto('/?demo=1');
- await expect(page.locator('.farmer-field-card')).toHaveCount(8);
+ await expect(page.locator('.farmer-field-card')).toHaveCount(24);
  const addons=page.getByRole('region',{name:'Farm insights and previews'});
  await expect(addons).toBeVisible();
  for(const heading of ['All fields on one map','Weather · last 7 days','Crop insights','Compare two satellite dates','Recent field activity','Upcoming field visits','Ask Sarvam AI','Crop photo gallery']){

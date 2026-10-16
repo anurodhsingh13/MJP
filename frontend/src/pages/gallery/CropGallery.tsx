@@ -6,6 +6,8 @@ const photos=[
  {key:'rice',title:'Rice seedlings',hindi:'धान के पौधे',kind:'crop'},
  {key:'paddy',title:'Paddy landscape',hindi:'धान का खेत',kind:'crop'},
  {key:'harvest',title:'Ripening crops',hindi:'पकती फ़सल',kind:'crop'},
+ {key:'maize',title:'Fresh maize',hindi:'मक्का',kind:'crop'},
+ {key:'potato',title:'Potato harvest',hindi:'आलू की कटाई',kind:'crop'},
  {key:'satellite',title:'Satellite NDVI mosaic',hindi:'सैटेलाइट NDVI तस्वीर',kind:'satellite'},
 ] as const;
 export function CropGallery(){

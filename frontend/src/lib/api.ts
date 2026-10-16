@@ -175,7 +175,7 @@ export async function deleteFieldEvent(fieldId: string, eventId: string) {
   if (!response.ok) throw new Error('Unable to delete field event')
 }
 
-export type ScoutingPhoto = { id:string; width:number; height:number; quality:string };
+export type ScoutingPhoto = { preview_url?:string; id:string; width:number; height:number; quality:string };
 export type ScoutingCase = {
   id:string; observed_on:string; crop:string|null; symptoms:string|null; notes:string|null;
   diagnosis_status:string; diagnosis:Record<string,unknown>; photos:ScoutingPhoto[];

@@ -197,3 +197,7 @@ npm run test:smoke
 ```
 
 If an older launcher first reported `ECONNREFUSED` during migration and then `column "client_key" does not exist` during start, its start attempt has brought the managed database up but the migration is still pending. Run `npm run migrate && npm start && npm run status` directly. There is no need to reset the database or manually add the column. `npm run db:start` also starts only the configured managed cluster. `npm run test:launcher` checks stopped/running/failing/external database startup paths using an isolated fake pg_ctl; CI additionally performs real PostGIS migrations.
+
+### Full sample workspace
+
+Open `http://localhost:5173/?demo=1` (or run `npm run demo`). The standalone workspace includes 24 fictional fields, 414 satellite readings, 2,160 daily weather records, 288 diary records, 72 photo notes, visit tasks and completed processing jobs. Seven reference images are served locally. Demo edits persist in the current browser tab across reloads. Use `?demo=0` to return to your connected account.
