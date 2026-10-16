@@ -1,7 +1,7 @@
 # Phase II — Planning & Design (10 marks)
 **Project:** TerraScope Crop Health Monitor (CHM)  
 **Rubric period:** 17 August–12 September 2026  
-**Status:** Documentation prepared; faculty sign-off and evidence verification pending.
+**Status:** Design, WBS, risk register and requirement traceability prepared; actual guide sign-off remains pending.
 
 ## 1. Problem and design goal
 Farm-level satellite observations and weather information are difficult for non-technical users to interpret. TerraScope aims to turn field boundaries, Sentinel-2 observations, vegetation indices and weather records into accessible field-level views. Satellite indices are indicators, not diagnoses of disease or yield.
@@ -62,10 +62,12 @@ Attach dated guide meeting notes, architecture approval, design feedback and scr
 
 ## 9. Evidence checklist
 - [ ] Architecture diagram exported to image/PDF
-- [ ] Data model/schema diagram
+- [x] Data model/schema diagram: [Design and traceability](DESIGN_AND_TRACEABILITY.md)
 - [ ] Screenshots of field creation and dashboard
 - [ ] Guide feedback record
 - [ ] Design review presentation
-- [ ] Verified requirement-to-test traceability
+- [x] Requirement-to-test traceability with verification limits: [Design and traceability](DESIGN_AND_TRACEABILITY.md)
 
 **Source:** Major Project Evaluation Rubrics — B.Tech. Pre-final Year 2026–27, Phase II (10 marks).
+
+Current implementation/test evidence and immediate submission gaps: [Submission readiness](SUBMISSION_READINESS.md).

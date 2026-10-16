@@ -144,9 +144,9 @@ export function AddFieldWizard({ onComplete, onCancel }: { onComplete: (fieldId:
                 {boundaryFinished ? t('Boundary finished', 'सीमा पूरी हो गई') : t('Finish boundary', 'सीमा पूरी करें')}
               </button>
             </div>
-            <label>{t('Import GeoJSON Polygon', 'GeoJSON फ़ाइल से सीमा जोड़ें')}<input type="file" accept=".geojson,.json,application/geo+json,application/json" onChange={importBoundary}/></label>
+            <details className="boundary-import"><summary>{t('Already have a field outline file? (Optional)', 'खेत की सीमा की फ़ाइल पहले से है? (ज़रूरी नहीं)')}</summary><label>{t('Import GeoJSON Polygon', 'GeoJSON फ़ाइल से सीमा जोड़ें')}<input type="file" accept=".geojson,.json,application/geo+json,application/json" onChange={importBoundary}/></label>
             <p>{t('Optional: import a GeoJSON file containing one field outline. Multiple separate outlines must be added as separate fields.', 'वैकल्पिक: एक खेत की सीमा वाली GeoJSON फ़ाइल जोड़ें। अलग-अलग सीमाओं को अलग खेत के रूप में जोड़ें।')}</p>
-            {importError&&<div role="alert"><p>{t('This boundary file could not be imported. Use one valid GeoJSON Polygon under 120 KB.', 'सीमा की फ़ाइल नहीं खुली। 120 KB से छोटी, एक सही GeoJSON Polygon वाली फ़ाइल चुनें।')}</p><details><summary>{t('Technical details', 'तकनीकी जानकारी')}</summary>{importError}</details></div>}
+            {importError&&<div role="alert"><p>{t('This boundary file could not be imported. Use one valid GeoJSON Polygon under 120 KB.', 'सीमा की फ़ाइल नहीं खुली। 120 KB से छोटी, एक सही GeoJSON Polygon वाली फ़ाइल चुनें।')}</p><details><summary>{t('Technical details', 'तकनीकी जानकारी')}</summary>{importError}</details></div>}</details>
             <div className="actions" style={{ marginTop: '1rem' }}>
               <button type="button" onClick={() => setStep('dates')}>{t('Back', 'पीछे')}</button>
               <button type="button" disabled={!polygonGeojson || !validatePolygonBoundary(polygonGeojson) || !boundaryFinished || areaHectares<=0 || areaHectares>10000} onClick={() => setStep('confirm')}>{t('Review', 'जानकारी देखें')}</button>

@@ -107,7 +107,7 @@ The web interface adapts to phones, tablets, laptops, and desktops, including po
 
 To use the running app from another device on the same trusted Wi-Fi, set `WEB_HOST=0.0.0.0` in `.env`, restart with `npm run stop` then `npm start`, and open `http://<computer-LAN-IP>:5173` on that device (or your configured `WEB_PORT`). Allow the web port through the computer's firewall if needed. Keep the API and Python engine local: the frontend proxies `/api` to them, so devices share the same data. Automatic geolocation requires HTTPS on remote devices; otherwise pan and zoom the OpenStreetMap view to draw a boundary manually. For access outside your Wi-Fi, deploy the services behind HTTPS.
 
-## Evidence-first monitoring (feature branch)
+## Evidence-first monitoring
 
 The overview prioritizes field visits, old images and missing evidence. Universal farm-average health has been removed. Field-level coverage, valid pixels, acquisition date, source, freshness and descriptive change are separate. Demo/public parcels are hidden from real-farm summaries by default. Legacy scores are preserved in PostgreSQL but are not verified imagery.
 
@@ -148,3 +148,11 @@ No new Node or Python packages or environment keys are required. Existing `.env`
 - **Report** uses only the selected field's current boundary and chosen dates. CSV retains source, quality, acceptance, method and boundary identity, and escapes formula-like user text. GeoJSON contains the current boundary and provenance. **Print / save PDF** uses the browser's print dialog; no server PDF service is required. The report labels the latest summary separately because that image can fall outside the requested date range.
 
 The PostGIS integration fixture now supplies an explicit account instead of relying on unauthenticated access. Database-backed checks additionally exercise queue deduplication, expired-worker recovery, retry exhaustion, boundary changes, and visit idempotency. `PLAYWRIGHT_EXECUTABLE_PATH` can select an existing Chromium binary for constrained development environments; CI uses Playwright's normal browser installation.
+
+## Simple field workflow and submission evidence (16 October 2026)
+
+The dashboard now starts with a field visit, due task or picture search. Cards give one next action and keep optional picture measurements collapsed. Missing pictures never generate a reassuring crop message. A sample-only account can add its first real field or explicitly explore a sample. Open **How to use** for the bilingual four-step guide and explanations of colours, missing pictures, photos and reports. Map dates use picture numbers to distinguish same-day scenes; full acquisition timestamps remain in technical details.
+
+This UI revision adds no database migrations, dependencies or environment keys. Preserve the current account, CHM database and .env. Apply any previously unapplied migrations as described above when pulling from an older revision.
+
+For the academic demonstration, use [Submission readiness](docs/academic/SUBMISSION_READINESS.md), [Design and requirement traceability](docs/academic/DESIGN_AND_TRACEABILITY.md), [Phase II](docs/academic/PHASE_II_PLANNING_DESIGN.md) and [Phase III](docs/academic/PHASE_III_IMPLEMENTATION_VALIDATION.md). They distinguish local UI/unit verification, isolated database CI, controlled rendering performance and outstanding live/field validation. They do not claim faculty marks, signatures, publications or agricultural accuracy.

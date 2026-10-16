@@ -1,0 +1,31 @@
+import { Link } from 'react-router-dom';
+import { Camera, CloudSun, MapPinned, Sprout } from 'lucide-react';
+import { usePreferences } from '../../lib/preferencesContext';
+
+export function Help() {
+  const { t } = usePreferences();
+  const steps = [
+    { icon: MapPinned, title: t('Add your field', 'अपना खेत जोड़ें'), text: t('Choose Add field, give it a name, and tap its corners on the map. Planting dates can be added later.', 'खेत जोड़ें दबाएँ, नाम दें और नक्शे पर उसके कोने चुनें। बुवाई की तारीख़ बाद में जोड़ सकते हैं।') },
+    { icon: CloudSun, title: t('Find a clear picture', 'साफ़ तस्वीर खोजें'), text: t('Open the field and check for a new picture. You can leave the page while the search runs. Clouds may mean waiting for another day.', 'खेत खोलकर नई तस्वीर खोजें। खोज चलने पर पेज छोड़ सकते हैं। बादल हों तो दूसरी तारीख़ की तस्वीर का इंतज़ार करना पड़ सकता है।') },
+    { icon: Sprout, title: t('See your next step', 'अगला काम देखें'), text: t('The field card tells you whether to visit the crop, wait for a clearer picture, or continue regular checks.', 'खेत का कार्ड बताता है कि फ़सल देखने जाएँ, साफ़ तस्वीर का इंतज़ार करें या नियमित जाँच जारी रखें।') },
+    { icon: Camera, title: t('Keep a photo and note', 'फ़ोटो और नोट रखें'), text: t('During a field visit, open Add photo & note. Record what you see and save a date for your next visit.', 'खेत में हों तो फ़ोटो और नोट जोड़ें खोलें। जो दिखे उसे लिखें और अगली जाँच की तारीख़ सेव करें।') },
+  ];
+  return <main className="dashboard-shell help-page">
+    <Link className="back-link" to="/">← {t('Back to my fields', 'मेरे खेतों पर वापस जाएँ')}</Link>
+    <header className="help-header"><span className="eyebrow">{t('A QUICK START', 'आसान शुरुआत')}</span><h1>{t('Your field, in a few simple steps', 'कुछ आसान कदमों में अपने खेत का हाल देखें')}</h1><p>{t('You do not need to know satellite science to get started.', 'शुरू करने के लिए तकनीकी जानकारी ज़रूरी नहीं है।')}</p></header>
+    <ol className="help-steps">{steps.map(({ icon: Icon, title, text }, index) => <li key={index}><span className="help-step-icon" aria-hidden="true"><Icon/></span><div><span className="eyebrow">{t(`STEP ${index + 1}`, `कदम ${index + 1}`)}</span><h2>{title}</h2><p>{text}</p></div></li>)}</ol>
+    <section className="help-statuses" aria-labelledby="help-status-title"><h2 id="help-status-title">{t('What the messages mean', 'इन संदेशों का क्या मतलब है?')}</h2>
+      <article><span className="status-dot dot-visit" aria-hidden="true"/><div><h3>{t('Visit this field', 'खेत जाकर देखें')}</h3><p>{t('The crop looks less green between two clear pictures. Check for harvesting, water changes or crop stress in person.', 'दो साफ़ तस्वीरों में हरियाली कम दिखी। खेत जाकर कटाई, पानी या फ़सल में परेशानी की वजह देखें।')}</p></div></article>
+      <article><span className="status-dot dot-wait" aria-hidden="true"/><div><h3>{t('A clear / newer picture is needed', 'साफ़ या नई तस्वीर चाहिए')}</h3><p>{t('The app does not have enough clear, recent pictures. The crop condition is unknown.', 'ऐप के पास हाल की साफ़ तस्वीरें पूरी नहीं हैं। फ़सल का हाल अभी पता नहीं है।')}</p></div></article>
+      <article><span className="status-dot dot-routine" aria-hidden="true"/><div><h3>{t('No big change seen', 'बड़ा बदलाव नहीं दिखा')}</h3><p>{t('The pictures show no large drop in greenness. Continue field visits; a picture cannot rule out every crop problem.', 'तस्वीरों में हरियाली की बड़ी कमी नहीं दिखी। खेत देखते रहें; तस्वीर से हर परेशानी पता नहीं चलती।')}</p></div></article>
+    </section>
+    <section className="help-questions" aria-labelledby="help-questions-title"><h2 id="help-questions-title">{t('A few things to know', 'कुछ ज़रूरी बातें')}</h2>
+      <details><summary>{t('Do map colours mean a disease?', 'क्या नक्शे का रंग बीमारी बताता है?')}</summary><p>{t('No. Red means less vegetation in that picture; green means more. Harvesting, bare soil and water can also change the colours. Visit the field to understand the cause.', 'नहीं। उस तस्वीर में लाल का मतलब कम और हरे का मतलब ज़्यादा हरियाली है। कटाई, खाली मिट्टी और पानी से भी रंग बदलते हैं। वजह जानने के लिए खेत में देखें।')}</p></details>
+      <details><summary>{t('Why does a picture show only part of my field?', 'तस्वीर में पूरा खेत साफ़ क्यों नहीं दिखता?')}</summary><p>{t('Clouds, shadows or the edge of an image can hide part of the field. “Field seen clearly” is the part we could use. It is not a crop health percentage.', 'बादल, छाया या तस्वीर की सीमा से खेत का हिस्सा छिप सकता है। साफ़ दिखा हिस्सा केवल तस्वीर की जानकारी है, फ़सल की सेहत का प्रतिशत नहीं।')}</p></details>
+      <details><summary>{t('Can a photo identify crop disease?', 'क्या फ़ोटो से बीमारी की पहचान होती है?')}</summary><p>{t('Photos and notes are saved in your field diary. Automatic disease diagnosis is currently unavailable.', 'फ़ोटो और नोट खेत की डायरी में सेव होते हैं। बीमारी की अपने आप पहचान करने की सुविधा अभी उपलब्ध नहीं है।')}</p></details>
+      <details><summary>{t('How do I share a report?', 'रिपोर्ट कैसे साझा करें?')}</summary><p>{t('Open a field, choose Report and select the dates. Use Print / save PDF. Detailed readings and boundary downloads are available there too.', 'खेत खोलें, रिपोर्ट चुनें और तारीख़ें तय करें। प्रिंट / PDF सेव करें दबाएँ। ज़रूरत पर रीडिंग और सीमा की फ़ाइल भी मिलेंगी।')}</p></details>
+      <details><summary>{t('Does it work without internet?', 'क्या बिना इंटरनेट के काम करता है?')}</summary><p>{t('A connection is needed to load and save records or get new pictures. Check your connection before a field visit; offline saving is not available yet.', 'जानकारी खोलने, सेव करने और नई तस्वीर लेने के लिए इंटरनेट चाहिए। खेत जाने से पहले कनेक्शन देखें; ऑफ़लाइन सेव करना अभी उपलब्ध नहीं है।')}</p></details>
+    </section>
+    <div className="help-footer"><Link className="primary-action" to="/">{t('Go to my fields', 'मेरे खेत खोलें')} <span aria-hidden="true">→</span></Link><Link to="/datasets">{t('For more detail: data sources & limitations', 'और जानकारी: स्रोत और सीमाएँ')}</Link></div>
+  </main>;
+}
