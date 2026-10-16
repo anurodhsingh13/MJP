@@ -20,7 +20,7 @@ test('map works without a Google key and selects the last processed observation'
   });
   await page.setViewportSize({width:390,height:844});
   await page.goto(`/fields/${id}/map`);
-  await expect(page.locator('select')).toHaveValue('processed');
+  await expect(page.getByLabel('Image date')).toHaveValue('processed');
   await expect(page.getByLabel('Field map of Public demo: test parcel')).toBeVisible();
   await expect(page.getByText(/OpenStreetMap basemap/)).toBeVisible();
   await expect(page.getByRole('link',{name:'OpenStreetMap',exact:true})).toBeVisible();

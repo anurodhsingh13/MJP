@@ -26,7 +26,7 @@ for(const width of [320,390,768,1440]){
   await page.goto('/',{waitUntil:'domcontentloaded'});
   await expect(page.getByRole('heading',{name:'Needs attention'})).toBeVisible();
   const summary=page.getByRole('region',{name:'Farm summary'});
-  await expect(summary).toContainText('Needs inspection');await expect(summary).toContainText('Old imagery');await expect(summary).toContainText('Your saved fields3');
+  await expect(summary).toContainText('Needs inspection');await expect(summary).toContainText('Needs a clearer image');await expect(summary).toContainText('Your saved fields3');
   await expect(page.getByRole('heading',{name:'Public demo parcel'})).toHaveCount(0);
   await page.screenshot({path:test.info().outputPath(`overview-${width}.png`),fullPage:true});
   await page.getByLabel('Search fields').fill('River');await expect(page.locator('.field-card')).toHaveCount(1);
@@ -36,12 +36,14 @@ for(const width of [320,390,768,1440]){
   await expect(page.getByRole('region',{name:'Field evidence'})).toContainText('91%');
   await expect(page.getByRole('region',{name:'Vegetation trends'}).locator('.recharts-surface')).toBeVisible();
   const comparison=page.getByRole('region',{name:'Two-date comparison'});
+  await page.getByText('Advanced: measurements and experimental score',{exact:true}).click();
   await expect(comparison).toContainText('NDVI change between these dates: -0.250');
   await expect(comparison).toContainText('91%');
   await expect(comparison).toContainText('900 pixels');
   const timeline=page.getByRole('region',{name:'Acquisition timeline'});
   await expect(timeline).toContainText('before');
   await expect(timeline).toContainText('new');
+  await page.getByText('Advanced: measurements and experimental score',{exact:true}).click();
   await expect(page.getByRole('region',{name:'Vegetation observations'})).not.toBeVisible();
   await page.getByLabel('Date range').selectOption('30');await page.getByLabel('Vegetation index').selectOption('ndmi_value');
   await page.getByLabel('Vegetation index').selectOption('ndvi_value');

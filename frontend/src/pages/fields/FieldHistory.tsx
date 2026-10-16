@@ -1,211 +1,90 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useOutletContext } from 'react-router-dom';
-import { loadFieldEvents, createFieldEvent, deleteFieldEvent, loadScouting, saveScouting, loadFieldTasks, updateFieldTask, type ScoutingCase } from '../../lib/api';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
+import { loadFieldEvents, createFieldEvent, deleteFieldEvent, loadScouting, saveScouting, loadFieldTasks, updateFieldTask, type ScoutingCase, type DatabaseField, type FieldEvent, type FieldTask, type TaskState } from '../../lib/api';
+import { usePreferences } from '../../lib/preferencesContext';
 
-function EventNotes({ event }: { event: { event_type: string; notes: string | null } }) {
-  let source: Record<string, unknown> | null = null;
-  if (event.event_type === 'dataset_import' && event.notes) {
-    try {
-      const parsed: unknown = JSON.parse(event.notes);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) source = parsed as Record<string, unknown>;
-    } catch { /* Keep plain notes when the import format is not JSON. */ }
+function EventNotes({event}:{event:FieldEvent}) {
+  const {t}=usePreferences();
+  let source:Record<string,unknown>|null=null;
+  if(event.event_type==='dataset_import'&&event.notes){
+    try { const parsed:unknown=JSON.parse(event.notes); if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))source=parsed as Record<string,unknown>; }
+    catch { /* Preserve ordinary text notes from earlier imports. */ }
   }
-  if (source) return <div style={{ fontSize: '.9rem', color: '#4b5563', overflowWrap: 'anywhere' }}>
-    <p>{String(source.dataset || 'Public dataset')} · boundary year {String(source.boundary_year || 'unknown')} · {String(source.license || 'see source')}</p>
-    <p>{String(source.warning || '')}</p>
-    {typeof source.source_url === 'string' && source.source_url.startsWith('https://') && <a href={source.source_url} target="_blank" rel="noreferrer">Dataset source and attribution ↗</a>}
-  </div>;
-  return <p style={{ margin: 0, color: '#6b7280', fontSize: '.9rem', overflowWrap: 'anywhere' }}>{event.notes || 'No notes provided'}</p>;
+  if(source) return <>
+    <p>{t(`Historical boundary recorded in ${source.boundary_year || 'an unknown year'}. Current crop and dates are unverified.`, `${source.boundary_year || 'अज्ञात वर्ष'} की पुरानी सीमा। अभी की फ़सल और तारीख़ें सत्यापित नहीं हैं।`)}</p>
+    {typeof source.source_url==='string'&&source.source_url.startsWith('https://')&&<a href={source.source_url} target="_blank" rel="noreferrer">{t('Dataset source and attribution ↗','स्रोत और श्रेय ↗')}</a>}
+    <details><summary>{t('Source details','स्रोत की जानकारी')}</summary><p>{String(source.dataset||'')} · {String(source.license||'')}</p><p>{String(source.warning||'')}</p></details>
+  </>;
+  return <p>{event.notes || t('No notes provided','कोई नोट नहीं')}</p>;
 }
 
 export function FieldHistory() {
-  const { field } = useOutletContext<{ field: any }>();
-  const [events, setEvents] = useState<any[]>([]);
-  const [scoutingCases,setScoutingCases]=useState<ScoutingCase[]>([]);
-  const [tasks,setTasks]=useState<Array<{id:string;title:string;due_on:string|null;status:'open'|'acknowledged'|'action_taken'|'resolved'}>>([]);
+  const { field } = useOutletContext<{field:DatabaseField}>();
+  const { t, date } = usePreferences();
+  const [params] = useSearchParams();
+  const [events, setEvents] = useState<FieldEvent[]>([]);
+  const [cases, setCases] = useState<ScoutingCase[]>([]);
+  const [tasks, setTasks] = useState<FieldTask[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState(false);
+  const [eventError, setEventError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [scoutingLoading,setScoutingLoading]=useState(true);
-  const [scoutingError,setScoutingError]=useState('');
-  const [scoutingSaving,setScoutingSaving]=useState(false);
-  const [scoutingSymptoms,setScoutingSymptoms]=useState('');
-  const [scoutingNotes,setScoutingNotes]=useState('');
-  const [scoutingImage,setScoutingImage]=useState<File|null>(null);
-  const [scoutingDate,setScoutingDate]=useState(()=>new Date().toISOString().slice(0,10));
-  const [scoutingKey,setScoutingKey]=useState(()=>crypto.randomUUID());
-  const [taskError,setTaskError]=useState('');
-  const refreshEvents = useCallback(async () => {
-    setLoading(true); setError('');
-    try { setEvents(await loadFieldEvents(field.id)); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to load history'); }
-    finally { setLoading(false); }
-  }, [field.id]);
-  
   const [type, setType] = useState('planting');
-  const [date, setDate] = useState('');
+  const [eventDate, setEventDate] = useState('');
   const [notes, setNotes] = useState('');
-
+  const [reload, setReload] = useState(0);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState('');
+  const [photoDate, setPhotoDate] = useState(() => new Date().toLocaleDateString('en-CA'));
+  const [symptoms, setSymptoms] = useState('');
+  const [photoNotes, setPhotoNotes] = useState('');
+  const [photoSaving, setPhotoSaving] = useState(false);
+  const [photoError, setPhotoError] = useState(false);
+  const [photoSaved, setPhotoSaved] = useState(false);
+  const [key, setKey] = useState(() => crypto.randomUUID());
+  const eventTitle = (value:string) => ({planting:t('Planting','बुवाई'),fertilizer:t('Fertilizer Application','खाद डालना'),irrigation:t('Irrigation','सिंचाई'),pesticide:t('Pesticide Application','कीटनाशक डालना'),scouting:t('Scouting / Observation','खेत की जाँच'),harvest:t('Harvest','कटाई'),other:t('Other','अन्य'),dataset_import:t('Public boundary imported','सार्वजनिक सीमा जोड़ी गई')} as Record<string,string>)[value] || value;
   useEffect(() => {
-    let cancelled = false;
-    loadFieldEvents(field.id).then(data => { if (!cancelled) setEvents(data); })
-      .catch(caught => { if (!cancelled) setError(caught.message || 'Unable to load history'); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [field.id]);
-
-  useEffect(()=>{
-    let cancelled=false;
-    loadScouting(field.id).then(scouting=>{if(!cancelled)setScoutingCases(scouting.cases);})
-      .catch(caught=>{if(!cancelled)setScoutingError(caught instanceof Error?caught.message:'Unable to load scouting notes');})
-      .finally(()=>{if(!cancelled)setScoutingLoading(false);});
-    loadFieldTasks(field.id).then(loadedTasks=>{if(!cancelled)setTasks(loadedTasks);})
-      .catch(caught=>{if(!cancelled)setTaskError(caught instanceof Error?caught.message:'Unable to load follow-up tasks');});
-    return()=>{cancelled=true;};
-  },[field.id]);
-
-  const handleScoutingSave=async(event:React.FormEvent)=>{
-    event.preventDefault();
-    if(!scoutingImage||scoutingSaving)return;
-    if(scoutingImage.size>5*1024*1024){setScoutingError('Choose a JPEG, PNG or WebP photo smaller than 5 MB.');return;}
-    setScoutingSaving(true);setScoutingError('');
-    try{
-      const image=await new Promise<string>((resolve,reject)=>{
-        const reader=new FileReader();reader.onload=()=>typeof reader.result==='string'?resolve(reader.result):reject(new Error('Unable to read the selected photo'));reader.onerror=()=>reject(new Error('Unable to read the selected photo'));reader.readAsDataURL(scoutingImage);
-      });
-      const saved=await saveScouting(field.id,{client_key:scoutingKey,observed_on:scoutingDate,crop:field.crop&&field.crop!=='Unknown'?field.crop:undefined,symptoms:scoutingSymptoms,notes:scoutingNotes,image});
-      if(saved.id)setScoutingCases(current=>[saved,...current.filter(item=>item.id!==saved.id)]);
-      setScoutingImage(null);setScoutingSymptoms('');setScoutingNotes('');setScoutingDate(new Date().toISOString().slice(0,10));setScoutingKey(crypto.randomUUID());
-      const input=document.getElementById('scouting-photo') as HTMLInputElement|null;if(input)input.value='';
-      try{setTasks(await loadFieldTasks(field.id));setTaskError('');}
-      catch(caught){setTaskError(caught instanceof Error?caught.message:'Unable to refresh follow-up tasks');}
-    }catch(caught){setScoutingError(caught instanceof Error?caught.message:'Photo and scouting note could not be saved. Retry without closing this form.');}
-    finally{setScoutingSaving(false);}
-  };
-
-  const changeTask=async(id:string,status:'open'|'acknowledged'|'action_taken'|'resolved')=>{
-    setTaskError('');
-    try{await updateFieldTask(field.id,id,status);setTasks(current=>current.map(task=>task.id===id?{...task,status}:task));}
-    catch(caught){setTaskError(caught instanceof Error?caught.message:'Unable to update follow-up task');}
-  };
-
-  const handleAddEvent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!type || !date || saving) return;
-    setSaving(true); setError('');
+    let stopped = false;
+    void Promise.allSettled([loadFieldEvents(field.id),loadScouting(field.id),loadFieldTasks(field.id)]).then(([diary,scouting,visits]) => {
+      if (stopped) return;
+      if (diary.status === 'fulfilled') setEvents(diary.value);
+      if (scouting.status === 'fulfilled') setCases(scouting.value.cases);
+      if (visits.status === 'fulfilled') setTasks(visits.value);
+      setLoadError([diary,scouting,visits].some(item => item.status === 'rejected')); setLoading(false);
+    });
+    return () => { stopped = true; };
+  }, [field.id,reload]);
+  useEffect(() => { if (!loading && params.get('photo') === '1') { document.getElementById('scouting-title')?.scrollIntoView(); document.getElementById('scouting-photo')?.focus({preventScroll:true}); } }, [loading,params]);
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+  async function addEvent(event: FormEvent) {
+    event.preventDefault(); if (saving) return;
+    setSaving(true); setEventError(false);
+    try { const saved = await createFieldEvent(field.id,type,eventDate,notes); setEvents(current => [saved,...current].sort((a,b) => b.event_date.localeCompare(a.event_date))); setNotes(''); setEventDate(''); }
+    catch { setEventError(true); } finally { setSaving(false); }
+  }
+  async function addPhoto(event: FormEvent) {
+    event.preventDefault(); if (!photo || photoSaving) return;
+    setPhotoError(false); setPhotoSaved(false);
+    if (photo.size > 5*1024*1024 || !['image/jpeg','image/png','image/webp'].includes(photo.type)) { setPhotoError(true); return; }
+    setPhotoSaving(true);
     try {
-      const created = await createFieldEvent(field.id, type, date, notes);
-      setEvents(current => [...current, created].sort((a, b) => b.event_date.localeCompare(a.event_date)));
-      setType('planting');
-      setDate('');
-      setNotes('');
-
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Failed to add event');
-    } finally { setSaving(false); }
-  };
-
-  if (loading) return <div style={{ padding: '2rem' }}>Loading history...</div>;
-
-  return (
-    <div className="field-columns">
-      <div>
-        <h2 style={{ marginTop: 0 }}>Events & History</h2>
-        {error && <div role="alert">{error} <button type="button" onClick={refreshEvents}>Retry loading history</button></div>}
-        {events.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {events.map(ev => (
-              <div className="history-event" key={ev.id} style={{ padding: '1rem', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', display: 'flex', justifyContent: 'space-between' }}>
-                <div>
-                  <h4 style={{ margin: '0 0 0.25rem 0', textTransform: 'capitalize' }}>{ev.event_type.replace('_', ' ')}</h4>
-                  <EventNotes event={ev} />
-                </div>
-                <div style={{ color: '#4b5563', fontWeight: '500' }}>
-                  {new Date(ev.event_date).toLocaleDateString()}
-                  <button type="button" disabled={saving || deleting !== null} onClick={async () => {
-                    if (!window.confirm('Delete this field event?')) return;
-                    setDeleting(ev.id); setError('');
-                    try {
-                      await deleteFieldEvent(field.id, ev.id);
-                      setEvents(current => current.filter(item => item.id !== ev.id));
-                    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to delete event'); }
-                    finally { setDeleting(null); }
-                  }} style={{ display:'block', marginTop:'.5rem', border:0, background:'none', color:'#b91c1c', padding:0 }}>{deleting === ev.id ? 'Deleting…' : 'Delete'}</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p style={{ color: '#6b7280' }}>No events recorded for this field.</p>
-        )}
-      </div>
-
-      <div style={{ background: '#f9fafb', padding: '1.5rem', borderRadius: '8px', border: '1px solid #e5e7eb', height: 'fit-content' }}>
-        <h3 style={{ marginTop: 0 }}>Log New Event</h3>
-        <form onSubmit={handleAddEvent} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            Event Type
-            <select value={type} onChange={e => setType(e.target.value)} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #d1d5db' }}>
-              <option value="planting">Planting</option>
-              <option value="fertilizer">Fertilizer Application</option>
-              <option value="irrigation">Irrigation</option>
-              <option value="pesticide">Pesticide Application</option>
-              <option value="harvest">Harvest</option>
-              <option value="scouting">Field Scouting</option>
-            </select>
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            Date
-            <input type="date" required value={date} onChange={e => setDate(e.target.value)} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #d1d5db' }} />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            Notes (Optional)
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #d1d5db', resize: 'vertical' }} />
-          </label>
-          <button type="submit" disabled={saving || deleting !== null} style={{ background: '#4d7c0f', color: 'white', padding: '0.75rem', borderRadius: '4px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-            {saving ? 'Saving…' : 'Save Event'}
-          </button>
-        </form>
-      </div>
-      <section aria-labelledby="scouting-title">
-        <h2 id="scouting-title">Photo scouting</h2>
-        <p>Record what you see in the field. No crop diagnosis provider is configured; the app will not infer a disease or treatment from your photo.</p>
-        <form onSubmit={handleScoutingSave} style={{display:'grid',gap:'.75rem',maxWidth:620}}>
-          <label>Observation date<input aria-label="Scouting observation date" type="date" required max={new Date().toISOString().slice(0,10)} value={scoutingDate} onChange={event=>setScoutingDate(event.target.value)}/></label>
-          {field.crop&&field.crop!=='Unknown'&&<p>Crop: {field.crop}</p>}
-          <label>Symptoms<textarea value={scoutingSymptoms} maxLength={4000} onChange={event=>setScoutingSymptoms(event.target.value)} rows={2}/></label>
-          <label>Notes<textarea value={scoutingNotes} maxLength={4000} onChange={event=>setScoutingNotes(event.target.value)} rows={3}/></label>
-          <label>Crop photo<input id="scouting-photo" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required onChange={event=>setScoutingImage(event.target.files?.[0]??null)}/></label>
-          {scoutingError&&<p role="alert">{scoutingError}</p>}
-          <button type="submit" disabled={scoutingSaving||!scoutingImage}>{scoutingSaving?'Saving photo and field note…':'Save scouting note'}</button>
-        </form>
-        <p role="status">Diagnosis unavailable: no licensed, validated provider is configured. Photo quality review is not a crop diagnosis.</p>
-        {scoutingLoading?<p>Loading scouting notes…</p>:scoutingCases.length===0?<p>No photos or scouting notes recorded for this field.</p>:scoutingCases.map(item=>(
-          <article key={item.id} style={{display:'grid',gap:'.5rem',padding:'1rem',marginTop:'1rem',border:'1px solid #536b36',borderRadius:8}}>
-            <h3 style={{margin:0}}>Field note · {new Date(`${item.observed_on}T00:00:00`).toLocaleDateString()}</h3>
-            {item.crop&&<p>Reported crop: {item.crop}</p>}
-            {item.symptoms&&<p>Symptoms: {item.symptoms}</p>}
-            {item.notes&&<p>Notes: {item.notes}</p>}
-            {item.photos?.map(photo=><div key={photo.id}>
-              <img alt={`Farmer scouting photo, quality review: ${photo.quality}`} loading="lazy" style={{maxWidth:'min(100%,420px)',height:'auto',borderRadius:8}} src={`/api/fields/${field.id}/scouting/${item.id}/photos/${photo.id}`}/>
-              <p>Photo quality: {photo.quality}. Not a diagnosis.</p>
-            </div>)}
-            <p>Diagnosis unavailable. No disease, confidence or treatment has been inferred.</p>
-          </article>
-        ))}
-      </section>
-      <section aria-labelledby="tasks-title">
-        <h2 id="tasks-title">Follow-up tasks</h2>
-        {taskError&&<p role="alert">{taskError}</p>}
-        {tasks.length===0?<p>No follow-up tasks are open for this field.</p>:tasks.map(task=><article key={task.id} style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:12,padding:'12px 0',borderBottom:'1px solid #536b36'}}>
-          <span>{task.title}{task.due_on?` · due ${task.due_on}`:''}</span>
-          <label>State<select aria-label={`Task state for ${task.title}`} value={task.status} onChange={event=>void changeTask(task.id,event.target.value as typeof task.status)}>
-            <option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="action_taken">Action taken</option><option value="resolved">Resolved</option>
-          </select></label>
-          {task.status==='resolved'&&<small>Resolved is a task state; it does not verify crop recovery.</small>}
-        </article>)}
-      </section>
-    </div>
-  );
+      const image = await new Promise<string>((resolve,reject) => { const reader = new FileReader(); reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Unable to read image')); reader.onerror = () => reject(new Error('Unable to read image')); reader.readAsDataURL(photo); });
+      const saved = await saveScouting(field.id,{client_key:key,observed_on:photoDate,crop:field.crop && field.crop !== 'Unknown' ? field.crop : undefined,symptoms,notes:photoNotes,image});
+      setCases(current => [saved,...current.filter(item => item.id !== saved.id)]); setPhoto(null); setPreview(''); setSymptoms(''); setPhotoNotes(''); setKey(crypto.randomUUID()); setPhotoSaved(true);
+      const input = document.getElementById('scouting-photo') as HTMLInputElement | null; if (input) input.value = '';
+      try { setTasks(await loadFieldTasks(field.id)); } catch { setLoadError(true); }
+    } catch { setPhotoError(true); } finally { setPhotoSaving(false); }
+  }
+  if (loading) return <div className="diary-layout" role="status">{t('Loading field diary…','खेत की डायरी ला रहे हैं…')}</div>;
+  return <div className="diary-layout"><div className="content-heading"><h2>{t('Field diary','खेत की डायरी')}</h2><Link to={`/fields/${field.id}/overview?action=visit`}>{t('Plan a field visit','खेत की जाँच तय करें')} →</Link></div>
+    {loadError && <p className="error-notice" role="alert">{t('Some diary records could not be loaded.','डायरी की कुछ जानकारी नहीं मिली।')} <button onClick={() => { setLoading(true); setReload(value => value+1); }}>{t('Retry loading history','फिर कोशिश करें')}</button></p>}
+    <section className="diary-form"><h3>{t('Log New Event','खेत का काम दर्ज करें')}</h3><form onSubmit={addEvent}><label>{t('Event Type','किस तरह का काम')}<select value={type} onChange={event => setType(event.target.value)}>{['planting','fertilizer','irrigation','pesticide','scouting','harvest','other'].map(value => <option key={value} value={value}>{eventTitle(value)}</option>)}</select></label><label>{t('Date','तारीख़')}<input type="date" required value={eventDate} onChange={event => setEventDate(event.target.value)}/></label><label>{t('Notes (Optional)','नोट (ज़रूरी नहीं)')}<textarea value={notes} maxLength={4000} onChange={event => setNotes(event.target.value)} rows={3}/></label>{eventError && <p role="alert">{t('Event could not be saved. Your entries are still here; please retry.','काम सेव नहीं हुआ। जानकारी यहीं है; फिर कोशिश करें।')}</p>}<button type="submit" className="primary-action" disabled={saving}>{saving ? t('Saving…','सेव कर रहे हैं…') : t('Save Event','काम सेव करें')}</button></form></section>
+    <section aria-labelledby="events-title"><h3 id="events-title">{t('Recorded field work','दर्ज किए गए काम')}</h3>{!events.length && <p>{t('No events recorded for this field.','इस खेत का कोई काम अभी दर्ज नहीं है।')}</p>}{events.map(item => <article className="history-event" key={item.id}><div><strong>{eventTitle(item.event_type)}</strong><EventNotes event={item}/><small>{date(item.event_date)}</small></div><button type="button" className="text-button" disabled={deleting === item.id} onClick={async () => { if (!window.confirm(t('Delete this field event?','यह काम हटाएँ?'))) return; setDeleting(item.id); try { await deleteFieldEvent(field.id,item.id); setEvents(current => current.filter(value => value.id !== item.id)); } catch { setLoadError(true); } finally { setDeleting(null); } }}>{deleting === item.id ? t('Deleting…','हटा रहे हैं…') : t('Delete','हटाएँ')}</button></article>)}</section>
+    <section className="scouting-panel" aria-labelledby="scouting-title"><h2 id="scouting-title" tabIndex={-1}>{t('Photo scouting','फ़ोटो और खेत की जाँच')}</h2><p>{t('Photograph what you see and add a note. Photos are saved to this field; automatic disease diagnosis is not available.','जो दिखे उसकी फ़ोटो और नोट जोड़ें। फ़ोटो इस खेत में सेव होगी; बीमारी की अपने आप पहचान अभी उपलब्ध नहीं है।')}</p><form onSubmit={addPhoto}><label>{t('Observation date','जाँच की तारीख़')}<input aria-label={t('Scouting observation date','खेत की जाँच की तारीख़')} type="date" required max={new Date().toLocaleDateString('en-CA')} value={photoDate} onChange={event => setPhotoDate(event.target.value)}/></label><label>{t('Symptoms','क्या दिख रहा है')}<textarea value={symptoms} maxLength={4000} onChange={event => setSymptoms(event.target.value)} rows={2}/></label><label>{t('Notes','नोट')}<textarea value={photoNotes} maxLength={4000} onChange={event => setPhotoNotes(event.target.value)} rows={3}/></label><label>{t('Crop photo','फ़सल की फ़ोटो')}<input id="scouting-photo" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required onChange={event => { const image = event.target.files?.[0] ?? null; setPhoto(image); setPreview(image ? URL.createObjectURL(image) : ''); setPhotoError(false); }}/></label><small>{t('JPEG, PNG or WebP up to 5 MB. Take a clear, close photo in daylight.','JPEG, PNG या WebP, 5 MB तक। दिन की रोशनी में पास से साफ़ फ़ोटो लें।')}</small>{preview && <img className="scouting-photo-preview" src={preview} alt={t('Selected crop photo preview','चुनी फ़सल की फ़ोटो का पूर्वावलोकन')}/>}{photoError && <p role="alert">{t('Photo could not be saved. Use a JPEG, PNG or WebP under 5 MB, check the date and retry. Your note is still here.','फ़ोटो सेव नहीं हुई। 5 MB से छोटी JPEG, PNG या WebP फ़ोटो चुनें, तारीख़ जाँचें और फिर कोशिश करें। नोट यहीं है।')}</p>}<button type="submit" className="primary-action" disabled={photoSaving || !photo}>{photoSaving ? t('Saving photo and field note…','फ़ोटो और नोट सेव कर रहे हैं…') : t('Save scouting note','फ़ोटो और नोट सेव करें')}</button></form>{photoSaved && <p className="success-notice" role="status">{t('Photo and field note saved.','फ़ोटो और नोट सेव हो गए।')}</p>}
+      <p className="quiet">{t('Diagnosis unavailable: no licensed, validated provider is configured. Photo quality review is not a crop diagnosis.','बीमारी की पहचान उपलब्ध नहीं है: कोई सत्यापित सेवा जुड़ी नहीं है। फ़ोटो की गुणवत्ता जाँचना बीमारी की पहचान नहीं है।')}</p>
+      {!cases.length && <p>{t('No photos or scouting notes recorded for this field.','इस खेत की कोई फ़ोटो या जाँच का नोट नहीं है।')}</p>}{cases.map(item => <article className="scouting-case" key={item.id}><h3>{t('Field note','खेत का नोट')} · {date(item.observed_on)}</h3>{item.symptoms && <p>{item.symptoms}</p>}{item.notes && <p>{item.notes}</p>}{item.photos?.map(image => <div key={image.id}><img className="scouting-photo-preview" loading="lazy" alt={t('Saved crop scouting photo','सेव की हुई फ़सल की फ़ोटो')} src={`/api/fields/${field.id}/scouting/${item.id}/photos/${image.id}`}/><details><summary>{t('Photo quality','फ़ोटो की गुणवत्ता')}</summary>{image.quality}</details></div>)}<button className="text-button" disabled={deleting === item.id} onClick={async () => { if (!window.confirm(t('Delete this photo note and its follow-up task?','यह फ़ोटो नोट और उससे जुड़ा काम हटाएँ?'))) return; setDeleting(item.id); try { const response = await fetch(`/api/fields/${field.id}/scouting/${item.id}`,{method:'DELETE'}); if (!response.ok) throw new Error('Delete failed'); setCases(current => current.filter(value => value.id !== item.id)); setTasks(await loadFieldTasks(field.id)); } catch { setLoadError(true); } finally { setDeleting(null); } }}>{t('Delete photo note','फ़ोटो नोट हटाएँ')}</button></article>)}
+    </section>
+    <section aria-labelledby="tasks-title"><h2 id="tasks-title">{t('Follow-up tasks','आगे के काम')}</h2>{!tasks.length && <p>{t('No follow-up tasks are open for this field.','इस खेत का कोई आगे का काम नहीं है।')}</p>}{tasks.map(item => <article className="task-row" key={item.id}><div><strong>{item.title}</strong><p>{item.due_on ? date(item.due_on) : t('No date chosen','तारीख़ तय नहीं')}</p></div><label>{t('State','स्थिति')}<select aria-label={`${t('Task state for','काम की स्थिति:')} ${item.title}`} value={item.status} disabled={deleting === item.id} onChange={async event => { const status = event.target.value as TaskState; setDeleting(item.id); try { await updateFieldTask(field.id,item.id,status); setTasks(current => current.map(value => value.id === item.id ? {...value,status} : value)); } catch { setLoadError(true); } finally { setDeleting(null); } }}>{(['open','acknowledged','action_taken','resolved'] as const).map(value => <option key={value} value={value}>{{open:t('Open','खुला'),acknowledged:t('Acknowledged','देख लिया'),action_taken:t('Action taken','कार्रवाई की'),resolved:t('Resolved','बंद')}[value]}</option>)}</select></label></article>)}<p className="quiet">{t('Closing a task does not confirm crop recovery.','काम बंद करने से फ़सल के ठीक होने की पुष्टि नहीं होती।')}</p></section>
+  </div>;
 }

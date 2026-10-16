@@ -36,7 +36,9 @@ export async function getFields(_request: Request, response: Response) {
       select fields.*, ST_Y(location) as latitude, ST_X(location) as longitude,
         ST_AsGeoJSON(boundary_geom)::jsonb as boundary_geojson,
         coalesce(evidence.observations,'[]'::jsonb) as evidence,
-        coalesce(activity.processing,'[]'::jsonb) as processing
+        coalesce(activity.processing,'[]'::jsonb) as processing,
+        latest_job.job as "latestJob",
+        (select count(*)::int from field_tasks t where t.field_id=fields.id and t.status<>'resolved' and t.due_on<=current_date) as "dueTasks"
       from public.fields
       left join lateral (
         select jsonb_agg(vi order by vi.observed_on desc) as observations from (
@@ -52,7 +54,12 @@ export async function getFields(_request: Request, response: Response) {
           from public.satellite_scenes where field_id=fields.id and processing_boundary_version=fields.boundary_version
           order by processing_started_at desc nulls last limit 3
         ) s
-      ) activity on true where (not $4::boolean or fields.owner_id=$3::uuid) order by fields.created_at asc`, [policy.minCoverage,policy.minPixels,actor(response)?.id??null,authRequired()]);
+      ) activity on true
+      left join lateral (
+        select jsonb_build_object('id',j.id,'field_id',j.field_id,'boundary_version',j.boundary_version,'kind',j.kind,'status',j.status,'progress',j.progress,'result',j.result,'error',j.error,'created_at',j.created_at,'finished_at',j.finished_at) as job
+        from ingestion_jobs j where j.field_id=fields.id and j.boundary_version=fields.boundary_version and j.kind='satellite'
+        order by j.created_at desc limit 1
+      ) latest_job on true where (not $4::boolean or fields.owner_id=$3::uuid) order by fields.created_at asc`, [policy.minCoverage,policy.minPixels,actor(response)?.id??null,authRequired()]);
     response.json(result.rows.map((row: Record<string, unknown> & { evidence: Observation[] }) => {
       const [latest,previous] = row.evidence;
       const assessment = assessEvidence(latest??null,previous??null,policy);

@@ -51,6 +51,7 @@ for (const size of [
         await page.getByText('Advanced: measurements and experimental score',{exact:true}).click();
         const table = page.getByRole('region', { name: 'Vegetation observations' });
         await expect(table).toBeVisible();
+        await page.getByText('Past weather near this field',{exact:true}).click();
         await expect(page.getByText('Temperature (°C)', { exact: true })).toBeVisible();
         if (size.width < 600) expect(await table.evaluate(el => el.scrollWidth > el.clientWidth)).toBeTruthy();
       }

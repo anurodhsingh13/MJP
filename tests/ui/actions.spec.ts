@@ -1,195 +1,83 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { setup, id, boundary, day } from './fixtures';
 
-const browserErrors = new WeakMap<Page, string[]>();
-test.afterEach(async ({ page }) => { expect(browserErrors.get(page) || [], 'Unhandled browser errors').toEqual([]); });
-
-const id = '00000000-0000-0000-0000-000000000001';
-const seed: any = { id, name: 'Test field', crop: 'Wheat', area_hectares: 10, latitude:28, longitude:77,
-  boundary_geojson:{type:'Polygon',coordinates:[[[77,28],[77.01,28],[77.01,28.01],[77,28.01],[77,28]]]},
-  planting_date:'2026-09-01', harvest_date:'2026-12-01', last_observation:null, expected_yield_tons:null };
-
-async function setup(page: Page) {
-  await page.route('https://fonts.googleapis.com/**', route => route.abort());
-  await page.route('https://tile.openstreetmap.org/**',route=>route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"/>'}));
-  const errors: string[] = []; browserErrors.set(page, errors); page.on('pageerror', error => errors.push(error.message));
-  const state = { fields:[{...seed}], events:[] as any[], scenes:[] as any[], alerts:[{id:'alert-1',title:'Stress detected',scene_id:'scene-1',resolved:false,severity:'high'}],
-    fail: new Set<string>(), calls: [] as string[], created:0 };
-  await page.route('**/api/**', async route => {
-    const req=route.request(), url=new URL(req.url()), path=url.pathname;
-    const action=`${req.method()} ${path}`;state.calls.push(action+url.search);
-    if(path==='/api/auth/session')return route.fulfill({json:{mode:'local',user:null}});
-    if(state.fail.has(action)) return route.fulfill({status:503,json:{error:'Service temporarily unavailable'}});
-    let body:any={};
-    if(path==='/api/fields') {
-      if(req.method()==='POST') { state.created++; const field={...seed,...req.postDataJSON()}; state.fields.push(field); body=field; }
-      else body=state.fields;
-    } else if(path.endsWith('/events')) {
-      if(req.method()==='POST') { const event={id:'event-1',...req.postDataJSON()};state.events.push(event);body=event; }
-      else body=state.events;
-    } else if(path.includes('/events/')) { state.events=[]; return route.fulfill({status:204}); }
-    else if(path.endsWith('/resolve')) {state.alerts=state.alerts.map(a=>({...a,resolved:true}));}
-    else if(path.endsWith('/alerts')) body=state.alerts;
-    else if(path.endsWith('/boundary')) {
-      state.fields[0].boundary_geojson=req.postDataJSON();
-      state.fields[0].boundary_version=(state.fields[0].boundary_version||1)+1;
-      body=state.fields[0];
-    }
-    else if(path.endsWith('/ingest/sentinel-scenes')) {state.scenes=[{scene_id:'scene-1',observed_at:'2026-10-01',cloud_cover:5},{scene_id:'scene-2',observed_at:'2026-09-25',cloud_cover:10}];body={imported:2};}
-    else if(path.endsWith('/scenes')) body=state.scenes;
-    else if(path.endsWith('/ndvi/process-latest')) body={accepted:true,sceneId:'scene-1',validCoverage:90,attempts:[{sceneId:'scene-1',status:'processed'}]};
-    else if(path.includes('/ndvi/from-scene/')) body={ndvi:.7,validCoverage:90};
-    else if(path.endsWith('/ndvi/analysis')) body={status:'insufficient_data',statusLabel:'Not enough data',summary:'Two observations required.'};
-    else if(path.endsWith('/ingest/weather')) body={imported:7};
-    else if(path.endsWith('/ndvi')||path.endsWith('/weather')) body=[];
-    else if(path==='/api/assistant') body={answer:'Review field moisture.'};
-    else if(path===`/api/fields/${id}`) {
-      if(req.method()==='DELETE') {state.fields=[];return route.fulfill({status:204});}
-      Object.assign(state.fields[0],req.postDataJSON());body=state.fields[0];
-    }
-    await route.fulfill({json:body});
-  });
-  return state;
-}
-
-test('dashboard retry, empty state, add wizard navigation and all boundary controls', async ({page}) => {
-  const state=await setup(page);state.fields=[];
-  state.fail.add('GET /api/fields');await page.goto('/');
-  await expect(page.getByRole('alert')).toContainText('Fields unavailable');
+test('dashboard retry, empty state, wizard boundary controls and saved-field retry', async ({page}) => {
+  const state=await setup(page);state.fields=[];state.fail.add('GET /api/fields');
+  await page.goto('/');await expect(page.getByRole('alert')).toContainText('Fields unavailable');
   state.fail.clear();await page.getByRole('button',{name:'Retry',exact:true}).click();
-  await page.getByRole('button',{name:'Add your first field'}).click();
-  await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.getByRole('button',{name:'Add your first field'}).click();await page.getByRole('button',{name:'Cancel',exact:true}).click();
   await page.getByRole('button',{name:'+ Add field',exact:true}).click();
   await page.getByLabel('Field Name').fill('New field');await page.getByLabel('Crop Type').fill('Wheat');
-  await page.getByRole('button',{name:'Next',exact:true}).click();
-  await page.getByRole('button',{name:'Back',exact:true}).click();
-  await page.getByRole('button',{name:'Next',exact:true}).click();
-  await page.getByLabel('Planting Date').fill('2026-09-01');
-  await page.getByRole('button',{name:'Next',exact:true}).click();
+  await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByRole('button',{name:'Back',exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();
   const map=page.getByLabel('Draw or edit field boundary on OpenStreetMap');
-  for(const [index,p] of [{x:70,y:70},{x:170,y:70},{x:170,y:170}].entries()){
-    await map.click({position:p});
-    await expect(page.locator('.boundary-tools')).toContainText(`${index+1} point`);
-  }
-  await page.getByRole('button',{name:'Undo point'}).click();
-  await expect(page.getByRole('button',{name:'Finish boundary'})).toBeDisabled();
+  for(const [i,position] of [{x:70,y:70},{x:170,y:70},{x:170,y:170}].entries()){await map.click({position});await expect(page.locator('.boundary-tools')).toContainText(`${i+1} point`);}
+  await page.getByRole('button',{name:'Undo point'}).click();await expect(page.getByRole('button',{name:'Finish boundary'})).toBeDisabled();
   await page.getByRole('button',{name:'Clear',exact:true}).click();
-  for(const [index,p] of [{x:70,y:70},{x:170,y:70},{x:170,y:170}].entries()){
-    await map.click({position:p});
-    await expect(page.locator('.boundary-tools')).toContainText(`${index+1} point`);
-  }
-  await page.getByRole('button',{name:'Finish boundary'}).click();
-  await page.getByRole('button',{name:'Review',exact:true}).click();
-  await page.getByRole('button',{name:'Back',exact:true}).click();
-  await page.getByRole('button',{name:'Review',exact:true}).click();
-  state.fail.add(`POST /api/fields/${id}/ingest/sentinel-scenes`);
-  await page.getByRole('button',{name:'Save & Analyse Field'}).click();
-  await expect(page.getByRole('alert')).toContainText('Service temporarily unavailable');
-  await expect(page.getByRole('button',{name:'Open saved field'})).toBeVisible();
-  state.fail.clear();await page.getByRole('button',{name:'Retry Satellite Processing'}).click();
-  await expect(page).toHaveURL(new RegExp(`/fields/${id}/map`));expect(state.created).toBe(1);
+  for(const [i,position] of [{x:70,y:70},{x:170,y:70},{x:170,y:170}].entries()){await map.click({position});await expect(page.locator('.boundary-tools')).toContainText(`${i+1} point`);}
+  await page.getByRole('button',{name:'Finish boundary'}).click();await page.getByRole('button',{name:'Review',exact:true}).click();await page.getByRole('button',{name:'Back',exact:true}).click();await page.getByRole('button',{name:'Review',exact:true}).click();
+  state.fail.add(`POST /api/fields/${id}/jobs`);await page.getByRole('button',{name:'Save & check images'}).click();
+  await expect(page.getByRole('status')).toContainText('Your field is saved');await expect(page.getByRole('button',{name:'Open saved field'})).toBeVisible();
+  state.fail.clear();await page.getByRole('button',{name:'Retry image check',exact:true}).click();
+  await expect(page).toHaveURL(new RegExp(`/fields/${id}/overview`));expect(state.created).toBe(1);
+  await expect(page.getByRole('status')).toContainText('waiting');expect(state.errors).toEqual([]);
 });
 
-test('field manage cancel/save/delete, navigation and mobile layout', async ({page})=>{
-  const state=await setup(page);await page.goto('/');await page.locator('.field-card').filter({has:page.getByRole('heading',{name:'Test field',exact:true})}).click();
-  await page.getByRole('button',{name:'Manage field',exact:true}).click();
-  await page.getByRole('button',{name:'Cancel',exact:true}).click();
-  await page.getByRole('button',{name:'Manage field',exact:true}).click();
-  await page.getByLabel('Name',{exact:true}).fill('Renamed');
-  await page.getByRole('button',{name:'Save changes'}).click();await expect(page.getByRole('heading',{name:'Renamed'})).toBeVisible();
-  for(const tab of ['Health Analysis','Events & History','Satellite Map'])await page.getByRole('link',{name:tab,exact:true}).click();
-  await page.setViewportSize({width:390,height:844});await page.getByRole('link',{name:'Events & History',exact:true}).click();
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
-  await page.getByRole('button',{name:'Manage field',exact:true}).click();
-  await page.locator('.boundary-map').click({position:{x:200,y:150}});
-  await page.getByRole('button',{name:'Save new boundary version'}).click();
-  await expect(page.getByText(/Boundary saved as a new version/)).toBeVisible();
-  expect(state.calls.some(call=>call==='PATCH /api/fields/'+id+'/boundary')).toBeTruthy();
-  page.once('dialog',d=>d.dismiss());await page.getByRole('button',{name:'Delete field',exact:true}).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Delete field',exact:true}).click();await expect(page).toHaveURL('/');
+test('field management, boundary editing, navigation and deletion work on mobile',async({page})=>{
+  const state=await setup(page);await page.goto('/');await page.getByRole('link',{name:'Test field',exact:true}).click();
+  await expect(page).toHaveURL(new RegExp('/overview$'));
+  await page.getByRole('button',{name:'Manage field',exact:true}).click();await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.getByRole('button',{name:'Manage field',exact:true}).click();await page.getByLabel('Name',{exact:true}).fill('Renamed');await page.getByRole('button',{name:'Save changes'}).click();await expect(page.getByRole('heading',{name:'Renamed'})).toBeVisible();
+  for(const name of ['Changes over time','Field diary','Field map'])await page.getByRole('link',{name,exact:true}).click();
+  await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Manage field',exact:true}).click();await page.getByText('Edit field boundary',{exact:true}).click();
+  await page.locator('.boundary-map').click({position:{x:200,y:150}});await page.getByRole('button',{name:'Save new boundary version'}).click();await expect(page.getByText('New boundary saved. Check for an image for this outline.')).toBeVisible();
+  expect(state.calls).toContain(`PATCH /api/fields/${id}/boundary`);
+  page.once('dialog',dialog=>dialog.dismiss());await page.getByRole('button',{name:'Delete field',exact:true}).click();await expect(page.getByRole('dialog')).toBeVisible();
+  page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Delete field',exact:true}).click();await expect(page).toHaveURL('/');expect(state.errors).toEqual([]);
 });
 
-test('history retries and event save/delete errors are recoverable',async({page})=>{
-  const state=await setup(page);state.fail.add(`GET /api/fields/${id}/events`);await page.goto(`/fields/${id}/history`);
-  await expect(page.getByText('Unable to load field events')).toBeVisible();state.fail.clear();await page.getByRole('button',{name:'Retry loading history'}).click();
-  await page.getByLabel('Date',{exact:true}).fill('2026-10-01');await page.getByLabel('Notes (Optional)').fill('Test event');
-  state.fail.add(`POST /api/fields/${id}/events`);await page.getByRole('button',{name:'Save Event'}).click();await expect(page.getByText('Unable to create field event')).toBeVisible();
+test('diary errors preserve notes and support event save/delete retries',async({page})=>{
+  const state=await setup(page);state.fail.add(`GET /api/fields/${id}/events`);await page.goto(`/fields/${id}/history`);await expect(page.getByRole('alert')).toContainText('Some diary records');
+  state.fail.clear();await page.getByRole('button',{name:'Retry loading history'}).click();
+  await page.getByLabel('Date',{exact:true}).fill(day(2));await page.getByLabel('Notes (Optional)').fill('Test event');
+  state.fail.add(`POST /api/fields/${id}/events`);await page.getByRole('button',{name:'Save Event'}).click();await expect(page.getByRole('alert')).toContainText('Event could not be saved');await expect(page.getByLabel('Notes (Optional)')).toHaveValue('Test event');
   state.fail.clear();await page.getByRole('button',{name:'Save Event'}).click();await expect(page.getByText('Test event',{exact:true})).toBeVisible();
-  state.fail.add(`DELETE /api/fields/${id}/events/event-1`);page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Delete',exact:true}).click();await expect(page.getByText('Unable to delete field event')).toBeVisible();
-  state.fail.clear();page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Delete',exact:true}).click();await expect(page.getByText('No events recorded for this field.')).toBeVisible();
+  state.fail.add(`DELETE /api/fields/${id}/events/event-1`);page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Delete',exact:true}).click();await expect(page.getByText('Test event',{exact:true})).toBeVisible();
+  state.fail.clear();page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Delete',exact:true}).click();await expect(page.getByText('No events recorded for this field.')).toBeVisible();expect(state.errors).toEqual([]);
 });
 
-test('analysis retries, language, weather sync and assistant failures/success',async({page})=>{
-  const state=await setup(page);state.fail.add(`GET /api/fields/${id}/ndvi/analysis`);await page.goto(`/fields/${id}/analysis`);
-  await expect(page.getByRole('alert')).toBeVisible();state.fail.clear();await page.getByRole('button',{name:'Retry analysis'}).click();
-  await expect(page.getByText('Two observations required.')).toBeVisible();
-  await page.getByLabel('Analysis language').selectOption('hi-IN');await expect(page.getByText('Two observations required.')).toBeVisible();
-  expect(state.calls.some(c=>c.includes('language=hi-IN'))).toBeTruthy();
-  state.fail.add(`POST /api/fields/${id}/ingest/weather`);await page.getByRole('button',{name:'Sync Weather Data'}).click();await expect(page.getByRole('status')).toContainText('Service temporarily unavailable');
-  state.fail.clear();await page.getByRole('button',{name:'Sync Weather Data'}).click();await expect(page.getByRole('status')).toContainText('7 observations imported');
-  await expect(page.getByRole('button',{name:'Ask AI'})).toBeDisabled();
-  await page.getByRole('textbox',{name:'Question for field assistant'}).fill('How is my field?');
-  state.fail.add('POST /api/assistant');await page.getByRole('button',{name:/Ask|Send/}).click();await expect(page.getByRole('alert')).toContainText('Service temporarily unavailable');await expect(page.getByText('Answer:',{exact:true})).toHaveCount(0);
-  state.fail.clear();await page.getByRole('button',{name:/Ask|Send/}).click();await expect(page.getByText('Review field moisture.')).toBeVisible();
+test('analysis, language, queued weather and assistant recover from unavailable services',async({page})=>{
+  const state=await setup(page);state.fail.add(`GET /api/fields/${id}/ndvi/analysis`);await page.goto(`/fields/${id}/analysis`);await expect(page.getByRole('alert')).toBeVisible();
+  state.fail.clear();await page.getByRole('button',{name:'Retry analysis'}).click();await page.getByText('More about the trend',{exact:true}).click();await expect(page.getByText('Two clear images show a vegetation decrease.')).toBeVisible();
+  await page.getByLabel('Language / भाषा').selectOption('hi');await expect(page.getByRole('heading',{name:'समय के साथ बदलाव'})).toBeVisible();await expect.poll(()=>state.calls.some(call=>call.includes('language=hi-IN'))).toBeTruthy();await page.getByLabel('Language / भाषा').selectOption('en');
+  await page.getByText('Past weather near this field',{exact:true}).click();state.fail.add(`POST /api/fields/${id}/jobs`);await page.getByRole('button',{name:'Update past weather'}).click();await expect(page.getByRole('status')).toContainText('Weather update could not finish');
+  state.fail.clear();state.autoComplete=true;await page.getByRole('button',{name:'Update past weather'}).click();await expect.poll(()=>state.jobs.some(job=>job.kind==='weather'&&job.status==='succeeded')).toBeTruthy();
+  await expect(page.getByRole('button',{name:'Ask AI'})).toBeDisabled();await page.getByLabel('Question for field assistant').fill('What changed?');state.fail.add('POST /api/assistant');await page.getByRole('button',{name:'Ask AI'}).click();await expect(page.getByRole('alert')).toContainText('Assistant unavailable');
+  state.fail.clear();await page.getByRole('button',{name:'Ask AI'}).click();await expect(page.getByText('Review the field before deciding what to do.')).toBeVisible();expect(state.errors).toEqual([]);
 });
 
-test('satellite processing, observation selection and alert resolution recover from failure',async({page})=>{
-  const state=await setup(page);state.fail.add(`POST /api/fields/${id}/ingest/sentinel-scenes`);await page.goto(`/fields/${id}/map`);
-  const process=page.getByRole('button',{name:'Find & Process Best Recent Scene'});await process.click();await expect(page.getByText('Service temporarily unavailable',{exact:true})).toBeVisible();
-  state.fail.clear();await process.click();await expect(page.locator('.field-map-panel > div[role="status"]')).toContainText('Analysis complete');
-  await page.locator('select').selectOption('scene-2');await expect(page.getByRole('button',{name:'Mark resolved'})).toHaveCount(0);
-  await page.locator('select').selectOption('scene-1');state.fail.add(`PATCH /api/fields/${id}/alerts/alert-1/resolve`);await page.getByRole('button',{name:'Mark resolved'}).click();await expect(page.getByText('Unable to resolve alert',{exact:true})).toBeVisible();
-  state.fail.clear();await page.getByRole('button',{name:'Mark resolved'}).click();await expect(page.getByRole('button',{name:'Mark resolved'})).toHaveCount(0);
-  await page.getByRole('link',{name:'Back to Dashboard'}).click();await expect(page).toHaveURL('/');
+test('image job status survives reload, keeps selected image and supports alert actions',async({page})=>{
+  const state=await setup(page);await page.goto(`/fields/${id}/map`);await expect(page.getByLabel('Image date')).toHaveValue('scene-1');
+  await page.getByLabel('Image date').selectOption('scene-2');state.fail.add(`POST /api/fields/${id}/jobs`);await page.getByRole('button',{name:'Check for a new image'}).click();await expect(page.getByRole('alert')).toContainText('Image check could not be started');
+  state.fail.clear();await page.getByRole('button',{name:'Check for a new image'}).click();await expect(page.getByRole('status')).toContainText('waiting');await page.reload();await expect(page.getByRole('status')).toContainText('waiting');expect(state.jobs).toHaveLength(1);
+  state.jobs[0].status='running';await expect(page.getByRole('status')).toContainText('Checking images for');
+  state.jobs[0].status='succeeded';state.jobs[0].result={accepted:true,sceneId:'scene-1'};await expect(page.getByRole('status')).toContainText('usable image was found');
+  const notice=page.getByLabel('Notice status');state.fail.add(`PATCH /api/fields/${id}/alerts/00000000-0000-0000-0000-000000000080`);await notice.selectOption('resolved');await expect(page.getByRole('alert')).toBeVisible();
+  state.fail.clear();await notice.selectOption('resolved');await expect(page.getByLabel('Notice status')).toHaveCount(0);expect(state.calls.some(call=>call.includes('/ndvi/process-latest'))).toBeFalsy();expect(state.errors).toEqual([]);
 });
 
-test('wizard close/keyboard and saved-field exit remain usable after satellite failure',async({page})=>{
-  const state=await setup(page);await page.goto('/');
-  await expect(page.getByRole('region',{name:'Farm summary'})).toContainText('Missing or limited evidence');
-  const add=page.getByRole('button',{name:'+ Add field',exact:true});await add.click();
-  await page.keyboard.press('Shift+Tab');await expect(page.getByRole('button',{name:'Next',exact:true})).toBeFocused();
-  await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);await expect(add).toBeFocused();
-  await add.click();await page.getByRole('button',{name:'Close add field'}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
-  await add.click();await page.getByLabel('Field Name').fill('Another field');await page.getByLabel('Crop Type').fill('Rice');await page.getByRole('button',{name:'Next',exact:true}).click();
-  await page.getByLabel('Planting Date').fill('2026-09-01');await page.getByRole('button',{name:'Next',exact:true}).click();
-  await page.getByLabel('Import GeoJSON Polygon').setInputFiles({name:'boundary.geojson',mimeType:'application/geo+json',buffer:Buffer.from(JSON.stringify(seed.boundary_geojson))});
-  await expect(page.locator('.boundary-tools')).toContainText('4 points');
-  await page.getByRole('button',{name:'Finish boundary'}).click();await page.getByRole('button',{name:'Review',exact:true}).click();
-  state.fail.add(`POST /api/fields/${id}/ingest/sentinel-scenes`);await page.getByRole('button',{name:'Save & Analyse Field'}).click();await page.getByRole('button',{name:'Open saved field'}).click();
-  await expect(page).toHaveURL(new RegExp(`/fields/${id}/map`));
-  await page.getByRole('button',{name:'Manage field',exact:true}).click();await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);
+test('wizard keyboard focus and saved-field exit work after queue failure',async({page})=>{
+  const state=await setup(page);await page.goto('/');const add=page.getByRole('button',{name:'+ Add field',exact:true});await add.click();await page.keyboard.press('Shift+Tab');await expect(page.getByRole('button',{name:'Next',exact:true})).toBeFocused();await page.keyboard.press('Escape');await expect(add).toBeFocused();
+  await add.click();await page.getByRole('button',{name:'Close add field'}).click();await add.click();await page.getByLabel('Field Name').fill('Another field');await page.getByLabel('Crop Type').fill('Rice');await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();
+  await page.getByLabel('Import GeoJSON Polygon').setInputFiles({name:'boundary.geojson',mimeType:'application/geo+json',buffer:Buffer.from(JSON.stringify(boundary))});await expect(page.locator('.boundary-tools')).toContainText('4 points');await page.getByRole('button',{name:'Finish boundary'}).click();await page.getByRole('button',{name:'Review',exact:true}).click();
+  state.fail.add(`POST /api/fields/${id}/jobs`);await page.getByRole('button',{name:'Save & check images'}).click();await page.getByRole('button',{name:'Open saved field'}).click();await expect(page).toHaveURL(new RegExp('/overview$'));expect(state.created).toBe(1);expect(state.errors).toEqual([]);
 });
 
-test('field map uses the key-free Leaflet renderer',async({page})=>{
-  await setup(page);
-  await page.goto(`/fields/${id}/map`);
-  await expect(page.locator('.open-field-map')).toBeVisible();
-  await expect(page.getByText(/OpenStreetMap basemap/)).toBeVisible();
+test('point-only records cannot request image processing without a field boundary',async({page})=>{
+  const state=await setup(page);state.fields[0].boundary_geojson=null;state.fields[0].latestObservation=null;await page.goto(`/fields/${id}/map`);await expect(page.locator('.open-field-map')).toBeVisible();await expect(page.getByRole('button',{name:'Check for a new image'})).toBeDisabled();expect(state.errors).toEqual([]);
 });
 
-
-test('point-only satellite records do not pretend to provide field NDVI', async ({page}) => {
-  const state = await setup(page); state.fields[0].boundary_geojson = null;
-  state.scenes = [{scene_id:'scene-1',observed_at:'2026-10-01',cloud_cover:5}];
-  await page.goto(`/fields/${id}/map`);
-  await expect(page.getByText(/No field boundary saved/)).toBeVisible();
-  await expect(page.getByRole('button',{name:'Find & Process Best Recent Scene'})).toBeDisabled();
-  await expect(page.locator('select')).toBeEnabled();
-});
-
-test('dataset catalog navigation, search, status filters and demo provenance are clear', async ({page}) => {
-  const state = await setup(page);
-  await page.goto('/');await page.getByRole('link',{name:'Data sources & help'}).click();
-  await expect(page.getByRole('heading',{name:'Project datasets'})).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('9 sources');
-  await page.getByLabel('Search datasets').fill('soil');await expect(page.getByRole('heading',{name:'ISRIC SoilGrids'})).toBeVisible();
-  await page.getByLabel('Integration status').selectOption('Connected');await expect(page.getByText('No sources match this search.',{exact:false})).toBeVisible();
-  await page.getByLabel('Search datasets').fill('');await expect(page.getByRole('status')).toContainText('2 sources');
-  await page.getByRole('link',{name:'Back to Dashboard',exact:false}).click();
-  state.fields[0].name='Public demo: India parcel test';
-  state.events=[{id:'source-event',event_type:'dataset_import',event_date:'2026-10-15',notes:JSON.stringify({dataset:'FTW India',boundary_year:2016,license:'CC BY 4.0',warning:'Historical benchmark, not current farm ground truth',source_url:'https://source.coop/kerner-lab/fields-of-the-world-india/boundaries_india_2016.parquet'})}];
-  await page.setViewportSize({width:390,height:844});await page.goto(`/fields/${id}/history`);
-  await expect(page.getByText(/Public benchmark demo: boundary recorded in 2016/)).toBeVisible();
-  await expect(page.getByRole('link',{name:'Dataset source and attribution',exact:false})).toHaveAttribute('href', /source.coop/);
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+test('help catalog filters and historical public-boundary attribution remain accessible',async({page})=>{
+  const state=await setup(page);await page.goto('/');await page.getByRole('link',{name:'Help & data sources'}).click();await expect(page.getByRole('heading',{name:'Project datasets'})).toBeVisible();await expect(page.getByRole('status')).toContainText('9 sources');await page.getByLabel('Search datasets').fill('soil');await expect(page.getByRole('heading',{name:'ISRIC SoilGrids'})).toBeVisible();await page.getByLabel('Integration status').selectOption('Connected');await expect(page.getByText('No sources match this search.',{exact:false})).toBeVisible();await page.getByLabel('Search datasets').fill('');await expect(page.getByRole('status')).toContainText('2 sources');
+  state.fields[0].isDemo=true;state.fields[0].provenance='public_boundary';state.events=[{id:'source-event',field_id:id,created_at:new Date().toISOString(),event_type:'dataset_import',event_date:day(0),notes:JSON.stringify({dataset:'FTW India',boundary_year:2016,license:'CC BY 4.0',source_url:'https://source.coop/example'})}];
+  await page.setViewportSize({width:390,height:844});await page.goto(`/fields/${id}/history`);await expect(page.getByText('Historical boundary recorded in 2016. Current crop and dates are unverified.')).toBeVisible();await expect(page.getByRole('link',{name:'Dataset source and attribution',exact:false})).toHaveAttribute('href','https://source.coop/example');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();expect(state.errors).toEqual([]);
 });

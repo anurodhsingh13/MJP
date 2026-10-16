@@ -1,32 +1,25 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import catalog from '../../../../datasets/catalog.json';
+import { usePreferences } from '../../lib/preferencesContext';
 
 export function Datasets() {
-  const [query, setQuery] = useState('');
-  const [status, setStatus] = useState('All');
-  const datasets = catalog.datasets.filter(dataset =>
-    (status === 'All' || dataset.status === status) &&
-    `${dataset.name} ${dataset.category} ${dataset.provides.join(' ')}`.toLowerCase().includes(query.toLowerCase()));
-  return <main className="dashboard-shell">
-    <Link to="/" style={{ color: '#cbe86b' }}>← Back to Dashboard</Link>
-    <h1>Project datasets</h1>
-    <p className="dataset-intro">Public sources matched to TerraScope. Connected sources can populate measurements; reference sources below still need their own ingestion modules.</p>
-    <p className="dataset-intro">Public demo farms use historical benchmark boundaries. Their crop type, planting dates and yield remain unknown unless the source records them. Your original fields are separate.</p>
-    <div className="dataset-filters">
-      <label>Search datasets<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Weather, soil, boundaries…" /></label>
-      <label>Integration status<select value={status} onChange={event => setStatus(event.target.value)}>{['All','Connected','Demo source','Reference only'].map(value => <option key={value}>{value}</option>)}</select></label>
-    </div>
-    <p role="status">{datasets.length} sources · reviewed {catalog.reviewedOn}</p>
-    <section className="dataset-grid" aria-label="Data sources">{datasets.map(dataset => <article key={dataset.id} className="dataset-card">
-      <span className="eyebrow">{dataset.category} · {dataset.status}</span><h2>{dataset.name}</h2>
-      <p>{dataset.coverage}</p><p><strong>Resolution:</strong> {dataset.resolution}</p>
-      <ul>{dataset.provides.map(value => <li key={value}>{value}</li>)}</ul>
-      <p className="dataset-limits">{dataset.limits}</p>
-      <p><strong>License:</strong> {dataset.license}</p>
-      <a href={dataset.url} target="_blank" rel="noreferrer">Official dataset ↗</a>{' · '}
-      <a href={dataset.access} target="_blank" rel="noreferrer">Access / download ↗</a>
-    </article>)}</section>
-    {!datasets.length && <p>No sources match this search. Clear the search or choose All.</p>}
+  const {t,date}=usePreferences();
+  const [query,setQuery]=useState('');
+  const [status,setStatus]=useState('All');
+  const statusText=(value:string)=>({All:t('All','सभी'),Connected:t('Connected','जुड़ा हुआ'),'Demo source':t('Demo source','डेमो का स्रोत'),'Reference only':t('Reference only','केवल संदर्भ')} as Record<string,string>)[value]||value;
+  const datasets=catalog.datasets.filter(item=>(status==='All'||item.status===status)&&`${item.name} ${item.category} ${item.provides.join(' ')}`.toLowerCase().includes(query.toLowerCase()));
+  return <main className="dashboard-shell"><Link className="back-link" to="/">← {t('Back to Dashboard','मेरे खेतों पर वापस जाएँ')}</Link><h1>{t('Help & data sources','मदद और जानकारी के स्रोत')}</h1>
+    <section className="help-guide"><h2>{t('Using your field dashboard','अपने खेत की जानकारी कैसे देखें')}</h2>
+      <details><summary>{t('Which field should I visit?','किस खेत में जाना चाहिए?')}</summary><p>{t('Start with fields under Needs inspection. Open the field, read what changed, then choose Plan a field visit. A vegetation decrease can have many causes; inspect the crop before deciding on treatment.','“खेत की जाँच करें” वाली सूची से शुरू करें। खेत खोलें, बदलाव पढ़ें और जाँच की तारीख़ तय करें। हरियाली कम होने की कई वजहें हो सकती हैं; इलाज तय करने से पहले खेत देखें।')}</p></details>
+      <details><summary>{t('Does a missing image mean my crop is damaged?','तस्वीर नहीं मिली तो क्या फ़सल खराब है?')}</summary><p>{t('No. Clouds, small field size, old images or processing problems can prevent a usable image. Check again later. One clear image is not enough to assess change.','नहीं। बादल, खेत का छोटा आकार, पुरानी तस्वीर या जाँच में समस्या से साफ़ तस्वीर नहीं मिल सकती। बाद में फिर जाँचें। केवल एक साफ़ तस्वीर से बदलाव नहीं बताया जा सकता।')}</p></details>
+      <details><summary>{t('Can a photo identify a disease here?','क्या यहाँ फ़ोटो से बीमारी पता चलती है?')}</summary><p>{t('You can save crop photos and notes in the field diary. Automatic diagnosis is currently unavailable; the app does not infer a disease or treatment from those photos.','खेत की डायरी में फ़सल की फ़ोटो और नोट सेव कर सकते हैं। अपने आप बीमारी की पहचान अभी उपलब्ध नहीं है; ऐप फ़ोटो से बीमारी या इलाज नहीं बताता।')}</p></details>
+      <details><summary>{t('How do I create a report?','रिपोर्ट कैसे बनाएँ?')}</summary><p>{t('Open a field and choose Report. Select dates, print or save as PDF using your browser, or download readings as CSV and the boundary as GeoJSON.','खेत खोलकर रिपोर्ट चुनें। तारीख़ें चुनें, browser से प्रिंट या PDF सेव करें, या रीडिंग CSV और सीमा GeoJSON में डाउनलोड करें।')}</p></details>
+    </section>
+    <h2>{t('Project datasets','जानकारी के स्रोत')}</h2><p className="dataset-intro">{t('Connected sources supply the available readings. Reference sources are listed for research; they are not all integrated. Public demo boundaries do not verify the current crop or planting dates.','जुड़े हुए स्रोत उपलब्ध रीडिंग देते हैं। संदर्भ वाले स्रोत शोध के लिए हैं; सभी ऐप से जुड़े नहीं हैं। सार्वजनिक डेमो सीमाएँ अभी की फ़सल या बुवाई की तारीख़ की पुष्टि नहीं करतीं।')}</p>
+    <div className="dataset-filters"><label>{t('Search datasets','स्रोत खोजें')}<input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder={t('Weather, soil, boundaries…','मौसम, मिट्टी, सीमाएँ…')}/></label><label>{t('Integration status','ऐप से जुड़ाव')}<select value={status} onChange={event=>setStatus(event.target.value)}>{['All','Connected','Demo source','Reference only'].map(value=><option value={value} key={value}>{statusText(value)}</option>)}</select></label></div>
+    <p role="status">{datasets.length} {t('sources','स्रोत')} · {t('reviewed','समीक्षा की तारीख़')} {date(catalog.reviewedOn)}</p>
+    <section className="dataset-grid" aria-label={t('Data sources','जानकारी के स्रोत')}>{datasets.map(item=><article className="dataset-card" key={item.id}><span className="eyebrow">{statusText(item.status)}</span><h2>{item.name}</h2><details><summary>{t('Source details (publisher’s English description)','स्रोत की जानकारी (मूल अंग्रेज़ी विवरण)')}</summary><p>{item.coverage}</p><p><strong>{t('Resolution:','रिज़ॉल्यूशन:')}</strong> {item.resolution}</p><ul>{item.provides.map(value=><li key={value}>{value}</li>)}</ul><p className="dataset-limits">{item.limits}</p><p><strong>{t('License:','लाइसेंस:')}</strong> {item.license}</p></details><a href={item.url} target="_blank" rel="noreferrer">{t('Official dataset ↗','आधिकारिक स्रोत ↗')}</a>{' · '}<a href={item.access} target="_blank" rel="noreferrer">{t('Access / download ↗','खोलें / डाउनलोड ↗')}</a></article>)}</section>
+    {!datasets.length&&<p>{t('No sources match this search. Clear the search or choose All.','इस खोज का कोई स्रोत नहीं मिला। खोज हटाएँ या सभी चुनें।')}</p>}
   </main>;
 }

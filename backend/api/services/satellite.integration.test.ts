@@ -6,6 +6,7 @@ import {processScene,processLatest} from './satellite.ts';
 import {getFields} from '../controllers/fieldsController.ts';
 import {hashToken} from './auth.ts';
 import {app} from '../app.ts';
+import {runOne} from './jobs.ts';
 import type {Request,Response} from 'express';
 
 function integrationDatabaseUrl(value:string|undefined):URL{
@@ -27,7 +28,8 @@ test('PostGIS transactions preserve recency, deduplicate evidence, reject qualit
  integrationDatabaseUrl(process.env.DATABASE_URL);
  assert.equal((await pool.query('select current_database() as name')).rows[0].name,'chm_integration');
  const polygon={type:'Polygon',coordinates:[[[77,28],[77.01,28],[77.01,28.01],[77,28.01],[77,28]]]};
- const field=(await pool.query(`insert into fields(name,crop,boundary_geom,location) values('Evidence regression fixture','Unknown',ST_GeomFromGeoJSON($1),ST_SetSRID(ST_MakePoint(77,28),4326)) returning id`,[JSON.stringify(polygon)])).rows[0];
+ const account=(await pool.query("insert into app_users(email,password_hash) values($1,'unused') returning id,email",[`evidence-${randomUUID()}@example.invalid`])).rows[0];
+ const field=(await pool.query(`insert into fields(name,crop,boundary_geom,location,owner_id) values('Evidence regression fixture','Unknown',ST_GeomFromGeoJSON($1),ST_SetSRID(ST_MakePoint(77,28),4326),$2) returning id`,[JSON.stringify(polygon),account.id])).rows[0];
  const originalFetch=globalThis.fetch;
  let releaseOld:()=>void=()=>{};
  let oldStarted:()=>void=()=>{};
@@ -80,7 +82,7 @@ test('PostGIS transactions preserve recency, deduplicate evidence, reject qualit
   assert.equal((await pool.query('select count(*)::int as count from field_boundary_versions where field_id=$1',[field.id])).rows[0].count,2);
   assert.equal((await pool.query('select count(*)::int as count from vegetation_indices where field_id=$1 and boundary_version=1',[field.id])).rows[0].count,5);
   let responseFields:Array<{id:string;last_observation:string|null;assessment:{state:string};isDemo:boolean}> = [];
-  await getFields({} as Request,{json(value:typeof responseFields){responseFields=value;},status(){throw new Error('Fields request failed');}} as unknown as Response);
+  await getFields({} as Request,{locals:{account},json(value:typeof responseFields){responseFields=value;},status(){throw new Error('Fields request failed');}} as unknown as Response);
   assert.equal(responseFields.find(item=>item.id===field.id)?.last_observation,null);
   assert.equal(responseFields.find(item=>item.id===field.id)?.assessment.state,'awaiting_analysis');
   const states=await pool.query('select scene_id,processing_status from satellite_scenes where field_id=$1',[field.id]);
@@ -88,6 +90,7 @@ test('PostGIS transactions preserve recency, deduplicate evidence, reject qualit
  }finally{
   releaseOld();releaseBoundary();globalThis.fetch=originalFetch;
   await pool.query('delete from fields where id=$1',[field.id]);
+  await pool.query('delete from app_users where id=$1',[account.id]);
  }
 });
 
@@ -110,11 +113,13 @@ test('field owners cannot read or mutate another account’s field through the A
   const headers={cookie:`chm_session=${tokens[0]}`,origin:'http://localhost:5173'};
   const owned=await fetch(base,{headers});assert.equal(owned.status,200);
   const records=await owned.json() as Array<{id:string}>;assert.deepEqual(records.map(record=>record.id),[fields[0]]);
-  for(const path of [`/${fields[1]}`,`/${fields[1]}/scenes`,`/${fields[1]}/alerts`,`/${fields[1]}/ndvi`,`/${fields[1]}/events`,`/${fields[1]}/scouting`,`/${fields[1]}/tasks`]){
+  for(const path of [`/${fields[1]}`,`/${fields[1]}/scenes`,`/${fields[1]}/alerts`,`/${fields[1]}/ndvi`,`/${fields[1]}/events`,`/${fields[1]}/scouting`,`/${fields[1]}/tasks`,`/${fields[1]}/jobs`]){
    const response=await fetch(base+path,{headers});assert.equal(response.status,404,path);
   }
   const queued=await fetch(`${base}/${fields[1]}/jobs`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({kind:'satellite'})});
   assert.equal(queued.status,404);
+  const privateVisit=await fetch(`${base}/${fields[1]}/tasks`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({client_key:randomUUID(),title:'Visit',reason:'Inspect',due_on:'2026-10-16',scene_id:null})});
+  assert.equal(privateVisit.status,404);
   const assistant=await fetch(new URL('/api/assistant',base),{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({fieldId:fields[1],message:'Review the field'})});
   assert.equal(assistant.status,404);
   const patch=await fetch(`${base}/${fields[1]}/boundary`,{method:'PATCH',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({boundary_geojson:{...polygon,coordinates:[[[77,28],[77.005,28],[77.005,28.005],[77,28.005],[77,28]]]}})});
@@ -133,6 +138,57 @@ test('field owners cannot read or mutate another account’s field through the A
   await pool.query('delete from fields where id=any($1::uuid[])',[fields]);
   await pool.query('delete from app_users where id=any($1::uuid[])',[users]);
   if(previousAuthMode===undefined)delete process.env.AUTH_MODE;else process.env.AUTH_MODE=previousAuthMode;
+ }
+});
+
+test('durable jobs recover, deduplicate and reject stale-boundary work; visits are idempotent and field-scoped', {skip:process.env.CHM_INTEGRATION!=='1'}, async()=>{
+ integrationDatabaseUrl(process.env.DATABASE_URL);
+ const oldMode=process.env.AUTH_MODE;process.env.AUTH_MODE='required';
+ const user=randomUUID(),token=randomBytes(32).toString('hex');
+ let fieldId:string|undefined;let server:ReturnType<typeof app.listen>|undefined;
+ try{
+  await pool.query("insert into app_users(id,email,password_hash) values($1,$2,'unused')",[user,`workflow-${user}@example.invalid`]);
+  await pool.query("insert into app_sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '5 minutes')",[hashToken(token),user]);
+  const polygon={type:'Polygon',coordinates:[[[77,28],[77.01,28],[77.01,28.01],[77,28.01],[77,28]]]};
+  fieldId=(await pool.query("insert into fields(name,crop,boundary_geom,owner_id) values('Visit fixture','Wheat',ST_GeomFromGeoJSON($1),$2) returning id",[JSON.stringify(polygon),user])).rows[0].id;
+  server=app.listen(0,'127.0.0.1');await new Promise<void>((resolve,reject)=>{server!.once('listening',resolve);server!.once('error',reject);});
+  const address=server.address();assert.ok(address&&typeof address!=='string');
+  const base=`http://127.0.0.1:${address.port}/api/fields/${fieldId}`;
+  const headers={cookie:`chm_session=${token}`,origin:'http://localhost:5173','content-type':'application/json'};
+  const post=(path:string,body:unknown)=>fetch(base+path,{method:'POST',headers,body:JSON.stringify(body)});
+  const requests=await Promise.all([post('/jobs',{kind:'satellite'}),post('/jobs',{kind:'satellite'})]);
+  assert.deepEqual(requests.map(response=>response.status),[202,202]);
+  const jobs=await Promise.all(requests.map(response=>response.json())) as Array<{id:string;lease_token?:unknown}>;
+  assert.equal(jobs[0].id,jobs[1].id);assert.equal(jobs[0].lease_token,undefined);
+  await pool.query("update ingestion_jobs set status='running',attempts=1,heartbeat_at=now()-interval '7 minutes',lease_token=$2 where id=$1",[jobs[0].id,randomUUID()]);
+  let executions=0;
+  await Promise.all([runOne(async()=>{executions++;return {accepted:true,sceneId:'fixture'};}),runOne(async()=>{executions++;return {accepted:true};})]);
+  assert.equal(executions,1);
+  const finished=(await pool.query('select status,attempts,result from ingestion_jobs where id=$1',[jobs[0].id])).rows[0];
+  assert.equal(finished.status,'succeeded');assert.equal(finished.attempts,2);assert.equal(finished.result.accepted,true);
+  const next=await (await post('/jobs',{kind:'satellite'})).json() as {id:string};
+  await pool.query("update ingestion_jobs set max_attempts=1 where id=$1",[next.id]);
+  await runOne(async()=>{throw new Error('Provider unavailable');});
+  assert.equal((await pool.query('select status,progress from ingestion_jobs where id=$1',[next.id])).rows[0].status,'failed');
+  const oldJob=await (await post('/jobs',{kind:'satellite'})).json() as {id:string};
+  const smaller={type:'Polygon',coordinates:[[[77,28],[77.005,28],[77.005,28.005],[77,28.005],[77,28]]]};
+  await pool.query('update fields set boundary_geom=ST_GeomFromGeoJSON($2) where id=$1',[fieldId,JSON.stringify(smaller)]);
+  const newJob=await (await post('/jobs',{kind:'satellite'})).json() as {id:string;boundary_version:number};
+  assert.notEqual(newJob.id,oldJob.id);assert.equal(newJob.boundary_version,2);
+  assert.equal((await pool.query('select status from ingestion_jobs where id=$1',[oldJob.id])).rows[0].status,'failed');
+  const key=randomUUID(),visit={client_key:key,title:'Check north corner',reason:'Vegetation change; inspect before treatment',due_on:new Date().toISOString().slice(0,10),scene_id:null};
+  const first=await post('/tasks',visit);assert.equal(first.status,201);const firstTask=await first.json() as {id:string;boundary_version:number;reason:string};assert.equal(firstTask.boundary_version,2);
+  const retried=await post('/tasks',{...visit,title:'Should not overwrite'});assert.equal(retried.status,201);assert.equal((await retried.json() as {id:string}).id,firstTask.id);
+  assert.equal((await pool.query('select count(*)::int as count from field_tasks where field_id=$1',[fieldId])).rows[0].count,1);
+  assert.equal((await pool.query('select title from field_tasks where id=$1',[firstTask.id])).rows[0].title,'Check north corner');
+  assert.equal((await post('/tasks',{...visit,client_key:randomUUID(),due_on:'2026-02-30'})).status,400);
+  assert.equal((await post('/tasks',{...visit,client_key:randomUUID(),scene_id:'another-field-scene'})).status,409);
+  const list=await fetch(base+'/tasks',{headers});assert.equal((await list.json() as Array<unknown>).length,1);
+ }finally{
+  if(server)await new Promise<void>((resolve,reject)=>server!.close(error=>error?reject(error):resolve()));
+  if(fieldId)await pool.query('delete from fields where id=$1',[fieldId]);
+  await pool.query('delete from app_users where id=$1',[user]);
+  if(oldMode===undefined)delete process.env.AUTH_MODE;else process.env.AUTH_MODE=oldMode;
  }
 });
 

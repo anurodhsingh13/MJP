@@ -2,6 +2,7 @@ import {useEffect,useLayoutEffect,useRef} from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type {PolygonBoundary} from './boundary';
+import {usePreferences} from '../../lib/preferencesContext';
 
 function openRing(ring:number[][]){
   const closed=ring.length>1&&ring[0][0]===ring.at(-1)?.[0]&&ring[0][1]===ring.at(-1)?.[1];
@@ -9,6 +10,7 @@ function openRing(ring:number[][]){
 }
 
 export function FieldBoundaryEditor({boundary,onChange,boundaryFinished=false}:{boundary:PolygonBoundary|null;onChange:(value:PolygonBoundary|null)=>void;boundaryFinished?:boolean}){
+  const {t}=usePreferences();
   const element=useRef<HTMLDivElement>(null);
   const map=useRef<L.Map|null>(null);
   const layer=useRef<L.LayerGroup|null>(null);
@@ -64,5 +66,5 @@ export function FieldBoundaryEditor({boundary,onChange,boundaryFinished=false}:{
     else if(positions.length)instance.setView(positions[0],14,{animate:false});
   },[boundary,boundaryFinished]);
 
-  return <div ref={element} className="boundary-map" aria-label="Draw or edit field boundary on OpenStreetMap"/>;
+  return <div ref={element} className="boundary-map" aria-label={t('Draw or edit field boundary on OpenStreetMap', 'OpenStreetMap पर खेत की सीमा बनाएँ या बदलें')}/>;
 }

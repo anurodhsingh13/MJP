@@ -1,121 +1,66 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useParams, Outlet, NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useModalDialog } from '../../lib/useModalDialog';
 import { deleteField, loadFields, updateField, updateFieldBoundary, type DatabaseField } from '../../lib/api';
+import { usePreferences } from '../../lib/preferencesContext';
+import { fieldCopy } from '../../lib/fieldCopy';
 import { FieldBoundaryEditor } from '../../features/fields/FieldBoundaryEditor';
 import { polygonAreaHectares, validatePolygonBoundary, type PolygonBoundary } from '../../features/fields/boundary';
 
 export function FieldLayout() {
   const { fieldId } = useParams();
-  const location = useLocation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { t, language, date, area } = usePreferences();
   const [field, setField] = useState<DatabaseField | null>(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState('');
-  const [editedBoundary,setEditedBoundary]=useState<PolygonBoundary|null>(null);
-  const [boundarySaving,setBoundarySaving]=useState(false);
-  const [boundaryError,setBoundaryError]=useState('');
-  const [boundaryStatus,setBoundaryStatus]=useState('');
-
-  useModalDialog(editing, () => setEditing(false), saving);
-
+  const [formError, setFormError] = useState(false);
+  const [editedBoundary, setEditedBoundary] = useState<PolygonBoundary | null>(null);
+  const [boundarySaving, setBoundarySaving] = useState(false);
+  const [boundaryError, setBoundaryError] = useState(false);
+  const [boundaryStatus, setBoundaryStatus] = useState(false);
+  useModalDialog(editing, () => setEditing(false), saving || boundarySaving);
   const refreshField = useCallback(async () => {
-    setError('');
+    setError(false);
     try {
-      const data = await loadFields();
-      const current = data.find(f => f.id === fieldId);
+      const current = (await loadFields()).find(item => item.id === fieldId);
       if (!current) throw new Error('Field not found');
       setField(current);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to load field');
-    }
+    } catch { setError(true); }
   }, [fieldId]);
-
   useEffect(() => {
     let cancelled = false;
-    loadFields().then(data => {
-      if (cancelled) return;
-      const current = data.find(item => item.id === fieldId);
-      if (current) setField(current); else setError('Field not found');
-    }).catch(() => { if (!cancelled) setError('Unable to load field'); });
+    loadFields().then(data => { if (!cancelled) { const current = data.find(item => item.id === fieldId); if (current) setField(current); else setError(true); } }).catch(() => { if (!cancelled) setError(true); });
     return () => { cancelled = true; };
   }, [fieldId]);
-
-  if (error) return <div className="dashboard-shell"><div className="service-error" role="alert"><Link to="/">Back to Dashboard</Link><strong>Unable to open field</strong><span>{error}</span><button onClick={refreshField}>Retry</button></div></div>;
-  if (!field || field.id !== fieldId) return <div style={{ padding: '2rem' }}>Loading field...</div>;
-
-  return (
-    <main className="field-shell">
-      <header className="field-header" style={{ borderBottom: '1px solid #303a2d', paddingBottom: '1rem', marginBottom: '1rem' }}>
-        <div>
-          <Link to="/" style={{ color: '#a5b287', textDecoration: 'none', marginBottom: '0.5rem', display: 'inline-block' }}>&larr; Back to Dashboard</Link>
-          <h1 style={{ margin: 0, color: '#edf1df' }}>{field.name}</h1>
-          <p style={{ margin: '0.25rem 0 0 0', color: '#8e9986' }}>Crop: {field.crop} | Area: {field.area_hectares} ha</p>
-        </div>
-        <button type="button" onClick={() => { setFormError('');setBoundaryError('');setBoundaryStatus('');setEditedBoundary(validatePolygonBoundary(field.boundary_geojson)?field.boundary_geojson:null); setEditing(true); }} style={{ minHeight:'42px', padding:'.6rem 1rem', border:'1px solid #536b36', background:'#27371f', color:'#d9ea92', borderRadius:'4px' }}>Manage field</button>
-      </header>
-      
-      <nav className="field-tabs" aria-label="Field sections">
-        <Link to={`/fields/${fieldId}/map`} style={{ fontWeight: location.pathname.includes('/map') ? 'bold' : 'normal', color: '#cbe86b', textDecoration: 'none' }}>Satellite Map</Link>
-        <Link to={`/fields/${fieldId}/analysis`} style={{ fontWeight: location.pathname.includes('/analysis') ? 'bold' : 'normal', color: '#cbe86b', textDecoration: 'none' }}>Health Analysis</Link>
-        <Link to={`/fields/${fieldId}/history`} style={{ fontWeight: location.pathname.includes('/history') ? 'bold' : 'normal', color: '#cbe86b', textDecoration: 'none' }}>Events & History</Link>
-      </nav>
-      
-      {field.assessment && <section className="field-evidence" aria-label="Field evidence"><h2 style={{fontSize:'1rem',marginTop:0}}>Latest accepted field evidence</h2><strong className={`evidence-status status-${field.assessment.state}`}>{field.assessment.title}</strong><p>{field.assessment.explanation}</p><p><strong>Next:</strong> {field.assessment.nextAction}</p><dl className="evidence-facts"><div><dt>Acquired</dt><dd>{field.latestObservation?.observed_on || 'Unavailable'}</dd></div><div><dt>Image age</dt><dd>{field.assessment.ageDays != null ? `${field.assessment.ageDays} days` : 'Unavailable'}</dd></div><div><dt>Usable field coverage</dt><dd>{field.latestObservation?.valid_coverage_percent != null ? `${field.latestObservation.valid_coverage_percent}%` : 'Unavailable'}</dd></div><div><dt>Source</dt><dd>{field.latestObservation?.source || 'No verified satellite evidence'}</dd></div></dl><p>{field.provenanceNote}</p></section>}
-      {field.name.startsWith('Public demo:') && <p role="status" style={{ padding: '1rem', background: '#27371f', color: '#d9ea92', borderRadius: '6px' }}>Public benchmark demo: boundary recorded in 2016 (FTW India). Current crop type, planting dates and yield are unverified. Source attribution is recorded in Events &amp; History.</p>}
-      <div className="field-content" style={{ background: '#fff', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-        <Outlet key={field.id} context={{ field, refreshField }} />
-      </div>
-      {editing && (
-        <div className="wizard-modal" role="presentation">
-          <form className="wizard-content" role="dialog" aria-modal="true" aria-labelledby="manage-field-title" onSubmit={async event => {
-            event.preventDefault();
-            const form = new FormData(event.currentTarget);
-            setSaving(true); setFormError('');
-            try {
-              await updateField(field.id, {
-                name: String(form.get('name') || ''), crop: String(form.get('crop') || ''),
-                planting_date: String(form.get('planting_date') || '') || null,
-                harvest_date: String(form.get('harvest_date') || '') || null,
-                expected_yield_tons: form.get('expected_yield_tons') ? Number(form.get('expected_yield_tons')) : null,
-              });
-              await refreshField(); setEditing(false);
-            } catch (caught) { setFormError(caught instanceof Error ? caught.message : 'Unable to update field'); }
-            finally { setSaving(false); }
-          }}>
-            <h2 id="manage-field-title">Manage field</h2>
-            <label>Name<input name="name" defaultValue={field.name} required /></label>
-            <label>Crop<input name="crop" defaultValue={field.crop} required /></label>
-            <label>Planting date<input name="planting_date" type="date" defaultValue={field.planting_date?.slice(0,10) ?? ''} /></label>
-            <label>Expected harvest<input name="harvest_date" type="date" defaultValue={field.harvest_date?.slice(0,10) ?? ''} /></label>
-            <label>Expected yield (tons)<input name="expected_yield_tons" type="number" min="0" step="0.01" defaultValue={field.expected_yield_tons ?? ''} /></label>
-            {formError && <p className="wizard-error" role="alert">{formError}</p>}
-            <div className="actions"><button type="button" onClick={() => setEditing(false)} disabled={saving}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button></div>
-            <section aria-labelledby="edit-boundary-heading" style={{marginTop:'1.5rem'}}>
-              <h3 id="edit-boundary-heading">Edit field boundary</h3>
-              <p>Draw or drag the Polygon vertices on the OpenStreetMap basemap. Saving a changed boundary creates a new version and clears the current summary until new imagery is processed.</p>
-              <FieldBoundaryEditor boundary={editedBoundary} onChange={setEditedBoundary}/>
-              <p>{polygonAreaHectares(editedBoundary).toFixed(2)} ha calculated boundary area · Polygon only (MultiPolygon not supported)</p>
-              {boundaryError&&<p role="alert">{boundaryError}</p>}
-              {boundaryStatus&&<p role="status">{boundaryStatus}</p>}
-              <button type="button" disabled={boundarySaving||!validatePolygonBoundary(editedBoundary)||polygonAreaHectares(editedBoundary)<=0||polygonAreaHectares(editedBoundary)>10000} onClick={async()=>{
-                if(!editedBoundary)return;setBoundarySaving(true);setBoundaryError('');setBoundaryStatus('');
-                try{await updateFieldBoundary(field.id,editedBoundary);await refreshField();setBoundaryStatus('Boundary saved as a new version. Existing imagery and summaries are retained as historical evidence, not applied to this boundary.');}
-                catch(caught){setBoundaryError(caught instanceof Error?caught.message:'Boundary update failed. The previous boundary remains active.');}
-                finally{setBoundarySaving(false);}
-              }}>{boundarySaving?'Saving boundary…':'Save new boundary version'}</button>
-            </section>
-            <button type="button" disabled={saving} onClick={async () => {
-              if (!window.confirm(`Delete ${field.name} and all its observations? This cannot be undone.`)) return;
-              setSaving(true); setFormError('');
-              try { await deleteField(field.id); navigate('/'); }
-              catch (caught) { setFormError(caught instanceof Error ? caught.message : 'Unable to delete field'); setSaving(false); }
-            }} style={{ marginTop:'1.5rem', width:'100%', color:'#ffb4a2', background:'#4b2420', border:'1px solid #7f3b32', borderRadius:'4px' }}>Delete field</button>
-          </form>
-        </div>
-      )}
-    </main>
-  );
+  if (error) return <main className="dashboard-shell"><div className="service-error" role="alert"><Link to="/">{t('Back to Dashboard', 'मेरे खेतों पर वापस जाएँ')}</Link><strong>{t('Unable to open field', 'खेत की जानकारी नहीं खुली')}</strong><span>{t('Check your connection and retry. This field may have been removed or you may not have access.', 'कनेक्शन देखकर फिर कोशिश करें। हो सकता है खेत हट गया हो या आपको इसकी अनुमति न हो।')}</span><button onClick={() => void refreshField()}>{t('Retry', 'फिर कोशिश करें')}</button></div></main>;
+  if (!field || field.id !== fieldId) return <main className="dashboard-shell" role="status">{t('Loading field…', 'खेत की जानकारी ला रहे हैं…')}</main>;
+  const copy = fieldCopy(field, language);
+  const isOverview = location.pathname.endsWith('/overview') || location.pathname.endsWith(field.id);
+  const busy = saving || boundarySaving;
+  return <main className="field-shell">
+    <header className="field-header no-print"><div><Link to="/" className="back-link">← {t('Back to Dashboard', 'मेरे खेतों पर वापस जाएँ')}</Link><h1>{field.name}</h1><p>{!field.crop || field.crop === 'Unknown' ? t('Crop unknown', 'फ़सल अज्ञात') : field.crop} · {area(field.area_hectares)}</p></div><button type="button" className="secondary-action" onClick={() => { setFormError(false); setBoundaryError(false); setBoundaryStatus(false); setEditedBoundary(validatePolygonBoundary(field.boundary_geojson) ? field.boundary_geojson : null); setEditing(true); }}>{t('Manage field', 'खेत की जानकारी बदलें')}</button></header>
+    <nav className="field-tabs no-print" aria-label={t('Field sections', 'खेत के पेज')}>
+      <NavLink to={`/fields/${fieldId}/overview`}>{t('Overview', 'एक नज़र')}</NavLink><NavLink to={`/fields/${fieldId}/map`}>{t('Field map', 'खेत का नक्शा')}</NavLink><NavLink to={`/fields/${fieldId}/analysis`}>{t('Changes over time', 'समय के साथ बदलाव')}</NavLink><NavLink to={`/fields/${fieldId}/history`}>{t('Field diary', 'खेत की डायरी')}</NavLink><NavLink to={`/fields/${fieldId}/report`}>{t('Report', 'रिपोर्ट')}</NavLink>
+    </nav>
+    {!isOverview && <section className="field-evidence no-print" aria-label={t('Field evidence', 'खेत की जानकारी')}><div><span className={`evidence-status status-${copy.assessment.state}`}>{copy.title}</span><p>{copy.explanation}</p></div><details><summary>{t('Latest image details', 'पिछली तस्वीर की जानकारी')}</summary><dl className="evidence-facts"><div><dt>{t('Satellite image', 'Satellite तस्वीर')}</dt><dd>{date(field.latestObservation?.observed_on)}</dd></div><div><dt>{t('Field visible clearly', 'खेत का साफ़ दिखा हिस्सा')}</dt><dd>{field.latestObservation?.valid_coverage_percent != null ? `${field.latestObservation.valid_coverage_percent}%` : t('Not available', 'उपलब्ध नहीं')}</dd></div><div><dt>{t('Source', 'स्रोत')}</dt><dd>{field.latestObservation?.source || t('No verified satellite evidence', 'Satellite जानकारी अभी सत्यापित नहीं')}</dd></div></dl></details></section>}
+    {(field.isDemo || field.provenance === 'public_boundary' || field.provenance === 'demo') && !isOverview && <p className="demo-label">{t('Demo / public boundary. Current crop, planting dates and yield are unverified.', 'डेमो / सार्वजनिक खेत। अभी की फ़सल, बुवाई की तारीख़ और उपज सत्यापित नहीं हैं।')}</p>}
+    <div className="field-content"><Outlet key={field.id} context={{ field, refreshField }}/></div>
+    {editing && <div className="wizard-modal" role="presentation"><form className="wizard-content" role="dialog" aria-modal="true" aria-labelledby="manage-field-title" onSubmit={async event => {
+      event.preventDefault(); const form = new FormData(event.currentTarget); setSaving(true); setFormError(false);
+      try { await updateField(field.id, { name: String(form.get('name') || ''), crop: String(form.get('crop') || ''), planting_date: String(form.get('planting_date') || '') || null, harvest_date: String(form.get('harvest_date') || '') || null, expected_yield_tons: form.get('expected_yield_tons') ? Number(form.get('expected_yield_tons')) : null }); await refreshField(); setEditing(false); }
+      catch { setFormError(true); } finally { setSaving(false); }
+    }}><h2 id="manage-field-title">{t('Manage field', 'खेत की जानकारी बदलें')}</h2>
+      <label>{t('Name', 'खेत का नाम')}<input name="name" defaultValue={field.name} required maxLength={160}/></label><label>{t('Crop', 'फ़सल')}<input name="crop" defaultValue={field.crop} required maxLength={100}/></label><label>{t('Planting date', 'बुवाई की तारीख़')}<input name="planting_date" type="date" defaultValue={field.planting_date?.slice(0, 10) ?? ''}/></label><label>{t('Expected harvest', 'कटाई की अनुमानित तारीख़')}<input name="harvest_date" type="date" defaultValue={field.harvest_date?.slice(0, 10) ?? ''}/></label><label>{t('Expected yield (tons)', 'अनुमानित उपज (टन)')}<input name="expected_yield_tons" type="number" min="0" step="0.01" defaultValue={field.expected_yield_tons ?? ''}/></label>
+      {formError && <p className="wizard-error" role="alert">{t('Changes could not be saved. Check the dates and your connection, then retry.', 'बदलाव सेव नहीं हुए। तारीख़ें और कनेक्शन देखकर दोबारा कोशिश करें।')}</p>}
+      <div className="actions"><button type="button" onClick={() => setEditing(false)} disabled={busy}>{t('Cancel', 'रद्द करें')}</button><button type="submit" disabled={busy}>{saving ? t('Saving…', 'सेव कर रहे हैं…') : t('Save changes', 'बदलाव सेव करें')}</button></div>
+      <details className="boundary-edit"><summary>{t('Edit field boundary', 'खेत की सीमा बदलें')}</summary><p>{t('Drag the corners to adjust your field. After saving a new boundary, check satellite images again. Earlier images remain in history.', 'कोने खींचकर खेत की सीमा बदलें। नई सीमा सेव करने के बाद satellite तस्वीरें फिर जाँचें। पुरानी तस्वीरें इतिहास में रहेंगी।')}</p><FieldBoundaryEditor boundary={editedBoundary} onChange={setEditedBoundary}/><p>{area(polygonAreaHectares(editedBoundary))} · {t('One field outline per record', 'एक रिकॉर्ड में एक खेत की सीमा')}</p>
+        {boundaryError && <p role="alert">{t('Boundary could not be saved. Your previous boundary is unchanged.', 'सीमा सेव नहीं हुई। पिछली सीमा सुरक्षित है।')}</p>}{boundaryStatus && <p role="status">{t('New boundary saved. Check for an image for this outline.', 'नई सीमा सेव हो गई। इस सीमा की satellite तस्वीर जाँचें।')}</p>}
+        <button type="button" disabled={busy || !validatePolygonBoundary(editedBoundary) || polygonAreaHectares(editedBoundary) <= 0 || polygonAreaHectares(editedBoundary) > 10000} onClick={async () => { if (!editedBoundary) return; setBoundarySaving(true); setBoundaryError(false); setBoundaryStatus(false); try { await updateFieldBoundary(field.id, editedBoundary); await refreshField(); setBoundaryStatus(true); } catch { setBoundaryError(true); } finally { setBoundarySaving(false); } }}>{boundarySaving ? t('Saving boundary…', 'सीमा सेव कर रहे हैं…') : t('Save new boundary version', 'नई सीमा सेव करें')}</button>
+      </details>
+      <button className="danger-action" type="button" disabled={busy} onClick={async () => { if (!window.confirm(t(`Delete ${field.name} and all its observations? This cannot be undone.`, `${field.name} और उसकी सारी जानकारी हटाएँ? इसे वापस नहीं लाया जा सकेगा।`))) return; setSaving(true); setFormError(false); try { await deleteField(field.id); navigate('/'); } catch { setFormError(true); setSaving(false); } }}>{t('Delete field', 'खेत हटाएँ')}</button>
+    </form></div>}
+  </main>;
 }

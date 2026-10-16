@@ -50,6 +50,8 @@ async function checkDatabase() {
     await client.query('select stress_geom from alerts limit 0');
     await client.query('select boundary_geom, planting_date, boundary_version, provenance from fields limit 0');
     await client.query('select accepted, inspection_geom, calculation_version from vegetation_indices limit 0');
+    await client.query('select id, status, boundary_version from ingestion_jobs limit 0');
+    await client.query('select client_key, reason, scene_id, boundary_version from field_tasks limit 0');
   } catch (error) { throw new Error(`Database not ready: ${error.message}. Check local PostgreSQL/PostGIS, DATABASE_URL and run npm run migrate.`); }
   finally { await client.end(); }
 }

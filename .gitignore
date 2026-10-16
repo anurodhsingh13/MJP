@@ -32,3 +32,5 @@ dist-ssr
 *.dump
 playwright-report/
 test-results/
+__pycache__/
+*.py[cod]

@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { usePreferences } from '../../lib/preferencesContext';
 
 type Account = { id: string; email: string };
 type AuthSession = { mode: 'required' | 'local'; user: Account | null };
@@ -14,6 +15,7 @@ async function readSession(): Promise<AuthSession> {
 }
 
 export function AuthGate({ children }: { children: ReactNode }) {
+  const {t}=usePreferences();
   const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
@@ -71,24 +73,25 @@ export function AuthGate({ children }: { children: ReactNode }) {
     }
   }
 
-  if (loading) return <main className="auth-shell" role="status">Checking sign-in status…</main>;
-  if (error && !session) return <main className="auth-shell" role="alert"><p>{error}</p><button onClick={() => window.location.reload()}>Retry</button></main>;
+  if (loading) return <main className="auth-shell" role="status">{t('Checking sign-in status…','साइन इन की स्थिति जाँच रहे हैं…')}</main>;
+  if (error && !session) return <main className="auth-shell" role="alert"><p>{t('Sign-in service is unavailable. Please retry.', 'साइन इन सेवा उपलब्ध नहीं है। फिर कोशिश करें।')}</p><button onClick={() => window.location.reload()}>{t('Retry','फिर कोशिश करें')}</button></main>;
   if (!session) return <main className="auth-shell" role="alert"><p>Sign-in status is unavailable.</p></main>;
   if (session.mode === 'required' && !session.user) {
     return (
       <main className="auth-shell">
         <form className="auth-card" onSubmit={submit}>
-          <p className="eyebrow">TerraScope • Crop health monitoring</p>
-          <h1>{registering ? 'Create your account' : 'Sign in to your fields'}</h1>
-          <p>Field records are private to their owner. Existing unclaimed records are not assigned to a new account automatically.</p>
-          <label htmlFor="auth-email">Email</label>
+          <p className="eyebrow">{t('TerraScope • Crop health monitoring','TerraScope • फ़सल की निगरानी')}</p>
+          <h1>{registering ? t('Create your account','अपना खाता बनाएँ') : t('Sign in to your fields','अपने खेत देखने के लिए साइन इन करें')}</h1>
+          <p>{t('Your field records belong to your account. Old unclaimed fields must be assigned explicitly by the local administrator.', 'आपके खेत की जानकारी आपके खाते में रहती है। पुराने बिना खाते वाले खेत स्थानीय व्यवस्थापक को अलग से जोड़ने होंगे।')}</p>
+          <label htmlFor="auth-email">{t('Email','ईमेल')}</label>
           <input id="auth-email" name="email" type="email" autoComplete="email" required maxLength={160} />
-          <label htmlFor="auth-password">Password</label>
+          <label htmlFor="auth-password">{t('Password','पासवर्ड')}</label>
+          <small>{t('Use at least 12 characters.', 'कम-से-कम 12 अक्षर रखें।')}</small>
           <input id="auth-password" name="password" type="password" autoComplete={registering ? 'new-password' : 'current-password'} required minLength={12} maxLength={256} />
-          {error && <p className="auth-error" role="alert">{error}</p>}
-          <button type="submit" disabled={busy}>{busy ? 'Please wait…' : registering ? 'Create account' : 'Sign in'}</button>
+          {error && <p className="auth-error" role="alert">{t(error, 'साइन इन नहीं हुआ। ईमेल और कम-से-कम 12 अक्षर वाला पासवर्ड जाँचें। बहुत कोशिश की हो तो 15 मिनट बाद फिर करें।')}</p>}
+          <button type="submit" disabled={busy}>{busy ? t('Please wait…','कृपया रुकें…') : registering ? t('Create account','खाता बनाएँ') : t('Sign in','साइन इन करें')}</button>
           <button type="button" className="auth-switch" disabled={busy} onClick={() => { setRegistering(!registering); setError(''); }}>
-            {registering ? 'Already have an account? Sign in' : 'New to TerraScope? Create an account'}
+            {registering ? t('Already have an account? Sign in','पहले से खाता है? साइन इन करें') : t('New to TerraScope? Create an account','पहली बार आए हैं? खाता बनाएँ')}
           </button>
         </form>
       </main>
@@ -99,9 +102,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
     <>
       {session.mode === 'required' && session.user && (
         <div className="auth-user-bar">
-          <span>Signed in as {session.user.email}</span>
-          {error && <span role="alert">{error}</span>}
-          <button type="button" onClick={signOut} disabled={busy}>{busy ? 'Please wait…' : 'Sign out'}</button>
+          <span>{t('Signed in as','साइन इन किया')} {session.user.email}</span>
+          {error && <span role="alert">{t(error,'साइन आउट नहीं हुआ। फिर कोशिश करें।')}</span>}
+          <button type="button" onClick={signOut} disabled={busy}>{busy ? t('Please wait…','कृपया रुकें…') : t('Sign out','साइन आउट करें')}</button>
         </div>
       )}
       {children}

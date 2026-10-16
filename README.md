@@ -111,7 +111,7 @@ To use the running app from another device on the same trusted Wi-Fi, set `WEB_H
 
 The overview prioritizes field visits, old images and missing evidence. Universal farm-average health has been removed. Field-level coverage, valid pixels, acquisition date, source, freshness and descriptive change are separate. Demo/public parcels are hidden from real-farm summaries by default. Legacy scores are preserved in PostgreSQL but are not verified imagery.
 
-Run `npm run migrate` before starting this version. The two new forward-only migrations preserve existing rows, archive boundary revisions, and attach provenance and quality to observations. Take a database backup before migration. Existing unverified observations must be reprocessed to qualify; they are not silently promoted to measured evidence.
+Run `npm run migrate` before starting this version. The evidence migrations preserve existing rows, archive boundary revisions, and attach provenance and quality to observations. The additive field-visit migration adds retry keys and image context to tasks without removing existing records. Take a database backup before migration. Existing unverified observations must be reprocessed to qualify; they are not silently promoted to measured evidence.
 
 `EVIDENCE_MIN_COVERAGE=70`, `EVIDENCE_MIN_PIXELS=10`, `EVIDENCE_FRESH_DAYS=14`, and `EVIDENCE_DECLINE_THRESHOLD=0.10` are initial product heuristics, not validated agricultural thresholds. Restart after changing them. Scene discovery searches `SATELLITE_SEARCH_DAYS=90` days, retrieves up to `SATELLITE_CANDIDATE_LIMIT=100` recent candidates and processes at most `SATELLITE_MAX_ATTEMPTS=6` sequentially. Missing required bands, insufficient field coverage and unusable pixels cause a candidate to be rejected. No accepted candidate leaves the previous evidence in place. `POST /api/fields/:id/ndvi/process-latest` processes discovered candidates; discover first via the existing ingestion endpoint. The app also includes PostgreSQL-backed job records, bounded retries and worker lease recovery; this queue still needs full restart/concurrency validation before shared production use.
 
@@ -121,6 +121,30 @@ The engine requires red/NIR/SCL bands and trustworthy reflectance scale/offset m
 
 For the opt-in real PostgreSQL regression, use `npm run test:integration` after configuring the isolated database described above. The integration test verifies PostGIS transactions, acquisition recency, duplicate prevention, quality rejection, fallback to an older usable observation, and boundary-version invalidation. Standard `npm test` skips the database-dependent portion but still tests that the safety guard rejects ordinary development and remote databases.
 
-Field records and related API routes now have account ownership checks, and the field diary supports photo-backed scouting records. No licensed diagnosis provider is configured, so the product explicitly reports diagnosis as unavailable and does not infer diseases or treatments. PDF reports, offline synchronization, application-wide translations/unit preferences, and full shared-deployment hardening remain incomplete. Do not represent the whole roadmap as complete; see [the implementation handoff](docs/EVIDENCE_HANDOFF.md) for current evidence, validation and blockers.
+Field records and related API routes now have account ownership checks, and the field diary supports photo-backed scouting records. No licensed diagnosis provider is configured, so the product explicitly reports diagnosis as unavailable and does not infer diseases or treatments. The workspace now has persistent Hindi/English and hectare/acre preferences, a dedicated field overview, direct visit planning, durable image checks, date-filtered CSV/GeoJSON exports and browser print/save-PDF reports. Offline synchronization, a forecast provider and full shared-deployment hardening remain incomplete. Do not represent the whole roadmap as complete; see [the implementation handoff](docs/EVIDENCE_HANDOFF.md) for current evidence, validation and blockers.
 
 Field onboarding saves the boundary independently of imagery processing, uses newest-first candidate processing and offers retry without creating another field. Optional planting/harvest dates remain unknown when omitted. GeoJSON import supports one valid Polygon (not MultiPolygon); boundary edits are versioned and invalidate current summaries. The analysis page now shows a two-date comparison and timeline from actual accepted observations, with quality and source information.
+
+
+## Farmer workspace update (16 October 2026)
+
+After pulling this update, stop the CHM stack, back up your CHM database, apply the additive migration, then restart:
+
+```bash
+npm stop
+git pull --ff-only origin main
+npm run migrate
+npm start
+```
+
+No new Node or Python packages or environment keys are required. Existing `.env` files, accounts and records are preserved. `1792100000000_field-visit-actions.ts` adds nullable retry/context columns and a partial unique index to `field_tasks`. Its `down` removes only those new columns/index; back up before any rollback because that removes their metadata. Never reset the database or edit already-applied migrations.
+
+- The language and area selectors work throughout the workspace and persist on this device. A bundled SIL-OFL Hindi font keeps labels readable without Google Fonts. User-entered crop names/notes and original provider diagnostics are not automatically translated.
+- The dashboard separates crop-inspection actions from unclear/old/missing imagery. Demo and public parcels are opt-in and excluded from real-farm totals. Due counts refer to fields with an open task due today or earlier, using the database's calendar date.
+- Opening a field lands on **Overview**. **Plan a field visit** opens a form with the field, evidence reason and image context. A retry uses the same key and cannot create duplicate visits. Tasks are in-app records, not phone notifications.
+- **Add photo & note** opens the field diary's camera/upload input. Files are previewed before saving; failed saves keep notes and retry identity. The app still has no disease-diagnosis provider.
+- Image checks are enqueued in PostgreSQL, processed by the existing API worker, and polled by the overview/map. Closing the page does not stop them; reopening recovers their status. Repeated queue requests reuse active work; editing a boundary prevents old jobs blocking checks for the new outline. Progress and failures are separate from crop condition. The API/worker and database must stay running.
+- Maps show the selected image/date before the map; scene IDs, pixels and boundary versions are under **Technical image details**. Selecting historical imagery does not replace the latest summary.
+- **Report** uses only the selected field's current boundary and chosen dates. CSV retains source, quality, acceptance, method and boundary identity, and escapes formula-like user text. GeoJSON contains the current boundary and provenance. **Print / save PDF** uses the browser's print dialog; no server PDF service is required. The report labels the latest summary separately because that image can fall outside the requested date range.
+
+The PostGIS integration fixture now supplies an explicit account instead of relying on unauthenticated access. Database-backed checks additionally exercise queue deduplication, expired-worker recovery, retry exhaustion, boundary changes, and visit idempotency. `PLAYWRIGHT_EXECUTABLE_PATH` can select an existing Chromium binary for constrained development environments; CI uses Playwright's normal browser installation.

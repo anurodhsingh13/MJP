@@ -1,4 +1,5 @@
 import {enqueue,listJobs,retryJob} from '../services/jobs.ts';
+import {createTask} from '../controllers/tasksController.ts';
 import {deleteScouting,listScouting,photoContent,retryDiagnosis,saveScouting,listTasks,updateTask} from '../controllers/scoutingController.ts';
 import express, { Router } from 'express';
 import {session,sameOrigin,authRouter,requireAccount,requireField} from '../services/auth.ts';
@@ -65,4 +66,5 @@ router.delete('/fields/:fieldId/scouting/:caseId',deleteScouting);
 router.post('/fields/:fieldId/scouting/:caseId/retry-diagnosis',retryDiagnosis);
 router.get('/fields/:fieldId/scouting/:caseId/photos/:photoId',photoContent);
 router.get('/fields/:fieldId/tasks',listTasks);
+router.post('/fields/:fieldId/tasks',createTask);
 router.patch('/fields/:fieldId/tasks/:taskId',updateTask);

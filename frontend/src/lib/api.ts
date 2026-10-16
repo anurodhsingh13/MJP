@@ -1,4 +1,6 @@
 import type { Assessment, EvidencePolicy, Observation, Provenance, SceneStatus } from '../../../shared/evidence';
+import type { FieldTask, ProcessingJob } from '../../../shared/workflows';
+export type { FieldTask, ProcessingJob, TaskState } from '../../../shared/workflows';
 export type { Observation } from '../../../shared/evidence';
 export type DatabaseField = {
   id: string
@@ -27,6 +29,8 @@ export type DatabaseField = {
   previousObservation?: Observation | null
   latest_scene_id?: string | null
   processing?: Array<{scene_id:string; processing_status:SceneStatus; processing_error:string|null}>
+  latestJob?: ProcessingJob | null
+  dueTasks?: number
 }
 
 export async function loadFields() {
@@ -194,7 +198,32 @@ export async function loadFieldTasks(fieldId:string) {
   if(!response.ok)throw new Error('Unable to load follow-up tasks');
   const payload=await response.json() as unknown;
   if(!Array.isArray(payload)||payload.some(task=>!task||typeof task!=='object'||typeof task.id!=='string'||typeof task.title!=='string'))throw new Error('Follow-up task service returned an invalid response');
-  return payload as Array<{id:string;title:string;due_on:string|null;status:'open'|'acknowledged'|'action_taken'|'resolved'}>;
+  return payload as FieldTask[];
+}
+export async function createFieldTask(fieldId: string, entry: {client_key:string;title:string;reason:string;due_on:string;scene_id:string|null}) {
+  const response = await fetch(`/api/fields/${fieldId}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(entry) });
+  const payload = await response.json().catch(()=>({})) as FieldTask & {error?:string};
+  if (!response.ok || !payload.id) throw new Error(payload.error || 'Unable to save the field visit');
+  return payload;
+}
+
+function isJob(value: unknown): value is ProcessingJob {
+  if (!value || typeof value !== 'object') return false;
+  const job = value as ProcessingJob;
+  return typeof job.id === 'string' && Number.isInteger(job.boundary_version)
+    && ['satellite','weather'].includes(job.kind) && ['queued','running','succeeded','failed'].includes(job.status);
+}
+export async function loadFieldJobs(fieldId: string) {
+  const response = await fetch(`/api/fields/${fieldId}/jobs`);
+  const payload: unknown = await response.json();
+  if (!response.ok || !Array.isArray(payload) || !payload.every(isJob)) throw new Error('Unable to check image progress');
+  return payload as ProcessingJob[];
+}
+export async function queueFieldJob(fieldId: string, kind: 'satellite'|'weather' = 'satellite') {
+  const response = await fetch(`/api/fields/${fieldId}/jobs`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kind}) });
+  const payload: unknown = await response.json();
+  if (!response.ok || !isJob(payload)) throw new Error('Image check could not be started. Your field is saved.');
+  return payload;
 }
 export async function updateFieldTask(fieldId:string,taskId:string,status:'open'|'acknowledged'|'action_taken'|'resolved') {
   const response=await fetch(`/api/fields/${fieldId}/tasks/${taskId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});
