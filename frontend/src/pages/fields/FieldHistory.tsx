@@ -63,6 +63,10 @@ export function FieldHistory() {
     setPhotoError(false);
     setPhotoSaved(false);
     setPhotoSaving(false);
+    setSaving(false);
+    setEventError(false);
+    setEventDate('');
+    setNotes('');
     setPhotoDate(new Date().toLocaleDateString('en-CA'));
     setSymptoms('');
     setPhotoNotes('');
@@ -111,9 +115,17 @@ export function FieldHistory() {
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
   async function addEvent(event: FormEvent) {
     event.preventDefault(); if (saving) return;
+    const submittedFieldId = field.id;
+    const submittedVisit = fieldVisit.current;
+    const stillOnSubmittedVisit = () => activeFieldId.current === submittedFieldId && fieldVisit.current === submittedVisit;
     setSaving(true); setEventError(false);
-    try { const saved = await createFieldEvent(field.id,type,eventDate,notes); setEvents(current => [saved,...current].sort((a,b) => b.event_date.localeCompare(a.event_date))); setNotes(''); setEventDate(''); }
-    catch { setEventError(true); } finally { setSaving(false); }
+    try {
+      const saved = await createFieldEvent(submittedFieldId,type,eventDate,notes);
+      if (!stillOnSubmittedVisit()) return;
+      setEvents(current => [saved,...current].sort((a,b) => b.event_date.localeCompare(a.event_date)));
+      setNotes(''); setEventDate('');
+    } catch { if (stillOnSubmittedVisit()) setEventError(true); }
+    finally { if (stillOnSubmittedVisit()) setSaving(false); }
   }
   async function addPhoto(event: FormEvent) {
     event.preventDefault(); if (!photo || photoSaving) return;
