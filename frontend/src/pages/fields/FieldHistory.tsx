@@ -58,6 +58,7 @@ export function FieldHistory() {
     setPreview('');
     setPhotoError(false);
     setPhotoSaved(false);
+    setPhotoSaving(false);
     setPhotoDate(new Date().toLocaleDateString('en-CA'));
     setSymptoms('');
     setPhotoNotes('');
@@ -123,7 +124,7 @@ export function FieldHistory() {
       setCases(current => [saved,...current.filter(item => item.id !== saved.id)]); setPhoto(null); setPreview(''); setSymptoms(''); setPhotoNotes(''); setKey(crypto.randomUUID()); try { sessionStorage.removeItem(`terrascope:scouting-draft:${field.id}`); } catch { /* Optional storage. */ } setPhotoSaved(true);
       const input = document.getElementById('scouting-photo') as HTMLInputElement | null; if (input) input.value = '';
       try { const refreshedTasks = await loadFieldTasks(submittedFieldId); if (activeFieldId.current === submittedFieldId) setTasks(refreshedTasks); } catch { if (activeFieldId.current === submittedFieldId) setLoadError(true); }
-    } catch { if (activeFieldId.current === submittedFieldId) setPhotoError(true); } finally { setPhotoSaving(false); }
+    } catch { if (activeFieldId.current === submittedFieldId) setPhotoError(true); } finally { if (activeFieldId.current === submittedFieldId) setPhotoSaving(false); }
   }
   if (loading) return <div className="diary-layout" role="status">{t('Loading field diary…','खेत की डायरी ला रहे हैं…')}</div>;
   return <div className="diary-layout"><div className="content-heading"><h2>{t('Field diary','खेत की डायरी')}</h2><Link to={`/fields/${field.id}/overview?action=visit`}>{t('Plan a field visit','खेत की जाँच तय करें')} →</Link></div>
