@@ -7,12 +7,12 @@ const root=resolve(import.meta.dirname,'..');
 const options=new Set(process.argv.slice(2));
 const dir=resolve(root,'.local','submission-evidence',new Date().toISOString().replace(/[:.]/g,'-'));
 mkdirSync(dir,{recursive:true});
-function check(name,cmd,args){
+function check(name,cmd,args,validateOutput=()=>true){
  const started=new Date().toISOString();
  const result=spawnSync(cmd,args,{cwd:root,encoding:'utf8',maxBuffer:16*1024*1024,timeout:720000,env:process.env});
  const log=resolve(dir,name+'.log');
  writeFileSync(log,(result.stdout||'')+(result.stderr||'')+(result.error?'\n'+result.error.message:''),{mode:0o600});
- const status=result.status===0?'passed':'failed';
+ const status=result.status===0&&validateOutput(result.stdout||'')?'passed':'failed';
  console.log(status.toUpperCase(),name);
  return {name,status,started,ended:new Date().toISOString(),exitCode:result.status,log};
 }
@@ -26,7 +26,7 @@ const results=[
 ];
 if(!options.has('--skip-ui'))results.push(check('browser-tests','npm',['run','test:ui']));
 if(options.has('--smoke')){
- const status=check('stack-status','npm',['run','status']);results.push(status);
+ const status=check('stack-status','npm',['run','status'],output=>/^Services: healthy\s*$/m.test(output));results.push(status);
  if(status.status==='passed')results.push(check('smoke','npm',['run','test:smoke']));
 }
 const summary={
