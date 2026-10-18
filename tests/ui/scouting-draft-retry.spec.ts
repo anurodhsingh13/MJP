@@ -151,3 +151,42 @@ test('late photo upload from another field cannot overwrite current draft',async
  await expect(page.getByText('Photo and field note saved.')).toHaveCount(0);
  await expect.poll(()=>page.evaluate(id=>sessionStorage.getItem('terrascope:scouting-draft:'+id),otherId)).toContain('Keep this second field draft');
 });
+
+test('A-B-A navigation ignores old upload completion and keeps restored draft',async({page})=>{
+ const otherId='00000000-0000-0000-0000-000000000096';
+ let uploadStarted!:()=>void;
+ const started=new Promise<void>(resolve=>{uploadStarted=resolve;});
+ let release!:()=>void;
+ const blocked=new Promise<void>(resolve=>{release=resolve;});
+ await page.route('**/api/auth/session',route=>route.fulfill({json:{mode:'local',user:null}}));
+ await page.route('**/api/fields',route=>route.fulfill({json:[field,{...field,id:otherId,name:'Other Field'}]}));
+ await page.route('**/api/fields/**',async route=>{
+  const url=route.request().url();
+  if(route.request().method()==='POST'&&url.endsWith('/scouting')){
+   uploadStarted();
+   await blocked;
+   return route.fulfill({status:201,json:{id:'00000000-0000-0000-0000-000000000097',field_id:fieldId,photos:[]}});
+  }
+  if(url.endsWith('/scouting'))return route.fulfill({json:{cases:[],diagnosis:{status:'unavailable'}}});
+  return route.fulfill({json:[]});
+ });
+ const navigate=async(id:string)=>page.evaluate(id=>{history.pushState({},'', '/fields/'+id+'/history');window.dispatchEvent(new PopStateEvent('popstate'));},id);
+ await page.goto('/fields/'+fieldId+'/history');
+ const notes=page.locator('.scouting-panel textarea').nth(1);
+ await expect(notes).toBeVisible();
+ await notes.fill('Original A draft');
+ await page.locator('#scouting-photo').setInputFiles({name:'leaf.jpg',mimeType:'image/jpeg',buffer:Buffer.from([255,216,255,217])});
+ await page.getByRole('button',{name:'Save scouting note'}).click();
+ await started;
+ await navigate(otherId);
+ await expect(notes).toBeVisible();
+ await navigate(fieldId);
+ await expect(notes).toHaveValue('Original A draft');
+ const responseReceived=page.waitForResponse(response=>response.url().includes('/api/fields/'+fieldId+'/scouting')&&response.request().method()==='POST');
+ release();
+ await responseReceived;
+ await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+ await expect(notes).toHaveValue('Original A draft');
+ await expect(page.getByText('Photo and field note saved.')).toHaveCount(0);
+ await expect.poll(()=>page.evaluate(id=>sessionStorage.getItem('terrascope:scouting-draft:'+id),fieldId)).toContain('Original A draft');
+});
