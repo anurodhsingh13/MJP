@@ -35,6 +35,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run migrate
+      - name: Verify scouting recovery tests independently
+        run: node --import tsx --test backend/api/services/scoutingRecovery.test.ts
       - run: npm run typecheck
       - run: npm test
       - run: npm run photos:test
