@@ -3,7 +3,7 @@ import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import assert from 'node:assert/strict';
-import {shouldRemoveFailedUploadPhoto,duplicateScoutingCleanupKey,rollbackBeforeCommit,reconcileScoutingCommit,storedJpegReadable} from './scoutingRecovery.ts';
+import {shouldRemoveFailedUploadPhoto,duplicateScoutingCleanupKey,rollbackBeforeCommit,reconcileScoutingCommit,storedJpegReadable,jpegDimensions} from './scoutingRecovery.ts';
 
 test('before commit, failed uploads remove newly written file',()=>{
  assert.equal(shouldRemoveFailedUploadPhoto(true,false),true);
@@ -64,11 +64,15 @@ test('recovered JPEG must exist and have valid JPEG boundary bytes',async()=>{
   assert.equal(await storedJpegReadable(root,'../invalid.jpg'),false);
   await writeFile(join(root,key),Buffer.from('not jpeg'));
   assert.equal(await storedJpegReadable(root,key),false);
-  await writeFile(join(root,key),Buffer.from([255,216,255,224,0,0,255,217]));
+  const jpeg=Buffer.from([255,216,255,192,0,17,8,1,224,2,128,3,1,17,0,2,17,0,3,17,0,255,217]);
+  await writeFile(join(root,key),jpeg);
+  assert.deepEqual(jpegDimensions(jpeg),{width:640,height:480});
   assert.equal(await storedJpegReadable(root,key),true);
   assert.equal(await storedJpegReadable(root,key,640,480),true);
   assert.equal(await storedJpegReadable(root,key,0,480),false);
   assert.equal(await storedJpegReadable(root,key,640,-1),false);
   assert.equal(await storedJpegReadable(root,key,10001,480),false);
+  assert.equal(await storedJpegReadable(root,key,480,640),false);
+  assert.equal(jpegDimensions(Buffer.from([255,216,255,217])),null);
  }finally{await rm(root,{recursive:true,force:true});}
 });
