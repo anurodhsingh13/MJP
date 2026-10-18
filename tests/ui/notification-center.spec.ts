@@ -12,5 +12,5 @@ test('notification center supports unread filtering and saves seen state',async(
  await page.reload();
  await expect(center).toBeVisible();
  await center.getByRole('button',{name:/All notices/}).click();
- await expect(center.getByText('acknowledged',{exact:false}).count()).resolves.toBeGreaterThanOrEqual(0);
+ await expect(center.locator('.notification-list li').first()).toBeVisible();
 });
