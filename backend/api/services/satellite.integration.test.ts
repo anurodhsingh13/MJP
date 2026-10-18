@@ -187,7 +187,23 @@ test('field owners cannot read or mutate another account’s field through the A
    assert.deepEqual(await readFile(resolve(process.env.PHOTO_STORAGE_DIR||'.local/scouting-photos',persistedPhoto.storage_key)),Buffer.from(jpeg,'base64'));
    const served=await originalPhotoFetch(`${base}/${fields[0]}/scouting/${saved[0].id}/photos/${persistedPhoto.id}`,{headers});
    assert.equal(served.status,200);
+   assert.match(served.headers.get('content-type')||'',/^image\/jpeg/);
+   assert.equal(served.headers.get('x-content-type-options'),'nosniff');
    assert.deepEqual(Buffer.from(await served.arrayBuffer()),Buffer.from(jpeg,'base64'));
+   // An idempotent retry after commit must return the same case without another decode.
+   const inspectionsBeforeRetry=inspectCount;
+   const retry=await originalPhotoFetch(`${base}/${fields[0]}/scouting`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:photoBody});
+   assert.equal(retry.status,200);
+   const retriedCase=await retry.json() as {id:string;photos:Array<{id:string}>};
+   assert.equal(retriedCase.id,saved[0].id);
+   assert.equal(retriedCase.photos.length,1);
+   assert.equal(retriedCase.photos[0].id,persistedPhoto.id);
+   assert.equal(inspectCount,inspectionsBeforeRetry);
+   // The other account cannot retrieve this owner's photo.
+   const otherUser=await originalPhotoFetch(`${base}/${fields[0]}/scouting/${saved[0].id}/photos/${persistedPhoto.id}`,{
+    headers:{cookie:`chm_session=${tokens[1]}`,origin:'http://localhost:5173'}
+   });
+   assert.equal(otherUser.status,404);
    assert.ok(inspectCount>=1);
   }finally{globalThis.fetch=originalPhotoFetch;}
   // An image-engine rejection must not persist any scouting case or follow-up task.
