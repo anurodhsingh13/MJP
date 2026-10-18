@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Non-destructive local validation; creates evidence logs under ignored .local/.
 import {spawnSync} from 'node:child_process';
-import {mkdirSync,writeFileSync} from 'node:fs';
+import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 const root=resolve(import.meta.dirname,'..');
 const options=new Set(process.argv.slice(2));
@@ -22,7 +22,7 @@ const results=[
  check('build','npm',['run','build']),
  check('lint','npm',['run','lint']),
  check('node-tests','npm',['test']),
- check('python-tests',process.platform==='win32'?'python':resolve(root,'.venv','bin','python'),['-m','pytest','backend/engine','-q'])
+ check('python-tests',process.env.PYTHON_BIN || (process.platform==='win32' ? (existsSync(resolve(root,'.venv','Scripts','python.exe')) ? resolve(root,'.venv','Scripts','python.exe') : 'python') : (existsSync(resolve(root,'.venv','bin','python')) ? resolve(root,'.venv','bin','python') : 'python3')),['-m','pytest','backend/engine','-q'])
 ];
 if(!options.has('--skip-ui'))results.push(check('browser-tests','npm',['run','test:ui']));
 if(options.has('--smoke')){
