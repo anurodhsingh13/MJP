@@ -61,3 +61,20 @@ test('retry after temporary failure saves once and clears the draft',async({page
  await expect(page.locator('.scouting-panel textarea').nth(1)).toHaveValue('');
  await expect.poll(()=>page.evaluate(id=>sessionStorage.getItem('terrascope:scouting-draft:'+id),fieldId)).toBeNull();
 });
+
+test('photo-only draft keeps retry key and clearing draft removes stale notes',async({page})=>{
+ await page.route('**/api/auth/session',route=>route.fulfill({json:{mode:'local',user:null}}));
+ await page.route('**/api/fields',route=>route.fulfill({json:[field]}));
+ await page.route('**/api/fields/**',route=>route.fulfill({json:route.request().url().endsWith('/scouting')?{cases:[]}:[]}));
+ await page.goto('/fields/'+fieldId+'/history');
+ const notes=page.locator('.scouting-panel textarea').nth(1);
+ await expect(notes).toBeVisible();
+ await notes.fill('Temporary note');
+ await expect.poll(()=>page.evaluate(id=>sessionStorage.getItem('terrascope:scouting-draft:'+id),fieldId)).toContain('Temporary note');
+ await notes.fill('');
+ await expect.poll(()=>page.evaluate(id=>sessionStorage.getItem('terrascope:scouting-draft:'+id),fieldId)).toBeNull();
+ await page.locator('#scouting-photo').setInputFiles({name:'leaf.jpg',mimeType:'image/jpeg',buffer:Buffer.from([255,216,255,217])});
+ await expect.poll(()=>page.evaluate(id=>sessionStorage.getItem('terrascope:scouting-draft:'+id),fieldId)).not.toBeNull();
+ const saved=await page.evaluate(id=>JSON.parse(sessionStorage.getItem('terrascope:scouting-draft:'+id)??'{}') as {client_key?:string},fieldId);
+ expect(saved.client_key).toMatch(/^[0-9a-f-]{36}$/i);
+});
