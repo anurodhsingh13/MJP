@@ -3,7 +3,10 @@
 type Bucket={start:number;count:number;active:number};
 export class AssistantBudget {
  private buckets=new Map<string,Bucket>();
- constructor(private readonly limit=8,private readonly windowMs=60_000,private readonly maxActive=2){}
+ private readonly limit:number;
+ private readonly windowMs:number;
+ private readonly maxActive:number;
+ constructor(limit=8,windowMs=60_000,maxActive=2){this.limit=limit;this.windowMs=windowMs;this.maxActive=maxActive;}
  acquire(key:string,now=Date.now()):{allowed:true;release:()=>void}|{allowed:false;retryAfter:number}{
   if(this.buckets.size>2000)for(const [id,b] of this.buckets)if(now-b.start>this.windowMs&&b.active===0)this.buckets.delete(id);
   let b=this.buckets.get(key);
