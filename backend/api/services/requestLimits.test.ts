@@ -30,3 +30,17 @@ test('128KB body cap stays in place for regular APIs; photo routes bypass only t
   assert.equal(preview.headers.get('referrer-policy'),'same-origin');
  }finally{await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
 });
+
+test('default JSON parser ignores text/plain and still rejects malformed application/json',async()=>{
+ const server=app.listen(0,'127.0.0.1');
+ try{
+  await new Promise<void>(resolve=>server.once('listening',resolve));
+  const address=server.address() as AddressInfo;
+  const url=`http://127.0.0.1:${address.port}/api/assistant`;
+  const plain=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:'{invalid json'});
+  assert.notEqual(plain.status,400,'plain text should not trigger JSON parse errors');
+  const malformed=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:'{invalid json'});
+  assert.equal(malformed.status,400);
+  assert.equal((await malformed.json()).error,'The submitted data is not valid JSON');
+ }finally{await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
+});
