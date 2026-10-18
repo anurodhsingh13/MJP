@@ -71,7 +71,7 @@ export async function saveScouting(request:Request,response:Response){
     if(!item)return null;
     const photos=(await pool.query('select id,width,height,quality from scouting_photos where case_id=$1',[item.id])).rows;
     return {...item,photos};
-   });
+   },result=>Array.isArray(result.photos)&&result.photos.some(photo=>typeof photo.id==='string'));
    if(reconciled.status==='committed'){response.json(reconciled.value);return;}
   }
   response.status(503).json({error:'Photo save could not be confirmed. Keep your draft and retry with the same submission key.'});
