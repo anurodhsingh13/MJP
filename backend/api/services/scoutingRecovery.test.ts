@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {shouldRemoveFailedUploadPhoto,duplicateScoutingCleanupKey,rollbackBeforeCommit} from './scoutingRecovery.ts';
+import {shouldRemoveFailedUploadPhoto,duplicateScoutingCleanupKey,rollbackBeforeCommit,reconcileScoutingCommit} from './scoutingRecovery.ts';
 
 test('before commit, failed uploads remove newly written file',()=>{
  assert.equal(shouldRemoveFailedUploadPhoto(true,false),true);
@@ -34,4 +34,13 @@ test('failed rollback is reported without hiding original transaction outcome',a
  const result=await rollbackBeforeCommit(async()=>{throw failure;},false,error=>errors.push(error));
  assert.equal(result,false);
  assert.deepEqual(errors,[failure]);
+});
+
+test('uncertain commit is confirmed only when read-back finds the record',async()=>{
+ const record={id:'case-1',photos:[{id:'photo-1'}]};
+ assert.deepEqual(await reconcileScoutingCommit(async()=>record),{status:'committed',value:record});
+ assert.deepEqual(await reconcileScoutingCommit(async()=>null),{status:'unknown'});
+});
+test('database outage during reconciliation remains unknown',async()=>{
+ assert.deepEqual(await reconcileScoutingCommit(async()=>{throw new Error('connection lost');}),{status:'unknown'});
 });
