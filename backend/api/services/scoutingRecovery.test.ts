@@ -97,6 +97,10 @@ test('Pillow-backed recovery rejects corrupt JPEG, decoder outage and wrong dime
   globalThis.fetch=(async()=>new Response(JSON.stringify({width:2,height:3,image:'sanitized-jpeg'}),{status:200,headers:{'Content-Type':'application/json'}})) as typeof fetch;
   assert.equal(await storedJpegDecodes(root,key,2,3,'http://localhost:8000'),true);
   assert.equal(await storedJpegDecodes(root,key,3,2,'http://localhost:8000'),false);
+  await writeFile(join(root,key),Buffer.from('not a jpeg'));
+  assert.equal(await storedJpegDecodes(root,key,2,3,'http://localhost:8000'),false);
+  await writeFile(join(root,key),Buffer.from([255,216,255,217]));
+  assert.equal(await storedJpegDecodes(root,key,2,3,'http://localhost:8000'),false);
   globalThis.fetch=(async()=>new Response(JSON.stringify({width:2,height:3}),{status:200,headers:{'Content-Type':'application/json'}})) as typeof fetch;
   assert.equal(await storedJpegDecodes(root,key,2,3,'http://localhost:8000'),false);
   assert.equal(await storedJpegDecodes(root,key,0,3,'http://localhost:8000'),false);
