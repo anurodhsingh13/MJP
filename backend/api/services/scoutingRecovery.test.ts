@@ -44,3 +44,11 @@ test('uncertain commit is confirmed only when read-back finds the record',async(
 test('database outage during reconciliation remains unknown',async()=>{
  assert.deepEqual(await reconcileScoutingCommit(async()=>{throw new Error('connection lost');}),{status:'unknown'});
 });
+
+test('commit recovery requires photo evidence and rejects incomplete cases',async()=>{
+ const complete=(value:{id:string;photos:Array<{id:string}>})=>value.photos.some(photo=>typeof photo.id==='string');
+ const missing={id:'case-2',photos:[] as Array<{id:string}>};
+ assert.deepEqual(await reconcileScoutingCommit(async()=>missing,complete),{status:'unknown'});
+ const present={id:'case-2',photos:[{id:'photo-2'}]};
+ assert.deepEqual(await reconcileScoutingCommit(async()=>present,complete),{status:'committed',value:present});
+});
