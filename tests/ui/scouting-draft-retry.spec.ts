@@ -190,3 +190,40 @@ test('A-B-A navigation ignores old upload completion and keeps restored draft',a
  await expect(page.getByText('Photo and field note saved.')).toHaveCount(0);
  await expect.poll(()=>page.evaluate(id=>sessionStorage.getItem('terrascope:scouting-draft:'+id),fieldId)).toContain('Original A draft');
 });
+
+test('late diary event response cannot overwrite the next field',async({page})=>{
+ const otherId='00000000-0000-0000-0000-000000000098';
+ let started!:()=>void;
+ const requestStarted=new Promise<void>(resolve=>{started=resolve;});
+ let release!:()=>void;
+ const blocked=new Promise<void>(resolve=>{release=resolve;});
+ await page.route('**/api/auth/session',route=>route.fulfill({json:{mode:'local',user:null}}));
+ await page.route('**/api/fields',route=>route.fulfill({json:[field,{...field,id:otherId,name:'Second Field'}]}));
+ await page.route('**/api/fields/**',async route=>{
+  const url=route.request().url();
+  if(route.request().method()==='POST'&&url.endsWith('/events')){
+   started();
+   await blocked;
+   return route.fulfill({status:201,json:{id:'00000000-0000-0000-0000-000000000099',field_id:fieldId,event_type:'irrigation',event_date:'2026-10-19',notes:'First field only'}});
+  }
+  if(url.endsWith('/scouting'))return route.fulfill({json:{cases:[],diagnosis:{status:'unavailable'}}});
+  return route.fulfill({json:[]});
+ });
+ await page.goto('/fields/'+fieldId+'/history');
+ const form=page.locator('.diary-form form');
+ await expect(form).toBeVisible();
+ await form.locator('select').selectOption('irrigation');
+ await form.locator('input[type="date"]').fill('2026-10-19');
+ await form.locator('textarea').fill('First field only');
+ await form.getByRole('button',{name:'Save Event'}).click();
+ await requestStarted;
+ await page.evaluate(id=>{history.pushState({},'', '/fields/'+id+'/history');window.dispatchEvent(new PopStateEvent('popstate'));},otherId);
+ await expect(form).toBeVisible();
+ await form.locator('textarea').fill('Second field pending note');
+ const responseReceived=page.waitForResponse(response=>response.url().includes('/api/fields/'+fieldId+'/events')&&response.request().method()==='POST');
+ release();
+ await responseReceived;
+ await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+ await expect(form.locator('textarea')).toHaveValue('Second field pending note');
+ await expect(page.getByText('First field only')).toHaveCount(0);
+});
