@@ -151,6 +151,35 @@ test('field owners cannot read or mutate another account’s field through the A
   const created=(await create());assert.equal(created.status,201);const createdField=await created.json() as {id:string};fields.push(createdField.id);
   const retried=(await create());assert.equal(retried.status,201);assert.equal((await retried.json() as {id:string}).id,createdField.id);
   assert.equal((await pool.query('select count(*)::int as count from fields where client_key=$1',[clientKey])).rows[0].count,1);
+  // Two concurrent retries with one submission key should produce one case, photo and follow-up task.
+  const photoKey=randomUUID();
+  const jpeg=Buffer.from([255,216,255,224,0,16,255,217]).toString('base64');
+  const image='data:image/jpeg;base64,'+jpeg;
+  const originalPhotoFetch=globalThis.fetch;
+  let inspectCount=0;
+  try{
+   globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{
+    if(String(input).endsWith('/inspect-photo')){
+     inspectCount++;
+     return new Response(JSON.stringify({image:jpeg,width:16,height:16,quality:'acceptable'}),{status:200,headers:{'content-type':'application/json'}});
+    }
+    return originalPhotoFetch(input,init);
+   }) as typeof fetch;
+   const photoBody=JSON.stringify({client_key:photoKey,observed_on:'2026-10-16',image,notes:'Concurrent retry fixture'});
+   const upload=()=>originalPhotoFetch(`${base}/${fields[0]}/scouting`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:photoBody});
+   const results=await Promise.all([upload(),upload()]);
+   assert.ok(results.every(result=>[200,201].includes(result.status)),JSON.stringify(results.map(result=>result.status)));
+   const saved=await Promise.all(results.map(result=>result.json())) as Array<{id:string}>;
+   assert.equal(saved[0].id,saved[1].id);
+   const counts=await pool.query(`select
+    (select count(*)::int from scouting_cases where field_id=$1 and client_key=$2) as cases,
+    (select count(*)::int from scouting_photos p join scouting_cases c on p.case_id=c.id where c.field_id=$1 and c.client_key=$2) as photos,
+    (select count(*)::int from field_tasks t join scouting_cases c on t.case_id=c.id where c.field_id=$1 and c.client_key=$2) as tasks`,[fields[0],photoKey]);
+   assert.equal(counts.rows[0].cases,1);
+   assert.equal(counts.rows[0].photos,1);
+   assert.equal(counts.rows[0].tasks,1);
+   assert.ok(inspectCount>=1);
+  }finally{globalThis.fetch=originalPhotoFetch;}
   const unchanged=(await pool.query('select boundary_version from fields where id=$1',[fields[1]])).rows[0];
   assert.equal(unchanged.boundary_version,1);
  }finally{
