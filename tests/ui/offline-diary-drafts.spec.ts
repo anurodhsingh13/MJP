@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-import {setup,id,day} from './fixtures';
+import {setup,id} from './fixtures';
 
 test('field note draft is device-local until manually sent to diary',async({page})=>{
  const state=await setup(page);
