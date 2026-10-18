@@ -5,7 +5,10 @@ import pytest
 from fastapi import HTTPException
 from PIL import Image
 
-from main import PhotoRequest, inspect_photo
+try:
+    from backend.engine.main import PhotoRequest, inspect_photo
+except ModuleNotFoundError:
+    from main import PhotoRequest, inspect_photo
 
 
 def photo_bytes(size=(64, 64)):
