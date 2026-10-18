@@ -84,6 +84,12 @@ export function FieldHistory() {
   }, [field.id,photoDate,symptoms,photoNotes,photo,key,draftReadyField]);
   const eventTitle = (value:string) => ({planting:t('Planting','बुवाई'),fertilizer:t('Fertilizer Application','खाद डालना'),irrigation:t('Irrigation','सिंचाई'),pesticide:t('Pesticide Application','कीटनाशक डालना'),scouting:t('Scouting / Observation','खेत की जाँच'),harvest:t('Harvest','कटाई'),other:t('Other','अन्य'),dataset_import:t('Public boundary imported','सार्वजनिक सीमा जोड़ी गई')} as Record<string,string>)[value] || value;
   useEffect(() => {
+    // On field navigation, do not display another field's cached diary while loading.
+    setLoading(true);
+    setLoadError(false);
+    setEvents([]);
+    setCases([]);
+    setTasks([]);
     let stopped = false;
     void Promise.allSettled([loadFieldEvents(field.id),loadScouting(field.id),loadFieldTasks(field.id)]).then(([diary,scouting,visits]) => {
       if (stopped) return;
