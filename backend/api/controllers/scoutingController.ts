@@ -70,7 +70,7 @@ export async function saveScouting(request:Request,response:Response){
     const item=(await pool.query('select * from scouting_cases where field_id=$1 and client_key=$2',[request.params.fieldId,body.client_key])).rows[0];
     if(!item)return null;
     const photoRows=(await pool.query('select id,width,height,quality,storage_key from scouting_photos where case_id=$1',[item.id])).rows as Array<{id:string;width:number;height:number;quality:string;storage_key:string}>;
-    const readable=await Promise.all(photoRows.map(photo=>storedJpegReadable(storage,photo.storage_key)));
+    const readable=await Promise.all(photoRows.map(photo=>storedJpegReadable(storage,photo.storage_key,photo.width,photo.height)));
     if(!readable.some(Boolean))return null;
     const photos=photoRows.map(({id,width,height,quality})=>({id,width,height,quality}));
     return {...item,photos};
