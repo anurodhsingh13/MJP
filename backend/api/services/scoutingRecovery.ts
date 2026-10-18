@@ -114,7 +114,9 @@ export async function storedJpegDecodes(root:string,key:unknown,width:number,hei
  if(!Number.isInteger(width)||!Number.isInteger(height)||width<=0||height<=0||width>2048||height>2048)return false;
  try{
   const bytes=await readFile(resolve(root,key));
-  if(bytes.length<4||bytes.length>5*1024*1024||bytes[0]!==255||bytes[1]!==216)return false;
+  if(bytes.length<4||bytes.length>5*1024*1024||bytes[0]!==255||bytes[1]!==216||bytes[bytes.length-2]!==255||bytes[bytes.length-1]!==217)return false;
+  const frame=jpegDimensions(bytes);
+  if(!frame||frame.width!==width||frame.height!==height)return false;
   const upstream=await fetch(engineBase.replace(/\/+$/,'')+'/inspect-photo',{
    method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({image:bytes.toString('base64')}),
