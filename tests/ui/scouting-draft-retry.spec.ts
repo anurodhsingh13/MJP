@@ -139,8 +139,11 @@ test('late photo upload from another field cannot overwrite current draft',async
  await expect(notes).toBeVisible();
  await notes.fill('Keep this second field draft');
  await expect.poll(()=>page.evaluate(id=>sessionStorage.getItem('terrascope:scouting-draft:'+id),otherId)).toContain('Keep this second field draft');
+ const responseReceived=page.waitForResponse(response=>response.url().includes('/api/fields/'+fieldId+'/scouting')&&response.request().method()==='POST');
  finishUpload?.();
  await uploadResponseSent;
+ const response=await responseReceived;
+ expect(response.status()).toBe(201);
  await expect(notes).toHaveValue('Keep this second field draft');
  await expect(page.getByText('Photo and field note saved.')).toHaveCount(0);
  await expect.poll(()=>page.evaluate(id=>sessionStorage.getItem('terrascope:scouting-draft:'+id),otherId)).toContain('Keep this second field draft');
