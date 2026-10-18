@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import './dashboard-addons.css';
 import './observation-quality.css';
 import { ObservationQualityPanel } from './ObservationQualityPanel';
+import {ForecastPreview} from './ForecastPreview';
 import { FieldHealthLeaderboard } from './FieldHealthLeaderboard';
 import { Link, useNavigate } from 'react-router-dom';
 import L from 'leaflet';
@@ -133,6 +134,7 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
     </>:<p>{pending?t('Loading weather…','मौसम ला रहे हैं…'):t('No weather data available','मौसम की जानकारी नहीं मिली')}</p>}
    </article>
   </div>
+  <ForecastPreview fields={dataset}/>
   <ObservationQualityPanel fields={dataset}/>
   <FieldHealthLeaderboard fields={fields}/>
   <article className="addon-card addon-insights"><h3><Activity size={19}/>{t('Crop insights','फ़सल के बदलाव')}</h3><div className="addon-insight-grid">{insights.length?insights.map(({field,latest,diff})=>{
