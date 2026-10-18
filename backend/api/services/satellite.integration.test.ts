@@ -213,6 +213,19 @@ test('field owners cannot read or mutate another account’s field through the A
     const corrupt=await originalPhotoFetch(`${base}/${fields[0]}/scouting`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:photoBody});
     assert.equal(corrupt.status,503);
    }finally{await writeFile(storedPath,savedBytes);}
+   // A temporary decoder outage must not acknowledge the retry or delete committed rows/files.
+   const beforeOutage=(await pool.query('select count(*)::int as n from scouting_photos where case_id=$1',[saved[0].id])).rows[0].n;
+   const originalInspectionFetch=globalThis.fetch;
+   try{
+    globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{
+     if(String(input).endsWith('/inspect-photo'))throw new Error('Image engine temporarily offline');
+     return originalInspectionFetch(input,init);
+    }) as typeof fetch;
+    const outage=await originalPhotoFetch(`${base}/${fields[0]}/scouting`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:photoBody});
+    assert.equal(outage.status,503);
+    assert.equal((await pool.query('select count(*)::int as n from scouting_photos where case_id=$1',[saved[0].id])).rows[0].n,beforeOutage);
+    assert.deepEqual(await readFile(storedPath),savedBytes);
+   }finally{globalThis.fetch=originalInspectionFetch;}
    // The other account cannot retrieve this owner's photo.
    const otherUser=await originalPhotoFetch(`${base}/${fields[0]}/scouting/${saved[0].id}/photos/${persistedPhoto.id}`,{
     headers:{cookie:`chm_session=${tokens[1]}`,origin:'http://localhost:5173'}
