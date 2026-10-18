@@ -36,7 +36,18 @@ export function jpegHasScan(bytes:Buffer):boolean{
   if(marker===218){
    if(offset+2>bytes.length)return false;
    const length=bytes.readUInt16BE(offset);
-   return length>=6&&offset+length<bytes.length-2;
+   if(length<6||offset+length>=bytes.length-2)return false;
+   // A scan header alone is insufficient: require entropy data and the EOI marker.
+   let scan=offset+length;
+   let hasEntropy=false;
+   while(scan<bytes.length-2){
+    if(bytes[scan]!==255){hasEntropy=true;scan++;continue;}
+    const marker=bytes[scan+1];
+    if(marker===0){hasEntropy=true;scan+=2;continue;} // Byte-stuffed 0xFF
+    if(marker>=208&&marker<=215){scan+=2;continue;} // Restart markers
+    return false; // EOI inside payload, unsupported extra scans, or malformed marker
+   }
+   return hasEntropy&&scan===bytes.length-2&&bytes[scan]===255&&bytes[scan+1]===217;
   }
   if(marker===217)return false;
   if(marker===1||(marker>=208&&marker<=215))continue;
