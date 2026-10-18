@@ -104,3 +104,24 @@ export async function reconcileScoutingCommit<T>(
   return {status:'unknown'};
  }
 }
+
+/** Recover only when the existing Pillow engine can fully decode the stored JPEG.
+ * This avoids trusting headers or entropy markers alone, including for progressive JPEG.
+ * Engine outages are treated as unknown outcomes, never as proof of a failed commit.
+ */
+export async function storedJpegDecodes(root:string,key:unknown,width:number,height:number,engineBase:string):Promise<boolean>{
+ if(typeof key!=='string'||!duplicateScoutingCleanupKey(key))return false;
+ if(!Number.isInteger(width)||!Number.isInteger(height)||width<=0||height<=0||width>2048||height>2048)return false;
+ try{
+  const bytes=await readFile(resolve(root,key));
+  if(bytes.length<4||bytes.length>5*1024*1024||bytes[0]!==255||bytes[1]!==216)return false;
+  const upstream=await fetch(engineBase.replace(/\\/$/,'')+'/inspect-photo',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({image:bytes.toString('base64')}),
+   signal:AbortSignal.timeout(15000)
+  });
+  if(!upstream.ok)return false;
+  const result=await upstream.json() as {width?:unknown;height?:unknown};
+  return result.width===width&&result.height===height;
+ }catch{return false;}
+}
