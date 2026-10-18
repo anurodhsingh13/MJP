@@ -81,7 +81,7 @@ export async function saveScouting(request:Request,response:Response){
  }
 }
 export async function photoContent(request:Request,response:Response){
- const photo=(await pool.query(`select p.storage_key from scouting_photos p join scouting_cases c on c.id=p.case_id where p.id=$1 and c.field_id=$2`,[request.params.photoId,request.params.fieldId])).rows[0];
+ const photo=(await pool.query(`select p.storage_key from scouting_photos p join scouting_cases c on c.id=p.case_id where p.id=$1 and c.field_id=$2 and c.id=$3`,[request.params.photoId,request.params.fieldId,request.params.caseId])).rows[0];
  if(!photo){response.status(404).json({error:'Photo not found'});return;}
  const key=String(photo.storage_key);if(!/^[a-f0-9-]{36}\.jpg$/.test(key)){response.status(404).end();return;}
  try{const data=await readFile(resolve(storage,key));response.set({'Content-Type':'image/jpeg','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'",'Cache-Control':'no-store'}).send(data);}catch{response.status(404).json({error:'Photo file unavailable'});}
