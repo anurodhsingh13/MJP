@@ -5,7 +5,7 @@ import {resolve} from 'node:path';
 import {pool} from '../db/pool.ts';
 import {engineUrl} from '../services/satellite.ts';
 import {decodeScoutingImage,validSanitizedJpeg} from '../services/photoValidation.ts';
-import {shouldRemoveFailedUploadPhoto,rollbackBeforeCommit} from '../services/scoutingRecovery.ts';
+import {shouldRemoveFailedUploadPhoto,rollbackBeforeCommit,reconcileScoutingCommit} from '../services/scoutingRecovery.ts';
 const storage=resolve(process.env.PHOTO_STORAGE_DIR||'.local/scouting-photos');
 export const diagnosisAvailability=()=>({status:'unavailable',provider:null,reason:'No licensed, validated crop-photo diagnosis provider is configured. Photos and scouting remain available; no diagnosis or treatment is inferred.'});
 export async function previewScoutingPhoto(request:Request,response:Response){
@@ -65,6 +65,15 @@ export async function saveScouting(request:Request,response:Response){
   // A failed COMMIT can have an unknown outcome. Keep the photo so any committed row still points to a valid file.
   if(shouldRemoveFailedUploadPhoto(Boolean(storageKey),commitAttempted)&&storageKey)await unlink(resolve(storage,storageKey)).catch(()=>{});
   console.error('Scouting upload',error);
+  if(commitAttempted){
+   const reconciled=await reconcileScoutingCommit(async()=>{
+    const item=(await pool.query('select * from scouting_cases where field_id=$1 and client_key=$2',[request.params.fieldId,body.client_key])).rows[0];
+    if(!item)return null;
+    const photos=(await pool.query('select id,width,height,quality from scouting_photos where case_id=$1',[item.id])).rows;
+    return {...item,photos};
+   });
+   if(reconciled.status==='committed'){response.json(reconciled.value);return;}
+  }
   response.status(503).json({error:'Photo save could not be confirmed. Keep your draft and retry with the same submission key.'});
  }
 }
