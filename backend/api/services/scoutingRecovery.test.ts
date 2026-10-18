@@ -66,5 +66,9 @@ test('recovered JPEG must exist and have valid JPEG boundary bytes',async()=>{
   assert.equal(await storedJpegReadable(root,key),false);
   await writeFile(join(root,key),Buffer.from([255,216,255,224,0,0,255,217]));
   assert.equal(await storedJpegReadable(root,key),true);
+  assert.equal(await storedJpegReadable(root,key,640,480),true);
+  assert.equal(await storedJpegReadable(root,key,0,480),false);
+  assert.equal(await storedJpegReadable(root,key,640,-1),false);
+  assert.equal(await storedJpegReadable(root,key,10001,480),false);
  }finally{await rm(root,{recursive:true,force:true});}
 });
