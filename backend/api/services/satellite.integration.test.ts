@@ -204,6 +204,9 @@ test('field owners cannot read or mutate another account’s field through the A
     headers:{cookie:`chm_session=${tokens[1]}`,origin:'http://localhost:5173'}
    });
    assert.equal(otherUser.status,404);
+   // A valid photo ID must not be retrievable under an unrelated scouting case URL.
+   const wrongCase=await originalPhotoFetch(`${base}/${fields[0]}/scouting/${randomUUID()}/photos/${persistedPhoto.id}`,{headers});
+   assert.equal(wrongCase.status,404);
    assert.ok(inspectCount>=1);
   }finally{globalThis.fetch=originalPhotoFetch;}
   // An image-engine rejection must not persist any scouting case or follow-up task.
