@@ -5,7 +5,7 @@ import {resolve} from 'node:path';
 import {pool} from '../db/pool.ts';
 import {engineUrl} from '../services/satellite.ts';
 import {decodeScoutingImage,validSanitizedJpeg} from '../services/photoValidation.ts';
-import {shouldRemoveFailedUploadPhoto} from '../services/scoutingRecovery.ts';
+import {shouldRemoveFailedUploadPhoto,rollbackBeforeCommit} from '../services/scoutingRecovery.ts';
 const storage=resolve(process.env.PHOTO_STORAGE_DIR||'.local/scouting-photos');
 export const diagnosisAvailability=()=>({status:'unavailable',provider:null,reason:'No licensed, validated crop-photo diagnosis provider is configured. Photos and scouting remain available; no diagnosis or treatment is inferred.'});
 export async function previewScoutingPhoto(request:Request,response:Response){
@@ -60,7 +60,7 @@ export async function saveScouting(request:Request,response:Response){
    await client.query(`insert into field_tasks(field_id,case_id,title,due_on) values($1,$2,'Follow up on crop photo and inspect the field',$3)`,[request.params.fieldId,item.id,body.follow_up||body.observed_on]);
    commitAttempted=true;
    await client.query('commit');response.status(201).json({...item,photos:[photoRecord],quality:photo.quality,diagnosis:diagnosisAvailability()});
-  }catch(error){if(!commitAttempted){try{await client.query('rollback');}catch(rollbackError){console.error('Scouting rollback failed:',rollbackError);}}throw error;}finally{client.release();}
+  }catch(error){await rollbackBeforeCommit(sql=>client.query(sql),commitAttempted,rollbackError=>console.error('Scouting rollback failed:',rollbackError));throw error;}finally{client.release();}
  }catch(error){
   // A failed COMMIT can have an unknown outcome. Keep the photo so any committed row still points to a valid file.
   if(shouldRemoveFailedUploadPhoto(Boolean(storageKey),commitAttempted)&&storageKey)await unlink(resolve(storage,storageKey)).catch(()=>{});
