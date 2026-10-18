@@ -3,7 +3,7 @@ import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import assert from 'node:assert/strict';
-import {shouldRemoveFailedUploadPhoto,duplicateScoutingCleanupKey,rollbackBeforeCommit,reconcileScoutingCommit,storedJpegReadable,jpegDimensions} from './scoutingRecovery.ts';
+import {shouldRemoveFailedUploadPhoto,duplicateScoutingCleanupKey,rollbackBeforeCommit,reconcileScoutingCommit,storedJpegReadable,jpegDimensions,jpegHasScan} from './scoutingRecovery.ts';
 
 test('before commit, failed uploads remove newly written file',()=>{
  assert.equal(shouldRemoveFailedUploadPhoto(true,false),true);
@@ -67,6 +67,16 @@ test('recovered JPEG must exist and have valid JPEG boundary bytes',async()=>{
   const jpeg=Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAADAAIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDkKKKK908U/9k=','base64');
   await writeFile(join(root,key),jpeg);
   assert.deepEqual(jpegDimensions(jpeg),{width:2,height:3});
+  assert.equal(jpegHasScan(jpeg),true);
+  const scanOffset=jpeg.indexOf(Buffer.from([255,218]));
+  assert.ok(scanOffset>0);
+  const scanLength=jpeg.readUInt16BE(scanOffset+2);
+  const emptyScan=Buffer.concat([jpeg.subarray(0,scanOffset+2+scanLength),Buffer.from([255,217])]);
+  assert.equal(jpegHasScan(emptyScan),false);
+  const malformedScan=Buffer.from(jpeg);
+  malformedScan[scanOffset+2]=255;
+  malformedScan[scanOffset+3]=255;
+  assert.equal(jpegHasScan(malformedScan),false);
   assert.equal(await storedJpegReadable(root,key),true);
   assert.equal(await storedJpegReadable(root,key),true);
   assert.equal(await storedJpegReadable(root,key,2,3),true);
