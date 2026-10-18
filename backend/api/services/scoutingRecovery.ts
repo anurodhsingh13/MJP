@@ -3,11 +3,13 @@ import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 
 /** Verify stored JPEG bytes before acknowledging a recovered commit. */
-export async function storedJpegReadable(root:string,key:unknown):Promise<boolean>{
+export async function storedJpegReadable(root:string,key:unknown,width?:number,height?:number):Promise<boolean>{
  if(typeof key!=='string'||!duplicateScoutingCleanupKey(key))return false;
  try{
   const bytes=await readFile(resolve(root,key));
-  return bytes.length>=4&&bytes.length<=5*1024*1024&&bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff&&bytes[bytes.length-2]===0xff&&bytes[bytes.length-1]===0xd9;
+  if(bytes.length<4||bytes.length>5*1024*1024||bytes[0]!==0xff||bytes[1]!==0xd8||bytes[2]!==0xff||bytes[bytes.length-2]!==0xff||bytes[bytes.length-1]!==0xd9)return false;
+  if(width!==undefined||height!==undefined)return Number.isInteger(width)&&Number.isInteger(height)&&(width as number)>0&&(height as number)>0&&(width as number)<=10000&&(height as number)<=10000;
+  return true;
  }catch{return false;}
 }
 export function shouldRemoveFailedUploadPhoto(fileWritten:boolean,commitAttempted:boolean):boolean{
