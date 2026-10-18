@@ -64,15 +64,16 @@ test('recovered JPEG must exist and have valid JPEG boundary bytes',async()=>{
   assert.equal(await storedJpegReadable(root,'../invalid.jpg'),false);
   await writeFile(join(root,key),Buffer.from('not jpeg'));
   assert.equal(await storedJpegReadable(root,key),false);
-  const jpeg=Buffer.from([255,216,255,192,0,17,8,1,224,2,128,3,1,17,0,2,17,0,3,17,0,255,217]);
+  const jpeg=Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAADAAIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDkKKKK908U/9k=','base64');
   await writeFile(join(root,key),jpeg);
-  assert.deepEqual(jpegDimensions(jpeg),{width:640,height:480});
+  assert.deepEqual(jpegDimensions(jpeg),{width:2,height:3});
   assert.equal(await storedJpegReadable(root,key),true);
-  assert.equal(await storedJpegReadable(root,key,640,480),true);
-  assert.equal(await storedJpegReadable(root,key,0,480),false);
-  assert.equal(await storedJpegReadable(root,key,640,-1),false);
-  assert.equal(await storedJpegReadable(root,key,10001,480),false);
-  assert.equal(await storedJpegReadable(root,key,480,640),false);
+  assert.equal(await storedJpegReadable(root,key),true);
+  assert.equal(await storedJpegReadable(root,key,2,3),true);
+  assert.equal(await storedJpegReadable(root,key,0,3),false);
+  assert.equal(await storedJpegReadable(root,key,2,-1),false);
+  assert.equal(await storedJpegReadable(root,key,10001,3),false);
+  assert.equal(await storedJpegReadable(root,key,3,2),false);
   assert.equal(jpegDimensions(Buffer.from([255,216,255,217])),null);
  }finally{await rm(root,{recursive:true,force:true});}
 });
