@@ -112,6 +112,8 @@ test('late photo upload from another field cannot overwrite current draft',async
  const uploadStarted=new Promise<void>(resolve=>{releaseUpload=resolve;});
  let finishUpload: (()=>void)|undefined;
  const uploadBlocked=new Promise<void>(resolve=>{finishUpload=resolve;});
+ let uploadResponded: (()=>void)|undefined;
+ const uploadResponseSent=new Promise<void>(resolve=>{uploadResponded=resolve;});
  await page.route('**/api/auth/session',route=>route.fulfill({json:{mode:'local',user:null}}));
  await page.route('**/api/fields',route=>route.fulfill({json:[field,otherField]}));
  await page.route('**/api/fields/**',async route=>{
@@ -119,7 +121,9 @@ test('late photo upload from another field cannot overwrite current draft',async
   if(route.request().method()==='POST'&&url.endsWith('/scouting')){
    releaseUpload?.();
    await uploadBlocked;
-   return route.fulfill({status:201,json:{id:'00000000-0000-0000-0000-000000000095',field_id:fieldId,photos:[]}});
+   await route.fulfill({status:201,json:{id:'00000000-0000-0000-0000-000000000095',field_id:fieldId,photos:[]}});
+   uploadResponded?.();
+   return;
   }
   if(url.endsWith('/scouting'))return route.fulfill({json:{cases:[],diagnosis:{status:'unavailable'}}});
   return route.fulfill({json:[]});
@@ -129,12 +133,14 @@ test('late photo upload from another field cannot overwrite current draft',async
  await page.locator('#scouting-photo').setInputFiles({name:'leaf.jpg',mimeType:'image/jpeg',buffer:Buffer.from([255,216,255,217])});
  await page.getByRole('button',{name:'Save scouting note'}).click();
  await uploadStarted;
- await page.goto('/fields/'+otherId+'/history');
+ // SPA navigation keeps the in-flight request alive; page.goto would reload and cancel it.
+ await page.evaluate(id=>{history.pushState({},'', '/fields/'+id+'/history');window.dispatchEvent(new PopStateEvent('popstate'));},otherId);
  const notes=page.locator('.scouting-panel textarea').nth(1);
  await expect(notes).toBeVisible();
  await notes.fill('Keep this second field draft');
  await expect.poll(()=>page.evaluate(id=>sessionStorage.getItem('terrascope:scouting-draft:'+id),otherId)).toContain('Keep this second field draft');
  finishUpload?.();
+ await uploadResponseSent;
  await expect(notes).toHaveValue('Keep this second field draft');
  await expect(page.getByText('Photo and field note saved.')).toHaveCount(0);
  await expect.poll(()=>page.evaluate(id=>sessionStorage.getItem('terrascope:scouting-draft:'+id),otherId)).toContain('Keep this second field draft');
