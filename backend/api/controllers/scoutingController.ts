@@ -35,13 +35,21 @@ export async function previewScoutingPhoto(request:Request,response:Response){
 export async function listScouting(request:Request,response:Response){
  const result=await pool.query(`select c.*,coalesce((select jsonb_agg(jsonb_build_object('id',p.id,'width',p.width,'height',p.height,'quality',p.quality)) from scouting_photos p where p.case_id=c.id),'[]'::jsonb) photos from scouting_cases c where c.field_id=$1 order by c.observed_on desc,c.created_at desc`,[request.params.fieldId]);response.json({cases:result.rows,diagnosis:diagnosisAvailability()});
 }
+type StoredScoutingPhoto={id:string;width:number;height:number;quality:string;storage_key:string};
+async function confirmedScoutingPhotos(caseId:string):Promise<Array<{id:string;width:number;height:number;quality:string}>|null>{
+ const rows=(await pool.query('select id,width,height,quality,storage_key from scouting_photos where case_id=$1',[caseId])).rows as StoredScoutingPhoto[];
+ if(rows.length===0)return null;
+ const verified=await Promise.all(rows.map(photo=>storedJpegDecodes(storage,photo.storage_key,photo.width,photo.height,engineUrl())));
+ if(!verified.every(Boolean))return null;
+ return rows.map(({id,width,height,quality})=>({id,width,height,quality}));
+}
 export async function saveScouting(request:Request,response:Response){
  const body=(request.body ?? {}) as {client_key?:string;observed_on?:string;crop?:string;symptoms?:string;notes?:string;image?:string;follow_up?:string|null;latitude?:number;longitude?:number;scene_id?:string};
  if(!body.client_key||!/^[-a-f0-9]{36}$/i.test(body.client_key)||!body.observed_on||!/^\d{4}-\d{2}-\d{2}$/.test(body.observed_on)||!Number.isFinite(Date.parse(body.observed_on))||new Date(body.observed_on).toISOString().slice(0,10)!==body.observed_on||body.observed_on>new Date().toISOString().slice(0,10)||[body.crop,body.symptoms,body.notes].some(value=>value!==undefined&&(typeof value!=='string'||value.length>4000))){response.status(400).json({error:'Choose a valid observation date and notes under 4,000 characters'});return;}
  if(body.follow_up&&(!/^\d{4}-\d{2}-\d{2}$/.test(body.follow_up)||!Number.isFinite(Date.parse(body.follow_up)))){response.status(400).json({error:'Use a valid follow-up date'});return;}
  if(body.latitude!==undefined&&(!Number.isFinite(body.latitude)||Math.abs(body.latitude)>90||!Number.isFinite(body.longitude)||Math.abs(body.longitude!)>180)){response.status(400).json({error:'Use valid GPS coordinates or omit location'});return;}
  const existing=(await pool.query('select * from scouting_cases where field_id=$1 and client_key=$2',[request.params.fieldId,body.client_key])).rows[0];
- if(existing){const photos=(await pool.query('select id,width,height,quality from scouting_photos where case_id=$1',[existing.id])).rows;response.json({...existing,photos});return;}
+ if(existing){const photos=await confirmedScoutingPhotos(existing.id);if(!photos){response.status(503).json({error:'Saved scouting photo could not be verified. Keep the original photo and contact support; do not create a new submission key.'});return;}response.json({...existing,photos});return;}
  if(!decodeScoutingImage(body.image)){response.status(400).json({error:'Upload a JPEG, PNG or WebP photo under 5 MB'});return;}
  let storageKey:string|undefined;
  let commitAttempted=false;
@@ -55,7 +63,7 @@ export async function saveScouting(request:Request,response:Response){
   try{await client.query('begin');
    const field=(await client.query('select boundary_version from fields where id=$1 for share',[request.params.fieldId])).rows[0];if(!field)throw new Error('Field no longer exists');
    const result=await client.query(`insert into scouting_cases(field_id,client_key,observed_on,crop,symptoms,notes,latitude,longitude,follow_up,scene_id,boundary_version,diagnosis) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) on conflict(field_id,client_key) do nothing returning *`,[request.params.fieldId,body.client_key,body.observed_on,body.crop||null,body.symptoms||null,body.notes||null,body.latitude??null,body.longitude??null,body.follow_up||null,body.scene_id||null,field.boundary_version,JSON.stringify(diagnosisAvailability())]);
-   if(!result.rowCount){await client.query('rollback');await unlink(resolve(storage,storageKey)).catch(()=>{});storageKey=undefined;const duplicate=(await pool.query('select * from scouting_cases where field_id=$1 and client_key=$2',[request.params.fieldId,body.client_key])).rows[0];const photos=(await pool.query('select id,width,height,quality from scouting_photos where case_id=$1',[duplicate.id])).rows;response.json({...duplicate,photos});return;}
+   if(!result.rowCount){await client.query('rollback');await unlink(resolve(storage,storageKey)).catch(()=>{});storageKey=undefined;const duplicate=(await pool.query('select * from scouting_cases where field_id=$1 and client_key=$2',[request.params.fieldId,body.client_key])).rows[0];const photos=duplicate?await confirmedScoutingPhotos(duplicate.id):null;if(!photos){response.status(503).json({error:'Existing scouting upload could not be verified. Keep the original photo and submission key.'});return;}response.json({...duplicate,photos});return;}
    const item=result.rows[0];const photoRecord=(await client.query(`insert into scouting_photos(case_id,storage_key,mime,width,height,quality) values($1,$2,'image/jpeg',$3,$4,$5) returning id,width,height,quality`,[item.id,storageKey,photo.width,photo.height,photo.quality])).rows[0];
    await client.query(`insert into field_tasks(field_id,case_id,title,due_on) values($1,$2,'Follow up on crop photo and inspect the field',$3)`,[request.params.fieldId,item.id,body.follow_up||body.observed_on]);
    commitAttempted=true;
