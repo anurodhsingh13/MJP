@@ -163,7 +163,7 @@ test('field owners cannot read or mutate another account’s field through the A
    globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{
     if(String(input).endsWith('/inspect-photo')){
      inspectCount++;
-     return new Response(JSON.stringify({image:jpeg,width:16,height:16,quality:'acceptable'}),{status:200,headers:{'content-type':'application/json'}});
+     return new Response(JSON.stringify({image:jpeg,width:2,height:3,quality:'acceptable'}),{status:200,headers:{'content-type':'application/json'}});
     }
     return originalPhotoFetch(input,init);
    }) as typeof fetch;
