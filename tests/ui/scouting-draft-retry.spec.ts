@@ -78,3 +78,29 @@ test('photo-only draft keeps retry key and clearing draft removes stale notes',a
  const saved=await page.evaluate(id=>JSON.parse(sessionStorage.getItem('terrascope:scouting-draft:'+id)??'{}') as {client_key?:string},fieldId);
  expect(saved.client_key).toMatch(/^[0-9a-f-]{36}$/i);
 });
+
+test('scouting drafts remain isolated between fields during navigation',async({page})=>{
+ const otherId='00000000-0000-0000-0000-000000000093';
+ const otherField={...field,id:otherId,name:'Second Test Field'};
+ await page.route('**/api/auth/session',route=>route.fulfill({json:{mode:'local',user:null}}));
+ await page.route('**/api/fields',route=>route.fulfill({json:[field,otherField]}));
+ await page.route('**/api/fields/**',route=>{
+  const url=route.request().url();
+  if(url.endsWith('/scouting'))return route.fulfill({json:{cases:[],diagnosis:{status:'unavailable'}}});
+  return route.fulfill({json:[]});
+ });
+ await page.goto('/fields/'+fieldId+'/history');
+ const notes=page.locator('.scouting-panel textarea').nth(1);
+ await expect(notes).toBeVisible();
+ await notes.fill('Only first field observation');
+ await expect.poll(()=>page.evaluate(id=>sessionStorage.getItem('terrascope:scouting-draft:'+id),fieldId)).toContain('Only first field observation');
+ await page.goto('/fields/'+otherId+'/history');
+ await expect(notes).toBeVisible();
+ await expect(notes).toHaveValue('');
+ await notes.fill('Only second field observation');
+ await expect.poll(()=>page.evaluate(id=>sessionStorage.getItem('terrascope:scouting-draft:'+id),otherId)).toContain('Only second field observation');
+ await page.goto('/fields/'+fieldId+'/history');
+ await expect(notes).toHaveValue('Only first field observation');
+ await page.goto('/fields/'+otherId+'/history');
+ await expect(notes).toHaveValue('Only second field observation');
+});
