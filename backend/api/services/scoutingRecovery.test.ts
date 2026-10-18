@@ -3,7 +3,7 @@ import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import assert from 'node:assert/strict';
-import {shouldRemoveFailedUploadPhoto,duplicateScoutingCleanupKey,rollbackBeforeCommit,reconcileScoutingCommit,storedJpegReadable,jpegDimensions,jpegHasScan} from './scoutingRecovery.ts';
+import {shouldRemoveFailedUploadPhoto,duplicateScoutingCleanupKey,rollbackBeforeCommit,reconcileScoutingCommit,storedJpegReadable,jpegDimensions,jpegHasScan,storedJpegDecodes} from './scoutingRecovery.ts';
 
 test('before commit, failed uploads remove newly written file',()=>{
  assert.equal(shouldRemoveFailedUploadPhoto(true,false),true);
@@ -86,4 +86,21 @@ test('recovered JPEG must exist and have valid JPEG boundary bytes',async()=>{
   assert.equal(await storedJpegReadable(root,key,3,2),false);
   assert.equal(jpegDimensions(Buffer.from([255,216,255,217])),null);
  }finally{await rm(root,{recursive:true,force:true});}
+});
+
+test('Pillow-backed recovery rejects corrupt JPEG, decoder outage and wrong dimensions',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'scouting-decoder-'));
+ const key='00000000-0000-0000-0000-000000000001.jpg';
+ const originalFetch=globalThis.fetch;
+ try{
+  await writeFile(join(root,key),Buffer.from([255,216,1,2,3,255,217]));
+  globalThis.fetch=(async()=>new Response(JSON.stringify({width:2,height:3}),{status:200,headers:{'Content-Type':'application/json'}})) as typeof fetch;
+  assert.equal(await storedJpegDecodes(root,key,2,3,'http://localhost:8000'),true);
+  assert.equal(await storedJpegDecodes(root,key,3,2,'http://localhost:8000'),false);
+  assert.equal(await storedJpegDecodes(root,key,0,3,'http://localhost:8000'),false);
+  globalThis.fetch=(async()=>new Response('unreadable',{status:422})) as typeof fetch;
+  assert.equal(await storedJpegDecodes(root,key,2,3,'http://localhost:8000'),false);
+  globalThis.fetch=(async()=>{throw new Error('engine offline');}) as typeof fetch;
+  assert.equal(await storedJpegDecodes(root,key,2,3,'http://localhost:8000'),false);
+ }finally{globalThis.fetch=originalFetch;await rm(root,{recursive:true,force:true});}
 });
