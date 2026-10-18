@@ -33,14 +33,14 @@ test('retry after temporary failure saves once and clears the draft',async({page
  await page.route('**/api/auth/session',route=>route.fulfill({json:{mode:'local',user:null}}));
  await page.route('**/api/fields',route=>route.fulfill({json:[field]}));
  let attempts=0;
- let savedBody:{client_key?:string;notes?:string}|undefined;
+ const savedBodies:Array<{client_key?:string;notes?:string}>=[];
  await page.route('**/api/fields/**',async route=>{
   const url=route.request().url();
   if(route.request().method()==='POST'&&url.endsWith('/scouting')){
    attempts++;
    const body=route.request().postDataJSON() as {client_key:string;notes:string};
    if(attempts===1)return route.fulfill({status:503,json:{error:'Temporary failure'}});
-   savedBody=body;
+   savedBodies.push(body);
    return route.fulfill({status:201,json:{id:'00000000-0000-0000-0000-000000000092',field_id:fieldId,client_key:body.client_key,observed_on:'2026-10-19',notes:body.notes,symptoms:'',photos:[]}});
   }
   if(url.endsWith('/scouting'))return route.fulfill({json:{cases:[],diagnosis:{status:'unavailable'}}});
@@ -55,7 +55,7 @@ test('retry after temporary failure saves once and clears the draft',async({page
  await page.getByRole('button',{name:'Save scouting note'}).click();
  await expect(page.getByText('Photo and field note saved.')).toBeVisible();
  expect(attempts).toBe(2);
- expect(savedBody?.client_key).toBe(retryKey);
+ expect(savedBodies[0]?.client_key).toBe(retryKey);
  await expect(page.locator('.scouting-panel textarea').nth(1)).toHaveValue('');
  await expect.poll(()=>page.evaluate(id=>sessionStorage.getItem('terrascope:scouting-draft:'+id),fieldId)).toBeNull();
 });
