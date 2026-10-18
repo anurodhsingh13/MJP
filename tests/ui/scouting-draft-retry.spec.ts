@@ -16,17 +16,18 @@ test('failed scouting upload keeps notes, selected photo, and restores text draf
  await page.goto('/fields/'+fieldId+'/history');
  const photo=page.locator('#scouting-photo');
  await expect(photo).toBeVisible();
- await page.getByRole('textbox',{name:'Symptoms'}).fill('Yellow leaf tips');
- await page.getByRole('textbox',{name:'Notes',exact:true}).fill('Check again tomorrow');
+ await page.locator('.scouting-panel textarea').nth(0).fill('Yellow leaf tips');
+ await page.locator('.scouting-panel textarea').nth(1).fill('Check again tomorrow');
  await photo.setInputFiles({name:'leaf.jpg',mimeType:'image/jpeg',buffer:Buffer.from([255,216,255,217])});
  await page.getByRole('button',{name:'Save scouting note'}).click();
  await expect(page.getByText(/Photo could not be saved/)).toBeVisible();
  expect(await photo.evaluate(el=>(el as HTMLInputElement).files?.length)).toBe(1);
- await expect(page.getByRole('textbox',{name:'Symptoms'})).toHaveValue('Yellow leaf tips');
+ await expect(page.locator('.scouting-panel textarea').nth(0)).toHaveValue('Yellow leaf tips');
  await expect.poll(()=>page.evaluate(id=>sessionStorage.getItem('terrascope:scouting-draft:'+id),fieldId)).not.toBeNull();
  await page.reload();
- await expect(page.getByRole('textbox',{name:'Symptoms'})).toHaveValue('Yellow leaf tips');
- await expect(page.getByRole('textbox',{name:'Notes',exact:true})).toHaveValue('Check again tomorrow');
+ await expect(page.locator('.scouting-panel textarea').nth(0)).toBeVisible();
+ await expect(page.locator('.scouting-panel textarea').nth(0)).toHaveValue('Yellow leaf tips');
+ await expect(page.locator('.scouting-panel textarea').nth(1)).toHaveValue('Check again tomorrow');
 });
 
 test('retry after temporary failure saves once and clears the draft',async({page})=>{
@@ -47,6 +48,7 @@ test('retry after temporary failure saves once and clears the draft',async({page
   return route.fulfill({json:[]});
  });
  await page.goto('/fields/'+fieldId+'/history');
+ await expect(page.locator('.scouting-panel textarea').nth(1)).toBeVisible();
  await page.locator('.scouting-panel textarea').nth(1).fill('Retry this observation');
  await page.locator('#scouting-photo').setInputFiles({name:'leaf.jpg',mimeType:'image/jpeg',buffer:Buffer.from([255,216,255,217])});
  await page.getByRole('button',{name:'Save scouting note'}).click();
