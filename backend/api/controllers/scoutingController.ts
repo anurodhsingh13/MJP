@@ -6,6 +6,30 @@ import {pool} from '../db/pool.ts';
 import {engineUrl} from '../services/satellite.ts';
 const storage=resolve(process.env.PHOTO_STORAGE_DIR||'.local/scouting-photos');
 export const diagnosisAvailability=()=>({status:'unavailable',provider:null,reason:'No licensed, validated crop-photo diagnosis provider is configured. Photos and scouting remain available; no diagnosis or treatment is inferred.'});
+export async function previewScoutingPhoto(request:Request,response:Response){
+ const image=(request.body as {image?:unknown}|undefined)?.image;
+ if(typeof image!=='string'||image.length>7*1024*1024||!/^data:image\\/(jpeg|png|webp);base64,/.test(image)){
+  response.status(400).json({error:'Choose a JPEG, PNG or WebP image under 5 MB.'});return;
+ }
+ try{
+  const upstream=await fetch(`${engineUrl()}/inspect-photo`,{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({image:image.slice(image.indexOf(',')+1)}),
+   signal:AbortSignal.timeout(15000)
+  });
+  if(!upstream.ok){response.status(422).json({error:'The image could not be checked. Use a clear JPEG, PNG or WebP under 5 MB.'});return;}
+  const inspected=await upstream.json() as {assessment?:{status:string;issues:string[];suggestions:string[];width:number;height:number;metrics:Record<string,number>;disclaimer:string}};
+  if(!inspected.assessment||!Array.isArray(inspected.assessment.issues)){
+   response.status(502).json({error:'Photo quality information is unavailable.'});return;
+  }
+  // Never return the decoded/resized image data from the inspection endpoint.
+  response.setHeader('Cache-Control','no-store');
+  response.json(inspected.assessment);
+ }catch(error){
+  console.error('Photo quality preview unavailable:',error instanceof Error?error.message:'unknown');
+  response.status(503).json({error:'Photo quality check is temporarily unavailable. You can still save the scouting note.'});
+ }
+}
 export async function listScouting(request:Request,response:Response){
  const result=await pool.query(`select c.*,coalesce((select jsonb_agg(jsonb_build_object('id',p.id,'width',p.width,'height',p.height,'quality',p.quality)) from scouting_photos p where p.case_id=c.id),'[]'::jsonb) photos from scouting_cases c where c.field_id=$1 order by c.observed_on desc,c.created_at desc`,[request.params.fieldId]);response.json({cases:result.rows,diagnosis:diagnosisAvailability()});
 }
