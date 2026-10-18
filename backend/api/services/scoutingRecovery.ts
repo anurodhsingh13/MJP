@@ -122,6 +122,6 @@ export async function storedJpegDecodes(root:string,key:unknown,width:number,hei
   });
   if(!upstream.ok)return false;
   const result=await upstream.json() as {width?:unknown;height?:unknown};
-  return result.width===width&&result.height===height;
+  return result.width===width&&result.height===height&&typeof result.image==='string'&&result.image.length>0;
  }catch{return false;}
 }
