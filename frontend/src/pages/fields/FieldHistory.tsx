@@ -54,7 +54,7 @@ export function FieldHistory() {
       const draft:unknown = JSON.parse(raw);
       if (!draft || typeof draft !== 'object') return;
       const data = draft as Record<string,unknown>;
-      if (typeof data.observed_on === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(data.observed_on)) setPhotoDate(data.observed_on);
+      if (typeof data.observed_on === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.observed_on)) setPhotoDate(data.observed_on);
       if (typeof data.symptoms === 'string') setSymptoms(data.symptoms.slice(0,4000));
       if (typeof data.notes === 'string') setPhotoNotes(data.notes.slice(0,4000));
       if (typeof data.client_key === 'string' && /^[a-f0-9-]{36}$/i.test(data.client_key)) setKey(data.client_key);
