@@ -182,6 +182,22 @@ test('field owners cannot read or mutate another account’s field through the A
    assert.equal(counts.rows[0].tasks,1);
    assert.ok(inspectCount>=1);
   }finally{globalThis.fetch=originalPhotoFetch;}
+  // An image-engine rejection must not persist any scouting case or follow-up task.
+  const failedKey=randomUUID();
+  const originalFailedFetch=globalThis.fetch;
+  try{
+   globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{
+    if(String(input).endsWith('/inspect-photo'))return new Response(JSON.stringify({error:'Unreadable photo'}),{status:422,headers:{'content-type':'application/json'}});
+    return originalFailedFetch(input,init);
+   }) as typeof fetch;
+   const failure=await originalFailedFetch(`${base}/${fields[0]}/scouting`,{
+    method:'POST',headers:{...headers,'content-type':'application/json'},
+    body:JSON.stringify({client_key:failedKey,observed_on:'2026-10-16',image:'data:image/jpeg;base64,'+Buffer.from([255,216,255,224,0,16,255,217]).toString('base64')})
+   });
+   assert.equal(failure.status,422);
+   const persisted=await pool.query('select count(*)::int as count from scouting_cases where field_id=$1 and client_key=$2',[fields[0],failedKey]);
+   assert.equal(persisted.rows[0].count,0);
+  }finally{globalThis.fetch=originalFailedFetch;}
   const unchanged=(await pool.query('select boundary_version from fields where id=$1',[fields[1]])).rows[0];
   assert.equal(unchanged.boundary_version,1);
  }finally{
