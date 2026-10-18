@@ -23,11 +23,12 @@ export async function rollbackBeforeCommit(
  * An unavailable database means unknown, never "definitely rolled back".
  */
 export async function reconcileScoutingCommit<T>(
- lookup:()=>Promise<T|null|undefined>
+ lookup:()=>Promise<T|null|undefined>,
+ complete:(value:T)=>boolean=()=>true
 ):Promise<{status:'committed';value:T}|{status:'unknown'}>{
  try{
   const value=await lookup();
-  return value==null?{status:'unknown'}:{status:'committed',value};
+  return value==null||!complete(value)?{status:'unknown'}:{status:'committed',value};
  }catch{
   return {status:'unknown'};
  }
