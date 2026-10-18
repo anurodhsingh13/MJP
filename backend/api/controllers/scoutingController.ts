@@ -43,6 +43,7 @@ export async function saveScouting(request:Request,response:Response){
  if(existing){const photos=(await pool.query('select id,width,height,quality from scouting_photos where case_id=$1',[existing.id])).rows;response.json({...existing,photos});return;}
  if(!decodeScoutingImage(body.image)){response.status(400).json({error:'Upload a JPEG, PNG or WebP photo under 5 MB'});return;}
  let storageKey:string|undefined;
+ let commitAttempted=false;
  try{
   const inspection=await fetch(`${engineUrl()}/inspect-photo`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:body.image.split(',')[1]}),signal:AbortSignal.timeout(20000)});
   if(!inspection.ok){response.status(422).json({error:'Photo could not be decoded safely. Use JPEG, PNG or WebP under 5 MB.'});return;}
@@ -53,12 +54,18 @@ export async function saveScouting(request:Request,response:Response){
   try{await client.query('begin');
    const field=(await client.query('select boundary_version from fields where id=$1 for share',[request.params.fieldId])).rows[0];if(!field)throw new Error('Field no longer exists');
    const result=await client.query(`insert into scouting_cases(field_id,client_key,observed_on,crop,symptoms,notes,latitude,longitude,follow_up,scene_id,boundary_version,diagnosis) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) on conflict(field_id,client_key) do nothing returning *`,[request.params.fieldId,body.client_key,body.observed_on,body.crop||null,body.symptoms||null,body.notes||null,body.latitude??null,body.longitude??null,body.follow_up||null,body.scene_id||null,field.boundary_version,JSON.stringify(diagnosisAvailability())]);
-   if(!result.rowCount){await client.query('rollback');await unlink(resolve(storage,storageKey));storageKey=undefined;const duplicate=(await pool.query('select * from scouting_cases where field_id=$1 and client_key=$2',[request.params.fieldId,body.client_key])).rows[0];const photos=(await pool.query('select id,width,height,quality from scouting_photos where case_id=$1',[duplicate.id])).rows;response.json({...duplicate,photos});return;}
+   if(!result.rowCount){await client.query('rollback');await unlink(resolve(storage,storageKey)).catch(()=>{});storageKey=undefined;const duplicate=(await pool.query('select * from scouting_cases where field_id=$1 and client_key=$2',[request.params.fieldId,body.client_key])).rows[0];const photos=(await pool.query('select id,width,height,quality from scouting_photos where case_id=$1',[duplicate.id])).rows;response.json({...duplicate,photos});return;}
    const item=result.rows[0];const photoRecord=(await client.query(`insert into scouting_photos(case_id,storage_key,mime,width,height,quality) values($1,$2,'image/jpeg',$3,$4,$5) returning id,width,height,quality`,[item.id,storageKey,photo.width,photo.height,photo.quality])).rows[0];
    await client.query(`insert into field_tasks(field_id,case_id,title,due_on) values($1,$2,'Follow up on crop photo and inspect the field',$3)`,[request.params.fieldId,item.id,body.follow_up||body.observed_on]);
+   commitAttempted=true;
    await client.query('commit');response.status(201).json({...item,photos:[photoRecord],quality:photo.quality,diagnosis:diagnosisAvailability()});
-  }catch(error){await client.query('rollback');throw error;}finally{client.release();}
- }catch(error){if(storageKey)await unlink(resolve(storage,storageKey)).catch(()=>{});console.error('Scouting upload',error);response.status(503).json({error:'Photo could not be saved. Keep your draft and retry when the image service is available.'});}
+  }catch(error){if(!commitAttempted){try{await client.query('rollback');}catch(rollbackError){console.error('Scouting rollback failed:',rollbackError);}}throw error;}finally{client.release();}
+ }catch(error){
+  // A failed COMMIT can have an unknown outcome. Keep the photo so any committed row still points to a valid file.
+  if(storageKey&&!commitAttempted)await unlink(resolve(storage,storageKey)).catch(()=>{});
+  console.error('Scouting upload',error);
+  response.status(503).json({error:'Photo save could not be confirmed. Keep your draft and retry with the same submission key.'});
+ }
 }
 export async function photoContent(request:Request,response:Response){
  const photo=(await pool.query(`select p.storage_key from scouting_photos p join scouting_cases c on c.id=p.case_id where p.id=$1 and c.field_id=$2`,[request.params.photoId,request.params.fieldId])).rows[0];
