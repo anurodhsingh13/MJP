@@ -21,7 +21,7 @@ test('failed scouting upload keeps notes, selected photo, and restores text draf
  await photo.setInputFiles({name:'leaf.jpg',mimeType:'image/jpeg',buffer:Buffer.from([255,216,255,217])});
  await page.getByRole('button',{name:'Save scouting note'}).click();
  await expect(page.getByText(/Photo could not be saved/)).toBeVisible();
- await expect(photo).toHaveJSProperty('files',await photo.evaluate(el=>(el as HTMLInputElement).files));
+ expect(await photo.evaluate(el=>(el as HTMLInputElement).files?.length)).toBe(1);
  await expect(page.getByRole('textbox',{name:'Symptoms'})).toHaveValue('Yellow leaf tips');
  await page.reload();
  await expect(page.getByRole('textbox',{name:'Symptoms'})).toHaveValue('Yellow leaf tips');
