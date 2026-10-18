@@ -16,9 +16,6 @@ test('showcase warns rather than issuing live field notifications',async({page})
  await page.goto('/?demo=1');
  const region=page.getByRole('region',{name:'Automatic field alert watcher'});
  await expect(region).toBeVisible();
- const enable=region.getByRole('button',{name:'Enable alert watch'});
- if(await enable.isVisible()){
-  await enable.click();
-  await expect(region).toContainText('Sample mode does not send real field notifications.');
- }
+ await expect(region).toContainText('Sample mode does not send real field notifications.');
+ await expect(region.getByRole('button',{name:'Enable alert watch'})).toBeDisabled();
 });
