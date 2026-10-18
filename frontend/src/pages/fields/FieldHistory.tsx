@@ -125,7 +125,10 @@ export function FieldHistory() {
     setPhotoSaving(true);
     try {
       const image = await new Promise<string>((resolve,reject) => { const reader = new FileReader(); reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Unable to read image')); reader.onerror = () => reject(new Error('Unable to read image')); reader.readAsDataURL(photo); });
-      const saved = await saveScouting(field.id,{client_key:key,observed_on:photoDate,crop:field.crop && field.crop !== 'Unknown' ? field.crop : undefined,symptoms,notes:photoNotes,image});
+      // FileReader is asynchronous: navigation may happen before the request starts.
+      // Do not submit an abandoned field visit after the user has switched fields.
+      if (!stillOnSubmittedVisit()) return;
+      const saved = await saveScouting(submittedFieldId,{client_key:key,observed_on:photoDate,crop:field.crop && field.crop !== 'Unknown' ? field.crop : undefined,symptoms,notes:photoNotes,image});
       if (!stillOnSubmittedVisit()) return;
       setCases(current => [saved,...current.filter(item => item.id !== saved.id)]); setPhoto(null); setPreview(''); setSymptoms(''); setPhotoNotes(''); setKey(crypto.randomUUID()); try { sessionStorage.removeItem(`terrascope:scouting-draft:${field.id}`); } catch { /* Optional storage. */ } setPhotoSaved(true);
       const input = document.getElementById('scouting-photo') as HTMLInputElement | null; if (input) input.value = '';
