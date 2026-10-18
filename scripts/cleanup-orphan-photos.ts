@@ -7,7 +7,8 @@ const NAME=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$/
 export function isCandidate(name:string,ageMs:number,minAgeMs:number):boolean{
  return NAME.test(name)&&Number.isFinite(ageMs)&&ageMs>=minAgeMs;
 }
-export async function cleanOrphanPhotos(options:{root:string;apply:boolean;minAgeMs:number;now?:number}){
+export async function cleanOrphanPhotos(options:{root:string;apply:boolean;minAgeMs:number;now?:number;offlineConfirmed?:boolean}){
+ if(options.apply&&!options.offlineConfirmed)throw new Error('Refusing deletion while uploads may be active. Stop all API/worker instances, back up the storage and DB, and explicitly confirm offline maintenance.');
  const root=resolve(options.root);
  const results={examined:0,candidates:0,removed:0,skippedReferenced:0,errors:0,apply:options.apply};
  const entries=await readdir(root,{withFileTypes:true});
@@ -38,9 +39,10 @@ export async function cleanOrphanPhotos(options:{root:string;apply:boolean;minAg
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
  const apply=process.argv.includes('--apply');
  const root=process.env.PHOTO_STORAGE_DIR||'.local/scouting-photos';
+ const offlineConfirmed=process.argv.includes('--offline-confirmed');
  const minAgeMs=7*24*60*60*1000;
  try{
-  const summary=await cleanOrphanPhotos({root,apply,minAgeMs});
+  const summary=await cleanOrphanPhotos({root,apply,minAgeMs,offlineConfirmed});
   console.log(JSON.stringify(summary));
   if(summary.errors)process.exitCode=1;
  }catch(error){console.error('Orphan photo audit failed:',error);process.exitCode=1;}
