@@ -5,6 +5,7 @@ import express, { Router } from 'express';
 import {session,sameOrigin,authRouter,requireAccount,requireField} from '../services/auth.ts';
 import { getHealth } from '../controllers/healthController.ts';
 import { askAssistant } from '../controllers/assistantController.ts';
+import { getFieldForecast } from '../controllers/forecastController.ts';
 import { 
   getFields, getFieldAlerts, resolveFieldAlert, updateFieldAlert, getFieldNdvi, getFieldNdviAnalysis,
   getFieldWeather, calculateNdviFromScene, processNdviSentinelHub, processLatestScene,
@@ -49,6 +50,7 @@ router.patch('/fields/:fieldId/alerts/:alertId/resolve', resolveFieldAlert);
 router.get('/fields/:fieldId/ndvi', getFieldNdvi);
 router.get('/fields/:fieldId/ndvi/analysis', getFieldNdviAnalysis);
 router.get('/fields/:fieldId/weather', getFieldWeather);
+router.get('/fields/:fieldId/forecast',getFieldForecast);
 router.post('/fields/:fieldId/ndvi/from-scene/:sceneId', calculateNdviFromScene);
 router.post('/fields/:fieldId/ndvi/process-latest', processLatestScene);
 router.post('/fields/:fieldId/ndvi/process', processNdviSentinelHub);

@@ -95,6 +95,13 @@ async function respond(path:string,method:string,body:Record<string,unknown>,sea
  if(section==='boundary'&&method==='PATCH'){field.boundary_geojson=body.boundary_geojson as Record<string,unknown>;field.boundary_version=(field.boundary_version||1)+1;return json({boundary_version:field.boundary_version});}
  if(section==='ndvi')return json(data);
  if(section==='ndvi/analysis')return json({status:'analysed',statusLabel:'Illustrative vegetation trend',trend:field.assessment?.change!=null&&field.assessment.change<-.1?'declining':'stable',summary:`${data.length} sample satellite observations show seasonal crop development.`,recommendation:'Inspect the field before taking action.',observations:data.length,average:field.ndvi_average,slopePerDay:data.length>1?Number((Number(data[0].ndvi_value)-Number(data[1].ndvi_value))/9):null,languageCode:new URLSearchParams(search).get('language')||'en-IN',source:'showcase'});
+ if(section==='forecast'){
+  const days=Array.from({length:7},(_,i)=>{
+   const low=19+i%3,high=28+(i%4),rain=i===2?14.5:i===4?7:0;
+   return {date:date(-i),min_c:low,max_c:high,rain_probability_percent:i===2?82:i===4?65:12+i*3,precipitation_mm:rain,humidity_percent:54+i*4,wind_speed_kmh:9+i*2};
+  });
+  return json({source:'Synthetic showcase',source_url:'',field_id:fieldId,issued_at:new Date().toISOString(),timezone:'Asia/Kolkata',units:{temperature:'°C',precipitation:'mm',wind_speed:'km/h'},days});
+ }
  if(section==='weather')return json(weather(fieldId));
  if(section==='scenes')return json(data.map(o=>({scene_id:o.scene_id,observed_at:o.acquired_at,cloud_cover:o.cloud_cover,processing_status:o.accepted?'processed':'rejected',valid_coverage_percent:o.valid_coverage_percent,valid_pixel_count:o.valid_pixel_count})));
  if(section==='alerts'){return json(alerts.get(fieldId)||[]);}
