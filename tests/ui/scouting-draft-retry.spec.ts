@@ -254,3 +254,33 @@ test('late photo-note deletion does not remove notes from another field',async({
  await responded;
  await expect(page.getByText('Other field note')).toBeVisible();
 });
+
+test('late task status update cannot change a different field task',async({page})=>{
+ const otherId='00000000-0000-0000-0000-0000000000b1';
+ const firstTask='00000000-0000-0000-0000-0000000000b2';
+ const secondTask='00000000-0000-0000-0000-0000000000b3';
+ let started!:()=>void,release!:()=>void;
+ const pending=new Promise<void>(resolve=>{started=resolve;});
+ const blocked=new Promise<void>(resolve=>{release=resolve;});
+ await page.route('**/api/auth/session',route=>route.fulfill({json:{mode:'local',user:null}}));
+ await page.route('**/api/fields',route=>route.fulfill({json:[field,{...field,id:otherId,name:'Other Field'}]}));
+ await page.route('**/api/fields/**',async route=>{
+  const url=route.request().url();
+  if(route.request().method()==='PATCH'&&url.includes(firstTask)){started();await blocked;return route.fulfill({status:200,json:{id:firstTask,status:'resolved'}});}
+  if(url.endsWith('/tasks'))return route.fulfill({json:url.includes(otherId)?[{id:secondTask,title:'Second field check',status:'open',due_on:null}]:[{id:firstTask,title:'First field check',status:'open',due_on:null}]});
+  if(url.endsWith('/scouting'))return route.fulfill({json:{cases:[]}});
+  return route.fulfill({json:[]});
+ });
+ await page.goto('/fields/'+fieldId+'/history');
+ const first=page.getByRole('combobox',{name:/Task state for First field check/});
+ await expect(first).toBeVisible();
+ await first.selectOption('resolved');
+ await pending;
+ await page.evaluate(id=>{history.pushState({},'', '/fields/'+id+'/history');window.dispatchEvent(new PopStateEvent('popstate'));},otherId);
+ const second=page.getByRole('combobox',{name:/Task state for Second field check/});
+ await expect(second).toHaveValue('open');
+ const responseReceived=page.waitForResponse(response=>response.url().includes(firstTask)&&response.request().method()==='PATCH');
+ release();
+ await responseReceived;
+ await expect(second).toHaveValue('open');
+});
