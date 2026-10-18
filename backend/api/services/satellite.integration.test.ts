@@ -132,6 +132,8 @@ test('field owners cannot read or mutate another account’s field through the A
   }
   const queued=await fetch(`${base}/${fields[1]}/jobs`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({kind:'satellite'})});
   assert.equal(queued.status,404);
+  const foreignPreview=await fetch(`${base}/${fields[1]}/scouting/quality-preview`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({image:'invalid'})});
+  assert.equal(foreignPreview.status,404);
   const privateVisit=await fetch(`${base}/${fields[1]}/tasks`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({client_key:randomUUID(),title:'Visit',reason:'Inspect',due_on:'2026-10-16',scene_id:null})});
   assert.equal(privateVisit.status,404);
   const assistant=await fetch(new URL('/api/assistant',base),{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({fieldId:fields[1],message:'Review the field'})});
