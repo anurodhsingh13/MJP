@@ -1,7 +1,7 @@
 import {after,test} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomBytes,randomUUID} from 'node:crypto';
-import {unlink,readFile} from 'node:fs/promises';
+import {unlink,readFile,writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {pool} from '../db/pool.ts';
 import {processScene,processLatest} from './satellite.ts';
@@ -199,6 +199,14 @@ test('field owners cannot read or mutate another account’s field through the A
    assert.equal(retriedCase.photos.length,1);
    assert.equal(retriedCase.photos[0].id,persistedPhoto.id);
    assert.equal(inspectCount,inspectionsBeforeRetry);
+   // A duplicate must not return false success when its stored photo is missing.
+   const storedPath=resolve(process.env.PHOTO_STORAGE_DIR||'.local/scouting-photos',persistedPhoto.storage_key);
+   const savedBytes=await readFile(storedPath);
+   await unlink(storedPath);
+   try{
+    const missing=await originalPhotoFetch(`${base}/${fields[0]}/scouting`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:photoBody});
+    assert.equal(missing.status,503);
+   }finally{await writeFile(storedPath,savedBytes);}
    // The other account cannot retrieve this owner's photo.
    const otherUser=await originalPhotoFetch(`${base}/${fields[0]}/scouting/${saved[0].id}/photos/${persistedPhoto.id}`,{
     headers:{cookie:`chm_session=${tokens[1]}`,origin:'http://localhost:5173'}
