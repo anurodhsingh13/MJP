@@ -132,6 +132,10 @@ test('field owners cannot read or mutate another account’s field through the A
   }
   const queued=await fetch(`${base}/${fields[1]}/jobs`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({kind:'satellite'})});
   assert.equal(queued.status,404);
+  const foreignUpload=await fetch(`${base}/${fields[1]}/scouting`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({client_key:randomUUID(),observed_on:'2026-10-16',image:'invalid'})});
+  assert.equal(foreignUpload.status,404);
+  const foreignPhoto=await fetch(`${base}/${fields[1]}/scouting/${randomUUID()}/photos/${randomUUID()}`,{headers});
+  assert.equal(foreignPhoto.status,404);
   const foreignPreview=await fetch(`${base}/${fields[1]}/scouting/quality-preview`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({image:'invalid'})});
   assert.equal(foreignPreview.status,404);
   const privateVisit=await fetch(`${base}/${fields[1]}/tasks`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({client_key:randomUUID(),title:'Visit',reason:'Inspect',due_on:'2026-10-16',scene_id:null})});
