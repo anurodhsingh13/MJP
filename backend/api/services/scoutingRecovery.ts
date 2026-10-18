@@ -25,6 +25,28 @@ export function jpegDimensions(bytes:Buffer):{width:number;height:number}|null{
  }
  return null;
 }
+/** Ensure JPEG contains a scan section rather than only a forged frame header. */
+export function jpegHasScan(bytes:Buffer):boolean{
+ let offset=2;
+ while(offset+1<bytes.length){
+  if(bytes[offset]!==255)return false;
+  while(offset<bytes.length&&bytes[offset]===255)offset++;
+  if(offset>=bytes.length)return false;
+  const marker=bytes[offset++];
+  if(marker===218){
+   if(offset+2>bytes.length)return false;
+   const length=bytes.readUInt16BE(offset);
+   return length>=6&&offset+length<bytes.length-2;
+  }
+  if(marker===217)return false;
+  if(marker===1||(marker>=208&&marker<=215))continue;
+  if(offset+2>bytes.length)return false;
+  const length=bytes.readUInt16BE(offset);
+  if(length<2||offset+length>bytes.length)return false;
+  offset+=length;
+ }
+ return false;
+}
 /** Verify file boundaries and encoded dimensions before confirming a recovered commit. */
 export async function storedJpegReadable(root:string,key:unknown,width?:number,height?:number):Promise<boolean>{
  if(typeof key!=='string'||!duplicateScoutingCleanupKey(key))return false;
@@ -32,7 +54,7 @@ export async function storedJpegReadable(root:string,key:unknown,width?:number,h
   const bytes=await readFile(resolve(root,key));
   if(bytes.length<4||bytes.length>5*1024*1024||bytes[bytes.length-2]!==255||bytes[bytes.length-1]!==217)return false;
   const actual=jpegDimensions(bytes);
-  if(!actual||actual.width>10000||actual.height>10000)return false;
+  if(!actual||actual.width>10000||actual.height>10000||!jpegHasScan(bytes))return false;
   if(width!==undefined||height!==undefined)return Number.isInteger(width)&&Number.isInteger(height)&&actual.width===width&&actual.height===height;
   return true;
  }catch{return false;}
