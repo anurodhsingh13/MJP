@@ -297,3 +297,14 @@ export interface SatelliteScene {
   processing_status?:SceneStatus; processing_error?:string|null;
   valid_coverage_percent?:number|string|null; valid_pixel_count?:number|null;
 }
+
+
+export type ForecastDay={date:string;min_c:number|null;max_c:number|null;rain_probability_percent:number|null;precipitation_mm:number|null;humidity_percent:number|null;wind_speed_kmh:number|null};
+export type FieldForecast={source:'Open-Meteo'|'Synthetic showcase';source_url:string;field_id:string;issued_at:string;timezone:string;units:{temperature:'°C';precipitation:'mm';wind_speed:'km/h'};days:ForecastDay[]};
+export async function loadForecast(fieldId:string):Promise<FieldForecast>{
+ const response=await fetch(`/api/fields/${encodeURIComponent(fieldId)}/forecast`);
+ if(!response.ok){const payload=await response.json().catch(()=>({})) as {error?:string};throw new Error(payload.error||'Forecast temporarily unavailable');}
+ const payload=await response.json() as FieldForecast;
+ if(!payload||!Array.isArray(payload.days)||typeof payload.issued_at!=='string')throw new Error('Invalid forecast response');
+ return payload;
+}
