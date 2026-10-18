@@ -39,9 +39,9 @@ export async function saveScouting(request:Request,response:Response){
  if(!body.client_key||!/^[-a-f0-9]{36}$/i.test(body.client_key)||!body.observed_on||!/^\d{4}-\d{2}-\d{2}$/.test(body.observed_on)||!Number.isFinite(Date.parse(body.observed_on))||new Date(body.observed_on).toISOString().slice(0,10)!==body.observed_on||body.observed_on>new Date().toISOString().slice(0,10)||[body.crop,body.symptoms,body.notes].some(value=>value!==undefined&&(typeof value!=='string'||value.length>4000))){response.status(400).json({error:'Choose a valid observation date and notes under 4,000 characters'});return;}
  if(body.follow_up&&(!/^\d{4}-\d{2}-\d{2}$/.test(body.follow_up)||!Number.isFinite(Date.parse(body.follow_up)))){response.status(400).json({error:'Use a valid follow-up date'});return;}
  if(body.latitude!==undefined&&(!Number.isFinite(body.latitude)||Math.abs(body.latitude)>90||!Number.isFinite(body.longitude)||Math.abs(body.longitude!)>180)){response.status(400).json({error:'Use valid GPS coordinates or omit location'});return;}
- if(!decodeScoutingImage(body.image)){
  const existing=(await pool.query('select * from scouting_cases where field_id=$1 and client_key=$2',[request.params.fieldId,body.client_key])).rows[0];
  if(existing){const photos=(await pool.query('select id,width,height,quality from scouting_photos where case_id=$1',[existing.id])).rows;response.json({...existing,photos});return;}
+ if(!decodeScoutingImage(body.image)){response.status(400).json({error:'Upload a JPEG, PNG or WebP photo under 5 MB'});return;}
  let storageKey:string|undefined;
  try{
   const inspection=await fetch(`${engineUrl()}/inspect-photo`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:body.image.split(',')[1]}),signal:AbortSignal.timeout(20000)});
