@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import { loadFieldEvents, createFieldEvent, deleteFieldEvent, loadScouting, saveScouting, loadFieldTasks, updateFieldTask, type ScoutingCase, type DatabaseField, type FieldEvent, type FieldTask, type TaskState } from '../../lib/api';
 import { usePreferences } from '../../lib/preferencesContext';
@@ -47,6 +47,8 @@ export function FieldHistory() {
   const [photoSaved, setPhotoSaved] = useState(false);
   const [key, setKey] = useState(() => crypto.randomUUID());
   const [draftReadyField, setDraftReadyField] = useState<string | null>(null);
+  const activeFieldId = useRef(field.id);
+  activeFieldId.current = field.id;
   // Keep text-only scouting drafts for this tab. Photos are never stored in browser storage.
   useEffect(() => {
     // A routed field switch can reuse this component. Never carry one field's
@@ -110,16 +112,18 @@ export function FieldHistory() {
   }
   async function addPhoto(event: FormEvent) {
     event.preventDefault(); if (!photo || photoSaving) return;
+    const submittedFieldId = field.id;
     setPhotoError(false); setPhotoSaved(false);
     if (photo.size > 5*1024*1024 || !['image/jpeg','image/png','image/webp'].includes(photo.type)) { setPhotoError(true); return; }
     setPhotoSaving(true);
     try {
       const image = await new Promise<string>((resolve,reject) => { const reader = new FileReader(); reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Unable to read image')); reader.onerror = () => reject(new Error('Unable to read image')); reader.readAsDataURL(photo); });
       const saved = await saveScouting(field.id,{client_key:key,observed_on:photoDate,crop:field.crop && field.crop !== 'Unknown' ? field.crop : undefined,symptoms,notes:photoNotes,image});
+      if (activeFieldId.current !== submittedFieldId) return;
       setCases(current => [saved,...current.filter(item => item.id !== saved.id)]); setPhoto(null); setPreview(''); setSymptoms(''); setPhotoNotes(''); setKey(crypto.randomUUID()); try { sessionStorage.removeItem(`terrascope:scouting-draft:${field.id}`); } catch { /* Optional storage. */ } setPhotoSaved(true);
       const input = document.getElementById('scouting-photo') as HTMLInputElement | null; if (input) input.value = '';
-      try { setTasks(await loadFieldTasks(field.id)); } catch { setLoadError(true); }
-    } catch { setPhotoError(true); } finally { setPhotoSaving(false); }
+      try { const refreshedTasks = await loadFieldTasks(submittedFieldId); if (activeFieldId.current === submittedFieldId) setTasks(refreshedTasks); } catch { if (activeFieldId.current === submittedFieldId) setLoadError(true); }
+    } catch { if (activeFieldId.current === submittedFieldId) setPhotoError(true); } finally { setPhotoSaving(false); }
   }
   if (loading) return <div className="diary-layout" role="status">{t('Loading field diary…','खेत की डायरी ला रहे हैं…')}</div>;
   return <div className="diary-layout"><div className="content-heading"><h2>{t('Field diary','खेत की डायरी')}</h2><Link to={`/fields/${field.id}/overview?action=visit`}>{t('Plan a field visit','खेत की जाँच तय करें')} →</Link></div>
