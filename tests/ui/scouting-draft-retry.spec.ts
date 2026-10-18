@@ -144,6 +144,9 @@ test('late photo upload from another field cannot overwrite current draft',async
  await uploadResponseSent;
  const response=await responseReceived;
  expect(response.status()).toBe(201);
+ // Give the browser a task boundary after resolving the upload response so React's
+ // async continuation can run before checking for stale updates.
+ await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
  await expect(notes).toHaveValue('Keep this second field draft');
  await expect(page.getByText('Photo and field note saved.')).toHaveCount(0);
  await expect.poll(()=>page.evaluate(id=>sessionStorage.getItem('terrascope:scouting-draft:'+id),otherId)).toContain('Keep this second field draft');
