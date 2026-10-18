@@ -1,0 +1,22 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {normaliseForecast,forecastUrl} from './forecast.ts';
+test('forecast provider request uses seven days and weather variables',()=>{
+ const url=new URL(forecastUrl(28.5,77.2));
+ assert.equal(url.hostname,'api.open-meteo.com');
+ assert.equal(url.searchParams.get('forecast_days'),'7');
+ assert.match(url.searchParams.get('daily')||'',/precipitation_probability_max/);
+});
+test('normalizes valid provider response and derives daily humidity',()=>{
+ const data=normaliseForecast({timezone:'Asia/Kolkata',daily:{time:['2026-10-19','2026-10-20'],temperature_2m_min:[20,19],temperature_2m_max:[31,30],precipitation_probability_max:[75,10],precipitation_sum:[12,0],wind_speed_10m_max:[12,9]},hourly:{time:['2026-10-19T00:00','2026-10-19T01:00'],relative_humidity_2m:[60,80]}},'sample-id','2026-10-19T00:00:00Z');
+ assert.equal(data.days[0].humidity_percent,70);
+ assert.equal(data.days[0].precipitation_mm,12);
+ assert.equal(data.days[1].humidity_percent,null);
+ assert.equal(data.source,'Open-Meteo');
+});
+test('invalid date arrays and values are rejected rather than fabricated',()=>{
+ assert.throws(()=>normaliseForecast({daily:{time:[]}},'id','now'),/incomplete/);
+ const data=normaliseForecast({daily:{time:['2026-10-19'],temperature_2m_max:[999],precipitation_sum:[-1]}},'id','now');
+ assert.equal(data.days[0].max_c,null);
+ assert.equal(data.days[0].precipitation_mm,null);
+});
