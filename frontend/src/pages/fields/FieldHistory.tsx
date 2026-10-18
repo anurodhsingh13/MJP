@@ -49,6 +49,17 @@ export function FieldHistory() {
   const [draftReadyField, setDraftReadyField] = useState<string | null>(null);
   // Keep text-only scouting drafts for this tab. Photos are never stored in browser storage.
   useEffect(() => {
+    // A routed field switch can reuse this component. Never carry one field's
+    // scouting inputs or submission key into a different field.
+    setDraftReadyField(null);
+    setPhoto(null);
+    setPreview('');
+    setPhotoError(false);
+    setPhotoSaved(false);
+    setPhotoDate(new Date().toLocaleDateString('en-CA'));
+    setSymptoms('');
+    setPhotoNotes('');
+    setKey(crypto.randomUUID());
     const storageKey = `terrascope:scouting-draft:${field.id}`;
     try {
       const raw = sessionStorage.getItem(storageKey);
