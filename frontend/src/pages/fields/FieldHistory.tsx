@@ -46,6 +46,7 @@ export function FieldHistory() {
   const [photoError, setPhotoError] = useState(false);
   const [photoSaved, setPhotoSaved] = useState(false);
   const [key, setKey] = useState(() => crypto.randomUUID());
+  const [draftReady, setDraftReady] = useState(false);
   // Keep text-only scouting drafts for this tab. Photos are never stored in browser storage.
   useEffect(() => {
     const storageKey = `terrascope:scouting-draft:${field.id}`;
@@ -60,13 +61,15 @@ export function FieldHistory() {
       if (typeof data.notes === 'string') setPhotoNotes(data.notes.slice(0,4000));
       if (typeof data.client_key === 'string' && /^[a-f0-9-]{36}$/i.test(data.client_key)) setKey(data.client_key);
     } catch { /* Storage may be disabled; upload remains usable. */ }
+    finally { setDraftReady(true); }
   }, [field.id]);
   useEffect(() => {
     const storageKey = `terrascope:scouting-draft:${field.id}`;
+    if (!draftReady) return;
     try {
       if (symptoms || photoNotes) sessionStorage.setItem(storageKey,JSON.stringify({observed_on:photoDate,symptoms,notes:photoNotes,client_key:key}));
     } catch { /* Private browsing or storage quotas must not prevent uploading. */ }
-  }, [field.id,photoDate,symptoms,photoNotes,key]);
+  }, [field.id,photoDate,symptoms,photoNotes,key,draftReady]);
   const eventTitle = (value:string) => ({planting:t('Planting','बुवाई'),fertilizer:t('Fertilizer Application','खाद डालना'),irrigation:t('Irrigation','सिंचाई'),pesticide:t('Pesticide Application','कीटनाशक डालना'),scouting:t('Scouting / Observation','खेत की जाँच'),harvest:t('Harvest','कटाई'),other:t('Other','अन्य'),dataset_import:t('Public boundary imported','सार्वजनिक सीमा जोड़ी गई')} as Record<string,string>)[value] || value;
   useEffect(() => {
     let stopped = false;
