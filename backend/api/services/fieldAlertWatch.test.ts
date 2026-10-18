@@ -16,6 +16,6 @@ test('only open unresolved satellite alerts and overdue visits appear',()=>{
 });
 test('notifications are scoped to field and action type',()=>{
  const one=pendingWatchNotices('one','One',[{id:'x',title:'Risk',action_status:'open',resolved:false} as Parameters<typeof pendingWatchNotices>[2][number]],[], '2026-10-19');
- const two=pendingWatchNotices('two','Two',[{id:'x',title:'Risk',action_status:'open',resolved:false} as Alert],[], '2026-10-19');
+ const two=pendingWatchNotices('two','Two',[{id:'x',title:'Risk',action_status:'open',resolved:false} as Parameters<typeof pendingWatchNotices>[2][number]],[], '2026-10-19');
  assert.notEqual(one[0]?.key,two[0]?.key);
 });
