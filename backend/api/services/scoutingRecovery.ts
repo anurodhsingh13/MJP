@@ -18,3 +18,17 @@ export async function rollbackBeforeCommit(
  try{await query('rollback');return true;}
  catch(error){log(error);return false;}
 }
+
+/** Confirm a possibly committed upload through a fresh read connection.
+ * An unavailable database means unknown, never "definitely rolled back".
+ */
+export async function reconcileScoutingCommit<T>(
+ lookup:()=>Promise<T|null|undefined>
+):Promise<{status:'committed';value:T}|{status:'unknown'}>{
+ try{
+  const value=await lookup();
+  return value==null?{status:'unknown'}:{status:'committed',value};
+ }catch{
+  return {status:'unknown'};
+ }
+}
