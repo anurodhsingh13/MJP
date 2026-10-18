@@ -115,7 +115,7 @@ export async function storedJpegDecodes(root:string,key:unknown,width:number,hei
  try{
   const bytes=await readFile(resolve(root,key));
   if(bytes.length<4||bytes.length>5*1024*1024||bytes[0]!==255||bytes[1]!==216)return false;
-  const upstream=await fetch(engineBase.replace(/\\/$/,'')+'/inspect-photo',{
+  const upstream=await fetch(engineBase.replace(/\/+$/,'')+'/inspect-photo',{
    method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({image:bytes.toString('base64')}),
    signal:AbortSignal.timeout(15000)
