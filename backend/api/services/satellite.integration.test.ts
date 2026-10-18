@@ -190,7 +190,7 @@ test('field owners cannot read or mutate another account’s field through the A
    assert.match(served.headers.get('content-type')||'',/^image\/jpeg/);
    assert.equal(served.headers.get('x-content-type-options'),'nosniff');
    assert.deepEqual(Buffer.from(await served.arrayBuffer()),Buffer.from(jpeg,'base64'));
-   // An idempotent retry after commit must return the same case without another decode.
+   // An idempotent retry after commit must verify the existing image without creating another case.
    const inspectionsBeforeRetry=inspectCount;
    const retry=await originalPhotoFetch(`${base}/${fields[0]}/scouting`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:photoBody});
    assert.equal(retry.status,200);
@@ -206,6 +206,12 @@ test('field owners cannot read or mutate another account’s field through the A
    try{
     const missing=await originalPhotoFetch(`${base}/${fields[0]}/scouting`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:photoBody});
     assert.equal(missing.status,503);
+   }finally{await writeFile(storedPath,savedBytes);}
+   // A corrupt stored image must likewise be rejected rather than acknowledged.
+   await writeFile(storedPath,Buffer.from('corrupt image'));
+   try{
+    const corrupt=await originalPhotoFetch(`${base}/${fields[0]}/scouting`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:photoBody});
+    assert.equal(corrupt.status,503);
    }finally{await writeFile(storedPath,savedBytes);}
    // The other account cannot retrieve this owner's photo.
    const otherUser=await originalPhotoFetch(`${base}/${fields[0]}/scouting/${saved[0].id}/photos/${persistedPhoto.id}`,{
