@@ -281,6 +281,10 @@ test('late task status update cannot change a different field task',async({page}
  await expect(second).toHaveValue('open');
  const responseReceived=page.waitForResponse(response=>response.url().includes(firstTask)&&response.request().method()==='PATCH');
  release();
- await responseReceived;
+ const response=await responseReceived;
+ expect(response.status()).toBe(200);
+ await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
  await expect(second).toHaveValue('open');
+ await expect(second).toBeEnabled();
+ await expect(page.getByText('Some diary records could not be loaded.')).toHaveCount(0);
 });
