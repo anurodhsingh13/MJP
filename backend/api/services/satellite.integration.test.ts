@@ -1,7 +1,7 @@
 import {after,test} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomBytes,randomUUID} from 'node:crypto';
-import {unlink} from 'node:fs/promises';
+import {unlink,readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {pool} from '../db/pool.ts';
 import {processScene,processLatest} from './satellite.ts';
@@ -180,6 +180,14 @@ test('field owners cannot read or mutate another account’s field through the A
    assert.equal(counts.rows[0].cases,1);
    assert.equal(counts.rows[0].photos,1);
    assert.equal(counts.rows[0].tasks,1);
+   // A successful response must have a real persisted JPEG and a readable, owner-scoped route.
+   const persistedPhoto=(await pool.query(`select p.id,p.storage_key,p.width,p.height from scouting_photos p join scouting_cases c on c.id=p.case_id where c.field_id=$1 and c.client_key=$2`,[fields[0],photoKey])).rows[0];
+   assert.equal(persistedPhoto.width,2);
+   assert.equal(persistedPhoto.height,3);
+   assert.deepEqual(await readFile(resolve(process.env.PHOTO_STORAGE_DIR||'.local/scouting-photos',persistedPhoto.storage_key)),Buffer.from(jpeg,'base64'));
+   const served=await originalPhotoFetch(`${base}/${fields[0]}/scouting/${saved[0].id}/photos/${persistedPhoto.id}`,{headers});
+   assert.equal(served.status,200);
+   assert.deepEqual(Buffer.from(await served.arrayBuffer()),Buffer.from(jpeg,'base64'));
    assert.ok(inspectCount>=1);
   }finally{globalThis.fetch=originalPhotoFetch;}
   // An image-engine rejection must not persist any scouting case or follow-up task.
