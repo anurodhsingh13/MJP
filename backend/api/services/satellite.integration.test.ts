@@ -189,7 +189,7 @@ test('field owners cannot read or mutate another account’s field through the A
   const savedPhotoKeys=(await pool.query('select p.storage_key from scouting_photos p join scouting_cases c on c.id=p.case_id where c.field_id=any($1::uuid[])',[fields])).rows.map(row=>String(row.storage_key));
   await pool.query('delete from fields where id=any($1::uuid[])',[fields]);
   for(const storageKey of savedPhotoKeys){
-   if(/^[0-9a-f-]{36}\\.jpg$/i.test(storageKey))await unlink(resolve(process.env.PHOTO_STORAGE_DIR||'.local/scouting-photos',storageKey)).catch(()=>{});
+   if(/^[0-9a-f-]{36}\.jpg$/i.test(storageKey))await unlink(resolve(process.env.PHOTO_STORAGE_DIR||'.local/scouting-photos',storageKey)).catch(()=>{});
   }
   await pool.query('delete from app_users where id=any($1::uuid[])',[users]);
   if(previousAuthMode===undefined)delete process.env.AUTH_MODE;else process.env.AUTH_MODE=previousAuthMode;
