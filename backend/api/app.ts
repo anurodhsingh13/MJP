@@ -13,7 +13,7 @@ app.use((_request,response,next)=>{
 });
 app.use(express.json({
   limit:'128kb',
-  type:request=>!needsScoutingPhotoBody(request.method||'',request.url||''),
+  type:request=>!needsScoutingPhotoBody(request.method||'',request.url||'') && Boolean(request.headers['content-type']?.match(/^application\/json(?:\s*;|\s*$)/i)),
 }));
 app.get('/', (_request, response) => response.json({ service: 'TerraScope API', health: '/api/health' }));
 app.use('/api', router);
