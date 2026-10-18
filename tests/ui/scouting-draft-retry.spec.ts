@@ -227,3 +227,30 @@ test('late diary event response cannot overwrite the next field',async({page})=>
  await expect(form.locator('textarea')).toHaveValue('Second field pending note');
  await expect(page.getByText('First field only')).toHaveCount(0);
 });
+
+test('late photo-note deletion does not remove notes from another field',async({page})=>{
+ const otherId='00000000-0000-0000-0000-0000000000a1';
+ const caseId='00000000-0000-0000-0000-0000000000a2';
+ let started!:()=>void,release!:()=>void;
+ const pending=new Promise<void>(resolve=>{started=resolve;});
+ const blocked=new Promise<void>(resolve=>{release=resolve;});
+ page.on('dialog',dialog=>dialog.accept());
+ await page.route('**/api/auth/session',route=>route.fulfill({json:{mode:'local',user:null}}));
+ await page.route('**/api/fields',route=>route.fulfill({json:[field,{...field,id:otherId,name:'Other Field'}]}));
+ await page.route('**/api/fields/**',async route=>{
+  const url=route.request().url();
+  if(route.request().method()==='DELETE'&&url.endsWith('/scouting/'+caseId)){started();await blocked;return route.fulfill({status:204,body:''});}
+  if(url.endsWith('/scouting'))return route.fulfill({json:{cases:url.includes(otherId)?[{id:'00000000-0000-0000-0000-0000000000a3',observed_on:'2026-10-19',notes:'Other field note',photos:[]}]:[{id:caseId,observed_on:'2026-10-19',notes:'Original field note',photos:[]}]}});
+  return route.fulfill({json:[]});
+ });
+ await page.goto('/fields/'+fieldId+'/history');
+ await expect(page.getByText('Original field note')).toBeVisible();
+ await page.getByRole('button',{name:'Delete photo note'}).click();
+ await pending;
+ await page.evaluate(id=>{history.pushState({},'', '/fields/'+id+'/history');window.dispatchEvent(new PopStateEvent('popstate'));},otherId);
+ await expect(page.getByText('Other field note')).toBeVisible();
+ const responded=page.waitForResponse(response=>response.request().method()==='DELETE'&&response.url().endsWith('/scouting/'+caseId));
+ release();
+ await responded;
+ await expect(page.getByText('Other field note')).toBeVisible();
+});
