@@ -1,4 +1,15 @@
 /** Never delete a photo whose database commit may have succeeded. */
+import {readFile} from 'node:fs/promises';
+import {resolve} from 'node:path';
+
+/** Verify stored JPEG bytes before acknowledging a recovered commit. */
+export async function storedJpegReadable(root:string,key:unknown):Promise<boolean>{
+ if(typeof key!=='string'||!duplicateScoutingCleanupKey(key))return false;
+ try{
+  const bytes=await readFile(resolve(root,key));
+  return bytes.length>=4&&bytes.length<=5*1024*1024&&bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff&&bytes[bytes.length-2]===0xff&&bytes[bytes.length-1]===0xd9;
+ }catch{return false;}
+}
 export function shouldRemoveFailedUploadPhoto(fileWritten:boolean,commitAttempted:boolean):boolean{
  return fileWritten&&!commitAttempted;
 }
