@@ -5,6 +5,7 @@ import express, { Router } from 'express';
 import {session,sameOrigin,authRouter,requireAccount,requireField} from '../services/auth.ts';
 import { getHealth } from '../controllers/healthController.ts';
 import { askAssistant } from '../controllers/assistantController.ts';
+import {sarvamConfigured} from '../services/assistantBudget.ts';
 import { getFieldForecast } from '../controllers/forecastController.ts';
 import { 
   getFields, getFieldAlerts, resolveFieldAlert, updateFieldAlert, getFieldNdvi, getFieldNdviAnalysis,
@@ -33,6 +34,7 @@ router.get('/health', getHealth);
 router.use(requireAccount);
 router.use('/fields/:fieldId',requireField);
 router.use('/assistant',requireField);
+router.get('/assistant/status',(_request,response)=>response.json({provider:'Sarvam AI',configured:sarvamConfigured(),liveVerified:false,mode:'real',message:sarvamConfigured()?'API key configured; live connectivity is not verified by this status endpoint.':'SARVAM_API_KEY is not configured on the server.'}));
 router.post('/assistant', askAssistant);
 
 router.get('/fields', getFields);

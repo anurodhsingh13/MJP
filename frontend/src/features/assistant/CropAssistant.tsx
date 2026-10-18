@@ -23,6 +23,7 @@ export function CropAssistant() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
+  const [providerStatus,setProviderStatus]=useState<'checking'|'configured'|'unconfigured'|'unavailable'>('checking');
 
   useEffect(() => {
     const onQuestion=(event:Event)=>{
@@ -33,6 +34,16 @@ export function CropAssistant() {
     window.addEventListener('terrascope:assistant-question',onQuestion);
     return ()=>window.removeEventListener('terrascope:assistant-question',onQuestion);
   },[]);
+
+  useEffect(()=>{
+    if(!open||isDemo)return;
+    const controller=new AbortController();
+    void fetch('/api/assistant/status',{signal:controller.signal})
+      .then(async response=>{if(!response.ok)throw new Error('status unavailable');return response.json() as Promise<{configured:boolean}>;})
+      .then(status=>setProviderStatus(status.configured?'configured':'unconfigured'))
+      .catch(()=>{if(!controller.signal.aborted)setProviderStatus('unavailable');});
+    return ()=>controller.abort();
+  },[open,isDemo]);
 
   async function send(text:string) {
     const value = text.trim();
@@ -55,7 +66,7 @@ export function CropAssistant() {
     </button>
     {open && <section id="crop-assistant-window" className="crop-assistant-window no-print" aria-label={t('Crop assistant chat','फ़सल सहायक चैट')}>
       <header className="crop-assistant-header">
-        <div><strong><Bot size={21} aria-hidden="true"/> {t('Crop assistant','फ़सल सहायक')}</strong><small>{isDemo ? t('Sarvam AI interface · example answers','Sarvam AI इंटरफ़ेस · नमूना जवाब') : 'Sarvam AI'}{selectedField ? t(' · Selected field',' · चुना हुआ खेत') : ''}</small></div>
+        <div><strong><Bot size={21} aria-hidden="true"/> {t('Crop assistant','फ़सल सहायक')}</strong><small>{isDemo ? t('Sarvam AI interface · example answers','Sarvam AI इंटरफ़ेस · नमूना जवाब') : 'Sarvam AI'}{selectedField ? t(' · Selected field',' · चुना हुआ खेत') : ''}</small>{!isDemo&&<small role="status">{providerStatus==='configured'?t('Key configured · live connection not yet verified','API key सेट है · लाइव कनेक्शन की पुष्टि नहीं'):providerStatus==='unconfigured'?t('AI API key is missing on server','सर्वर पर AI API key नहीं है'):providerStatus==='unavailable'?t('Could not check AI configuration','AI की स्थिति नहीं मिल सकी'):t('Checking AI configuration…','AI की स्थिति जाँच रहे हैं…')}</small>}</div>
         <button type="button" aria-label={t('Close assistant','सहायक बंद करें')} onClick={() => setOpen(false)}><X size={20}/></button>
       </header>
       <div className="crop-assistant-messages" role="log" aria-live="polite" aria-relevant="additions text">
