@@ -35,7 +35,7 @@ export function FieldAlertWatch({fields}:{fields:DatabaseField[]}){
     const details=unseen.slice(0,3).map(item=>item.field+': '+item.title).join('\n');
     const title=t('TerraScope field updates','TerraScope खेत की सूचनाएँ');
     const body=details+(unseen.length>3?t(`\n+ ${unseen.length-3} more`,`\n+ ${unseen.length-3} और`):'');
-    const notification=new Notification(title,{body,tag:'terrascope-field-watch',renotify:false});
+    const notification=new Notification(title,{body,tag:'terrascope-field-watch'});
     notification.onclick=()=>{window.focus();notification.close();};
     unseen.forEach(item=>seen.current.add(item.key));
     setMessage(t(`Notified about ${unseen.length} new field item(s).`,`${unseen.length} नए खेत के कामों की सूचना दी।`));
