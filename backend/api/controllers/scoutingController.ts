@@ -5,7 +5,7 @@ import {resolve} from 'node:path';
 import {pool} from '../db/pool.ts';
 import {engineUrl} from '../services/satellite.ts';
 import {decodeScoutingImage,validSanitizedJpeg} from '../services/photoValidation.ts';
-import {shouldRemoveFailedUploadPhoto,rollbackBeforeCommit,reconcileScoutingCommit} from '../services/scoutingRecovery.ts';
+import {shouldRemoveFailedUploadPhoto,rollbackBeforeCommit,reconcileScoutingCommit,storedJpegReadable} from '../services/scoutingRecovery.ts';
 const storage=resolve(process.env.PHOTO_STORAGE_DIR||'.local/scouting-photos');
 export const diagnosisAvailability=()=>({status:'unavailable',provider:null,reason:'No licensed, validated crop-photo diagnosis provider is configured. Photos and scouting remain available; no diagnosis or treatment is inferred.'});
 export async function previewScoutingPhoto(request:Request,response:Response){
@@ -69,7 +69,10 @@ export async function saveScouting(request:Request,response:Response){
    const reconciled=await reconcileScoutingCommit(async()=>{
     const item=(await pool.query('select * from scouting_cases where field_id=$1 and client_key=$2',[request.params.fieldId,body.client_key])).rows[0];
     if(!item)return null;
-    const photos=(await pool.query('select id,width,height,quality from scouting_photos where case_id=$1',[item.id])).rows;
+    const photoRows=(await pool.query('select id,width,height,quality,storage_key from scouting_photos where case_id=$1',[item.id])).rows as Array<{id:string;width:number;height:number;quality:string;storage_key:string}>;
+    const readable=await Promise.all(photoRows.map(photo=>storedJpegReadable(storage,photo.storage_key)));
+    if(!readable.some(Boolean))return null;
+    const photos=photoRows.map(({id,width,height,quality})=>({id,width,height,quality}));
     return {...item,photos};
    },result=>Array.isArray(result.photos)&&result.photos.some(photo=>typeof photo.id==='string'));
    if(reconciled.status==='committed'){response.json(reconciled.value);return;}
