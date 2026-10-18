@@ -8,7 +8,7 @@ const storage=resolve(process.env.PHOTO_STORAGE_DIR||'.local/scouting-photos');
 export const diagnosisAvailability=()=>({status:'unavailable',provider:null,reason:'No licensed, validated crop-photo diagnosis provider is configured. Photos and scouting remain available; no diagnosis or treatment is inferred.'});
 export async function previewScoutingPhoto(request:Request,response:Response){
  const image=(request.body as {image?:unknown}|undefined)?.image;
- if(typeof image!=='string'||image.length>7*1024*1024||!/^data:image\\/(jpeg|png|webp);base64,/.test(image)){
+ if(typeof image!=='string'||image.length>7*1024*1024||!/^data:image\/(jpeg|png|webp);base64,/.test(image)){
   response.status(400).json({error:'Choose a JPEG, PNG or WebP image under 5 MB.'});return;
  }
  try{
