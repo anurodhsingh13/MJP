@@ -67,9 +67,10 @@ export function FieldHistory() {
     const storageKey = `terrascope:scouting-draft:${field.id}`;
     if (draftReadyField !== field.id) return;
     try {
-      if (symptoms || photoNotes) sessionStorage.setItem(storageKey,JSON.stringify({observed_on:photoDate,symptoms,notes:photoNotes,client_key:key}));
+      if (symptoms || photoNotes || photo) sessionStorage.setItem(storageKey,JSON.stringify({observed_on:photoDate,symptoms,notes:photoNotes,client_key:key}));
+      else sessionStorage.removeItem(storageKey);
     } catch { /* Private browsing or storage quotas must not prevent uploading. */ }
-  }, [field.id,photoDate,symptoms,photoNotes,key,draftReadyField]);
+  }, [field.id,photoDate,symptoms,photoNotes,photo,key,draftReadyField]);
   const eventTitle = (value:string) => ({planting:t('Planting','बुवाई'),fertilizer:t('Fertilizer Application','खाद डालना'),irrigation:t('Irrigation','सिंचाई'),pesticide:t('Pesticide Application','कीटनाशक डालना'),scouting:t('Scouting / Observation','खेत की जाँच'),harvest:t('Harvest','कटाई'),other:t('Other','अन्य'),dataset_import:t('Public boundary imported','सार्वजनिक सीमा जोड़ी गई')} as Record<string,string>)[value] || value;
   useEffect(() => {
     let stopped = false;
