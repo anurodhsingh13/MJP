@@ -198,7 +198,7 @@ test('field owners cannot read or mutate another account’s field through the A
    assert.equal(retriedCase.id,saved[0].id);
    assert.equal(retriedCase.photos.length,1);
    assert.equal(retriedCase.photos[0].id,persistedPhoto.id);
-   assert.equal(inspectCount,inspectionsBeforeRetry);
+   assert.ok(inspectCount>inspectionsBeforeRetry,'Existing photo is re-decoded before acknowledging the retry');
    // A duplicate must not return false success when its stored photo is missing.
    const storedPath=resolve(process.env.PHOTO_STORAGE_DIR||'.local/scouting-photos',persistedPhoto.storage_key);
    const savedBytes=await readFile(storedPath);
