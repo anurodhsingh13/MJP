@@ -28,6 +28,12 @@ if(!options.has('--skip-ui'))results.push(check('browser-tests','npm',['run','te
 if(options.has('--smoke')){
  const status=check('stack-status','npm',['run','status'],output=>/^Services: healthy\s*$/m.test(output));results.push(status);
  if(status.status==='passed')results.push(check('smoke','npm',['run','test:smoke']));
+ else {
+  const log=resolve(dir,'smoke.log');
+  writeFileSync(log,'SKIPPED: Local stack is not healthy. Start the services and check stack-status.log before re-running the smoke test.\n',{mode:0o600});
+  results.push({name:'smoke',status:'skipped',reason:'stack-unhealthy',started:null,ended:null,exitCode:null,log});
+  console.log('SKIPPED smoke (stack unhealthy)');
+ }
 }
 const summary={
  generatedAt:new Date().toISOString(),
