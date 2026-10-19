@@ -22,6 +22,7 @@ const results=[
  check('build','npm',['run','build']),
  check('lint','npm',['run','lint']),
  check('node-tests','npm',['test']),
+ check('database-integration','npm',['run','test:integration']),
  check('python-tests',process.env.PYTHON_BIN || (process.platform==='win32' ? (existsSync(resolve(root,'.venv','Scripts','python.exe')) ? resolve(root,'.venv','Scripts','python.exe') : 'python') : (existsSync(resolve(root,'.venv','bin','python')) ? resolve(root,'.venv','bin','python') : 'python3')),['-m','pytest','backend/engine','-q'])
 ];
 if(!options.has('--skip-ui'))results.push(check('browser-tests','npm',['run','test:ui']));
@@ -36,6 +37,7 @@ if(options.has('--smoke')){
  }
 }
 const summary={
+ overallStatus:results.every(item=>item.status==='passed')?'passed':'failed',
  generatedAt:new Date().toISOString(),
  commit:git.status===0?git.stdout.trim():null,
  worktreeClean:dirty.status===0?dirty.stdout.trim()==='':null,
