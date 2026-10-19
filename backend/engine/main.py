@@ -237,6 +237,43 @@ def generate_tile(z: int,x: int,y: int,payload: TileRequest):
     except HTTPException: raise
     except Exception as exc: raise HTTPException(502,'NDVI tile processing failed') from exc
 
+def photo_quality_assessment(image):
+    """Visual capture checks, not crop/disease classification."""
+    from PIL import ImageFilter, ImageStat
+    sample=image.copy()
+    sample.thumbnail((256, 256))
+    grayscale=sample.convert('L')
+    stat=ImageStat.Stat(grayscale)
+    brightness=float(stat.mean[0])
+    contrast=float(stat.stddev[0])
+    # Variance of spatial edges detects low-detail/camera-shake risk; not a validated sharpness score.
+    edges=grayscale.filter(ImageFilter.FIND_EDGES)
+    sharpness=float(ImageStat.Stat(edges).stddev[0])
+    width,height=image.size
+    issues=[]
+    if min(width,height)<480:
+        issues.append('low_resolution')
+    if brightness<48:
+        issues.append('underexposed')
+    elif brightness>220:
+        issues.append('overexposed')
+    if contrast<22:
+        issues.append('low_contrast')
+    if sharpness<14:
+        issues.append('possible_blur')
+    hints={
+        'low_resolution':'Move closer and use a higher-resolution image.',
+        'underexposed':'Retake in daylight without heavy shadows.',
+        'overexposed':'Avoid harsh reflections and excessive direct light.',
+        'low_contrast':'Move closer to the leaf and use a clear background.',
+        'possible_blur':'Hold the camera steady and tap the leaf to focus.'
+    }
+    return {'status':'needs_review' if issues else 'ready_for_scouting',
+            'issues':issues, 'suggestions':[hints[issue] for issue in issues],
+            'width':width,'height':height,
+            'metrics':{'brightness':round(brightness,1),'contrast':round(contrast,1),'edge_detail':round(sharpness,1)},
+            'disclaimer':'Image capture quality only. No disease, crop health, pest, or model confidence prediction.'}
+
 class PhotoRequest(BaseModel):
     image: str
 
@@ -253,9 +290,10 @@ def inspect_photo(payload: PhotoRequest):
             image=ImageOps.exif_transpose(original).convert('RGB')
             image.thumbnail((2048,2048))
             width,height=image.size
-            quality='needs_review' if min(width,height)<320 or max(ImageStat.Stat(image.resize((128,128))).stddev)<8 else 'usable_for_scouting'
+            assessment=photo_quality_assessment(image)
+            quality='needs_review' if assessment['status']=='needs_review' else 'usable_for_scouting'
             output=io.BytesIO();image.save(output,format='JPEG',quality=88)
         return {'image':base64.b64encode(output.getvalue()).decode(),'width':width,'height':height,'quality':quality,
-                'qualityNote':'Basic size/contrast check only; does not verify diagnostic suitability'}
+                'qualityNote':'Capture quality review only; not a disease diagnosis', 'assessment':assessment}
     except Exception as exc:
         raise HTTPException(422,'Photo could not be decoded safely. Use JPEG, PNG or WebP under 5 MB and 20 megapixels.') from exc

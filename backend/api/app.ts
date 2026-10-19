@@ -1,16 +1,19 @@
 import express, {type ErrorRequestHandler} from 'express';
 import { router } from './routes/index.ts';
+import {needsScoutingPhotoBody} from './services/requestLimits.ts';
 
 export const app = express();
 app.disable('x-powered-by');
 app.use((_request,response,next)=>{
   response.setHeader('X-Content-Type-Options','nosniff');
   response.setHeader('Referrer-Policy','same-origin');
+  response.setHeader('X-Frame-Options','DENY');
+  response.setHeader('Permissions-Policy','geolocation=(self), camera=(self), microphone=()');
   next();
 });
 app.use(express.json({
   limit:'128kb',
-  type:request=>!(request.method==='POST'&&/^\/api\/fields\/[^/]+\/scouting$/.test((request.url||'').split('?')[0])),
+  type:request=>!needsScoutingPhotoBody(request.method||'',request.url||'') && Boolean(request.headers['content-type']?.match(/^application\/json(?:\s*;|\s*$)/i)),
 }));
 app.get('/', (_request, response) => response.json({ service: 'TerraScope API', health: '/api/health' }));
 app.use('/api', router);

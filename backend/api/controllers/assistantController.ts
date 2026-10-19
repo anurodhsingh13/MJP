@@ -4,10 +4,12 @@ import {actor} from '../services/auth.ts';
 import { pool } from '../db/pool.ts';
 import { assessEvidence, type Observation } from '../../../shared/evidence.ts';
 import { evidencePolicy } from '../services/policy.ts';
+import {assistantBudget,sarvamConfigured} from '../services/assistantBudget.ts';
+import {actor,hashToken} from '../services/auth.ts';
 
 export async function askAssistant(request: Request, response: Response) {
   const apiKey = process.env.SARVAM_API_KEY?.trim();
-  if (!apiKey || apiKey.startsWith('your-')) {
+  if (!sarvamConfigured() || !apiKey) {
     response.status(503).json({ error: 'Sarvam AI is not configured' });
     return;
   }
@@ -21,6 +23,13 @@ export async function askAssistant(request: Request, response: Response) {
   }
   if (languageCode !== undefined && languageCode !== 'en-IN' && languageCode !== 'hi-IN') {
     response.status(400).json({ error: 'Choose English or Hindi' }); return;
+  }
+  const actorKey=actor(response)?.id||hashToken(request.ip||'unknown');
+  const grant=assistantBudget.acquire(actorKey);
+  if(!grant.allowed){
+    response.setHeader('Retry-After',String(grant.retryAfter));
+    response.status(429).json({error:'Too many AI requests. Please wait before asking again.',retryAfterSeconds:grant.retryAfter});
+    return;
   }
   try {
     let fieldContext = 'No field was selected.';
@@ -92,5 +101,7 @@ export async function askAssistant(request: Request, response: Response) {
     console.error('POST /api/assistant failed');
     const messageText = error instanceof DOMException && error.name === 'TimeoutError' ? 'Sarvam AI request timed out' : 'Assistant unavailable';
     response.status(messageText.includes('timed out') ? 504 : 503).json({ error: messageText });
+  } finally {
+    grant.release();
   }
 }

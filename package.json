@@ -28,7 +28,10 @@
     "submission:check": "node scripts/submission-preflight.mjs",
     "sync:data": "node scripts/sync-data.mjs",
     "data:import-demo": "node scripts/import-public-demo.mjs",
-    "data:download": "node scripts/download-public-boundaries.mjs"
+    "data:download": "node scripts/download-public-boundaries.mjs",
+    "photos:audit": "tsx scripts/cleanup-orphan-photos.ts",
+    "photos:cleanup": "tsx scripts/cleanup-orphan-photos.ts --apply",
+    "photos:test": "node --import tsx --test scripts/cleanup-orphan-photos.test.ts"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.1.1",
