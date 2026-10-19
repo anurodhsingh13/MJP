@@ -8,5 +8,5 @@ test('showcase 7-day forecast stays separate from historical weather and is fiel
  await expect(page.getByText('Historical NASA POWER data; not a forecast.')).toBeVisible();
  await forecast.getByLabel('Choose field').selectOption({label:'Rice East'});
  await expect(forecast.locator('.forecast-day')).toHaveCount(7);
- await expect(forecast).toContainText('Forecast issued');
+ await expect(forecast).toContainText('Retrieved');
 });

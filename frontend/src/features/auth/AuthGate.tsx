@@ -87,6 +87,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     try {
       const response = await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
       if (!response.ok) throw new Error('Sign-out failed. Retry.');
+      if(session?.user)for(const key of Object.keys(sessionStorage))if(key.startsWith('terrascope:draft:'+session.user.id+':'))sessionStorage.removeItem(key);
       setSession({ mode: 'required', user: null });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Sign-out failed.');

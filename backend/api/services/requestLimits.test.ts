@@ -41,6 +41,6 @@ test('default JSON parser ignores text/plain and still rejects malformed applica
   assert.notEqual(plain.status,400,'plain text should not trigger JSON parse errors');
   const malformed=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:'{invalid json'});
   assert.equal(malformed.status,400);
-  assert.equal((await malformed.json()).error,'The submitted data is not valid JSON');
+  assert.equal(((await malformed.json()) as {error:string}).error,'The submitted data is not valid JSON');
  }finally{await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
 });

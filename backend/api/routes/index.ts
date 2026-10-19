@@ -1,3 +1,7 @@
+import {getForecast} from '../services/forecast.ts';
+import {listNotifications,readNotifications,saveNotificationPreferences} from '../services/notifications.ts';
+import {assistantAvailability,assistantHistory,deleteAssistantHistory} from '../services/assistantHistory.ts';
+import {rateLimit} from '../services/limits.ts';
 import {enqueue,listJobs,retryJob} from '../services/jobs.ts';
 import {createTask} from '../controllers/tasksController.ts';
 import {deleteScouting,listScouting,photoContent,retryDiagnosis,saveScouting,previewScoutingPhoto,listTasks,updateTask} from '../controllers/scoutingController.ts';
@@ -5,8 +9,6 @@ import express, { Router } from 'express';
 import {session,sameOrigin,authRouter,requireAccount,requireField} from '../services/auth.ts';
 import { getHealth } from '../controllers/healthController.ts';
 import { askAssistant } from '../controllers/assistantController.ts';
-import {sarvamConfigured} from '../services/assistantBudget.ts';
-import { getFieldForecast } from '../controllers/forecastController.ts';
 import { 
   getFields, getFieldAlerts, resolveFieldAlert, updateFieldAlert, getFieldNdvi, getFieldNdviAnalysis,
   getFieldWeather, calculateNdviFromScene, processNdviSentinelHub, processLatestScene,
@@ -32,10 +34,15 @@ router.use(session,sameOrigin);
 router.use('/auth',authRouter);
 router.get('/health', getHealth);
 router.use(requireAccount);
+router.get('/assistant/status',assistantAvailability);
+router.get('/assistant/history',assistantHistory);
+router.delete('/assistant/history',deleteAssistantHistory);
+router.get('/notifications',listNotifications);
+router.patch('/notifications/read',readNotifications);
+router.patch('/notifications/preferences',saveNotificationPreferences);
 router.use('/fields/:fieldId',requireField);
 router.use('/assistant',requireField);
-router.get('/assistant/status',(_request,response)=>response.json({provider:'Sarvam AI',configured:sarvamConfigured(),liveVerified:false,mode:'real',message:sarvamConfigured()?'API key configured; live connectivity is not verified by this status endpoint.':'SARVAM_API_KEY is not configured on the server.'}));
-router.post('/assistant', askAssistant);
+router.post('/assistant', rateLimit('assistant',20),askAssistant);
 
 router.get('/fields', getFields);
 router.post('/fields', createField);
@@ -52,7 +59,7 @@ router.patch('/fields/:fieldId/alerts/:alertId/resolve', resolveFieldAlert);
 router.get('/fields/:fieldId/ndvi', getFieldNdvi);
 router.get('/fields/:fieldId/ndvi/analysis', getFieldNdviAnalysis);
 router.get('/fields/:fieldId/weather', getFieldWeather);
-router.get('/fields/:fieldId/forecast',getFieldForecast);
+router.get('/fields/:fieldId/forecast',rateLimit('forecast',60),getForecast);
 router.post('/fields/:fieldId/ndvi/from-scene/:sceneId', calculateNdviFromScene);
 router.post('/fields/:fieldId/ndvi/process-latest', processLatestScene);
 router.post('/fields/:fieldId/ndvi/process', processNdviSentinelHub);
@@ -65,8 +72,8 @@ router.get('/fields/:fieldId/tiles/:sceneId/:z/:x/:y.png', getFieldTile);
 router.post('/fields/:fieldId/events', createFieldEvent);
 router.delete('/fields/:fieldId/events/:eventId', deleteFieldEvent);
 router.get('/fields/:fieldId/scouting',listScouting);
-router.post('/fields/:fieldId/scouting',express.json({limit:'8mb'}),saveScouting);
-router.post('/fields/:fieldId/scouting/quality-preview',express.json({limit:'8mb'}),previewScoutingPhoto);
+router.post('/fields/:fieldId/scouting',rateLimit('photos',20),express.json({limit:'8mb'}),saveScouting);
+router.post('/fields/:fieldId/scouting/quality-preview',rateLimit('photo-preview',20),express.json({limit:'8mb'}),previewScoutingPhoto);
 router.delete('/fields/:fieldId/scouting/:caseId',deleteScouting);
 router.post('/fields/:fieldId/scouting/:caseId/retry-diagnosis',retryDiagnosis);
 router.get('/fields/:fieldId/scouting/:caseId/photos/:photoId',photoContent);

@@ -24,7 +24,7 @@ export async function enqueue(request:Request,response:Response){
    on conflict(field_id,kind) where status in ('queued','running') do update set field_id=excluded.field_id returning ${publicColumns}`,[id,actor(response)?.id??field.owner_id,field.boundary_version,kind]);
   await client.query('commit');
   response.status(202).json(job.rows[0]);
- }catch(error){await client.query('rollback');console.error(error);response.status(503).json({error:'Processing could not be queued. Your field remains saved.'});}finally{client.release();}
+ }catch {await client.query('rollback');console.error('Database operation failed');response.status(503).json({error:'Processing could not be queued. Your field remains saved.'});}finally{client.release();}
 }
 export async function listJobs(request:Request,response:Response){response.json((await pool.query(`select ${publicColumns} from ingestion_jobs where field_id=$1 order by created_at desc limit 20`,[request.params.fieldId])).rows);}
 export async function retryJob(request:Request,response:Response){
@@ -43,7 +43,7 @@ export async function runOne(execute?:(job:Job)=>Promise<Record<string,unknown>>
  const claim=await pool.query<Job>(`with candidate as(select id from ingestion_jobs where status='queued' and available_at<=now() order by available_at,created_at for update skip locked limit 1)
   update ingestion_jobs j set status='running',attempts=attempts+1,heartbeat_at=now(),lease_token=$1,progress='Checking provider and field boundary' from candidate where j.id=candidate.id returning j.*`,[token]);
  const job=claim.rows[0];if(!job)return false;
- const heartbeat=setInterval(()=>{void pool.query("update ingestion_jobs set heartbeat_at=now() where id=$1 and lease_token=$2 and status='running'",[job.id,token]).catch(error=>console.error('Job heartbeat',error));},20000);heartbeat.unref();
+ const heartbeat=setInterval(()=>{void pool.query("update ingestion_jobs set heartbeat_at=now() where id=$1 and lease_token=$2 and status='running'",[job.id,token]).catch(()=>console.error('Job heartbeat'));},20000);heartbeat.unref();
  try{
   const field=(await pool.query('select boundary_version from fields where id=$1',[job.field_id])).rows[0];
   if(!field||field.boundary_version!==job.boundary_version){await pool.query("update ingestion_jobs set status='failed',lease_token=null,error='Field boundary changed',progress='Start a new image check for the edited field',finished_at=now() where id=$1 and lease_token=$2",[job.id,token]);return true;}
@@ -63,6 +63,6 @@ export async function runOne(execute?:(job:Job)=>Promise<Record<string,unknown>>
  }finally{clearInterval(heartbeat);}return true;
 }
 export function startWorkers(){let active=0;let stopped=false;const limit=Math.min(4,Math.max(1,Number(process.env.JOB_CONCURRENCY)||2));
- const timer=setInterval(()=>{if(stopped||active>=limit)return;active++;void runOne().catch(error=>console.error('Worker',error)).finally(()=>active--);},1500);timer.unref();
+ const timer=setInterval(()=>{if(stopped||active>=limit)return;active++;void runOne().catch(()=>console.error('Worker')).finally(()=>active--);},1500);timer.unref();
  return async()=>{stopped=true;clearInterval(timer);};
 }

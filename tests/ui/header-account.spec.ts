@@ -39,7 +39,7 @@ test('notification links open the relevant field and failures offer retry',async
  await panel.getByRole('link').first().click();
  await expect(page).toHaveURL(/\/fields\/.*\/map/);
  await expect(panel).not.toBeVisible();
- state.fail.add('GET /api/fields');
+ state.fail.add('GET /api/notifications');
  await page.reload();
  await page.getByLabel(/Notifications, \d+ unread/).click();
  await expect(panel.getByRole('alert')).toContainText('could not refresh');

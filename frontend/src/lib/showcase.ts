@@ -1,3 +1,4 @@
+import {demoForecast} from '../../../shared/forecast';
 /** Self-contained fictional showcase. Enabled only by ?demo=1; no database or providers. */
 import { assessEvidence, type Observation } from '../../../shared/evidence';
 import type { DatabaseField } from './api';
@@ -28,6 +29,9 @@ const events=new Map<string,Array<Record<string,unknown>>>();
 const alerts=new Map<string,Array<Record<string,unknown>>>();
 const scouting=new Map<string,Array<Record<string,unknown>>>();
 const jobs=new Map<string,Array<Record<string,unknown>>>();
+const noticeRecords=new Map<string,Array<Record<string,unknown>>>();noticeRecords.set('account',[]);
+const conversations=new Map<string,Array<Record<string,unknown>>>();
+const preferenceRecords=new Map<string,Array<Record<string,unknown>>>();preferenceRecords.set('account',[{visits:true,imagery:true,processing:true,weather:true,browser:false}]);
 const fields:Field[]=crops.map(([name,crop,ndvi,previous,age,due],i)=>{
  const id=uuid(i+1),base=ndvi===null?[]:[indexObs(i,ndvi,age),...(previous===null?[]:[indexObs(i,previous,age+9),...Array.from({length:16},(_,n)=>indexObs(i,Number(Math.max(.12,Math.min(.88,previous-.012*n+.04*Math.sin(n+i))).toFixed(3)),age+14+n*5))])];
  observations.set(id,base);
@@ -71,6 +75,21 @@ async function respond(path:string,method:string,body:Record<string,unknown>,sea
   }
   return json(fields.map(f=>({...f,latestJob:jobs.get(f.id)?.[0]||null,dueTasks:(tasks.get(f.id)||[]).filter(t=>t.status!=='resolved'&&String(t.due_on)<=date(0)).length})));
  }
+ if(path==='/api/assistant/status')return json({configured:true,model:'showcase',mode:'demo'});
+ if(path==='/api/assistant/history'){
+  if(method==='DELETE'){conversations.clear();return json({ok:true});}
+  return json(conversations.get(new URLSearchParams(search).get('fieldId')||'general')||[]);
+ }
+ if(path==='/api/notifications'){
+  const records=noticeRecords.get('account')||[];
+  for(const [i,field] of fields.entries()){
+   const candidates=[{id:uuid(60000+i*5),field_id:field.id,field_name:field.name,title_en:'Sample satellite processing completed',title_hi:'नमूना सैटेलाइट प्रोसेसिंग पूरी हुई',kind:'processing',href:`/fields/${field.id}/overview`,read_at:null},...(field.assessment?.state==='needs_inspection'?[{id:uuid(60001+i*5),field_id:field.id,field_name:field.name,title_en:'A sample field visit is recommended',title_hi:'नमूना खेत की जाँच करें',kind:'imagery',href:`/fields/${field.id}/map`,read_at:null}]:[]),...(Number(field.dueTasks)>0?[{id:uuid(60002+i*5),field_id:field.id,field_name:field.name,title_en:'Sample planned visits are due',title_hi:'खेत की नमूना जाँच बाकी है',kind:'visits',href:`/fields/${field.id}/overview#planned-tasks`,read_at:null}]:[])];
+   for(const item of candidates)if(!records.some(record=>record.id===item.id))records.push({...item,created_at:new Date().toISOString()});
+  }
+  noticeRecords.set('account',records);return json({notifications:records,preferences:preferenceRecords.get('account')?.[0],mode:'demo'});
+ }
+ if(path==='/api/notifications/read'){for(const item of noticeRecords.get('account')||[])if(body.all===true||(Array.isArray(body.ids)&&body.ids.includes(item.id)))item.read_at=new Date().toISOString();return json({ok:true});}
+ if(path==='/api/notifications/preferences'){preferenceRecords.set('account',[body]);return json({preferences:body});}
  if(path==='/api/assistant') {
   const question=String(body.message||'').toLowerCase();
   const field=fields.find(f=>f.id===body.fieldId);
@@ -82,6 +101,7 @@ async function respond(path:string,method:string,body:Record<string,unknown>,sea
     : /ndvi|green|satellite|हरियाली|सैटेलाइट/.test(question)
       ? (hindi?`${subject} की हाल की नमूना NDVI रीडिंग ${ndvi??'उपलब्ध नहीं'} है। NDVI हरियाली का संकेत है, बीमारी की निश्चित पहचान नहीं।`:`The latest example NDVI for ${subject} is ${ndvi??'unavailable'}. NDVI indicates vegetation greenness, not a confirmed disease diagnosis.`)
       : (hindi?`${subject} में पत्तियाँ, पानी, मिट्टी और कीटों के निशान देखें। नक्शे और डायरी की मदद से अगली जाँच का रिकॉर्ड बनाएँ।`:`For ${subject}, inspect leaves, water, soil and signs of pests. Use the map and field diary to record your next visit.`);
+  if(body.saveHistory===true){const key=String(body.fieldId||'general');const records=conversations.get(key)||[];records.push({role:'user',content:String(body.message||'')},{role:'assistant',content:answer});conversations.set(key,records.slice(-30));}
   return json({answer,model:'showcase',languageCode:body.languageCode||'en-IN',evidenceDates:field?.latestObservation?[field.latestObservation.observed_on]:[]});
  }
  const match=path.match(/^\/api\/fields\/([^/]+)(?:\/(.*))?$/);if(!match)return json({error:'Not found'},404);
@@ -95,19 +115,13 @@ async function respond(path:string,method:string,body:Record<string,unknown>,sea
  if(section==='boundary'&&method==='PATCH'){field.boundary_geojson=body.boundary_geojson as Record<string,unknown>;field.boundary_version=(field.boundary_version||1)+1;return json({boundary_version:field.boundary_version});}
  if(section==='ndvi')return json(data);
  if(section==='ndvi/analysis')return json({status:'analysed',statusLabel:'Illustrative vegetation trend',trend:field.assessment?.change!=null&&field.assessment.change<-.1?'declining':'stable',summary:`${data.length} sample satellite observations show seasonal crop development.`,recommendation:'Inspect the field before taking action.',observations:data.length,average:field.ndvi_average,slopePerDay:data.length>1?Number((Number(data[0].ndvi_value)-Number(data[1].ndvi_value))/9):null,languageCode:new URLSearchParams(search).get('language')||'en-IN',source:'showcase'});
- if(section==='forecast'){
-  const days=Array.from({length:7},(_,i)=>{
-   const low=19+i%3,high=28+(i%4),rain=i===2?14.5:i===4?7:0;
-   return {date:date(-i),min_c:low,max_c:high,rain_probability_percent:i===2?82:i===4?65:12+i*3,precipitation_mm:rain,humidity_percent:54+i*4,wind_speed_kmh:9+i*2};
-  });
-  return json({source:'Synthetic showcase',source_url:'',field_id:fieldId,issued_at:new Date().toISOString(),timezone:'Asia/Kolkata',units:{temperature:'°C',precipitation:'mm',wind_speed:'km/h'},days});
- }
+ if(section==='forecast')return json(demoForecast());
  if(section==='weather')return json(weather(fieldId));
  if(section==='scenes')return json(data.map(o=>({scene_id:o.scene_id,observed_at:o.acquired_at,cloud_cover:o.cloud_cover,processing_status:o.accepted?'processed':'rejected',valid_coverage_percent:o.valid_coverage_percent,valid_pixel_count:o.valid_pixel_count})));
  if(section==='alerts'){return json(alerts.get(fieldId)||[]);}
  if(section.startsWith('alerts/')&&method==='PATCH'){const alert=(alerts.get(fieldId)||[]).find(a=>a.id===section.split('/')[1]);if(alert){alert.action_status=body.status||'resolved';alert.resolved=alert.action_status==='resolved';}return json(alert||{});}
  if(section==='events'){
-  const records=events.get(fieldId)||[];if(method==='POST'){const record={id:crypto.randomUUID(),field_id:fieldId,...body,created_at:new Date().toISOString()};records.unshift(record);return json(record,201);}return json(records);
+  const records=events.get(fieldId)||[];if(method==='POST'){const existing=body.client_key?records.find(item=>item.client_key===body.client_key):null;if(existing)return json(existing,201);const record={id:crypto.randomUUID(),field_id:fieldId,...body,created_at:new Date().toISOString()};records.unshift(record);return json(record,201);}return json(records);
  }
  if(section.startsWith('events/')&&method==='DELETE'){const records=events.get(fieldId)||[];const i=records.findIndex(e=>e.id===section.split('/')[1]);if(i>=0)records.splice(i,1);return new Response(null,{status:204});}
  if(section==='tasks'){
@@ -139,10 +153,10 @@ async function respond(path:string,method:string,body:Record<string,unknown>,sea
 }
 export function enableShowcase(){
  const storageKey='terrascope:demo-records:v2';
- const collections={observations,tasks,events,alerts,scouting,jobs};
+ const collections={observations,tasks,events,alerts,scouting,jobs,noticeRecords,conversations,preferenceRecords};
  try{const saved=JSON.parse(sessionStorage.getItem(storageKey)||'null');if(saved?.version===2&&Array.isArray(saved.fields)){
   fields.splice(0,fields.length,...saved.fields);
-  for(const [name,collection] of Object.entries(collections)){collection.clear();for(const [id,items] of saved[name]||[])collection.set(id,items);}
+  for(const [name,collection] of Object.entries(collections)){if(Array.isArray(saved[name])){collection.clear();for(const [id,items] of saved[name])collection.set(id,items);}}
  }}catch{/* Use fresh fixtures when storage is unavailable. */}
  const original=window.fetch.bind(window);
  window.fetch=async(input:RequestInfo|URL,init?:RequestInit)=>{

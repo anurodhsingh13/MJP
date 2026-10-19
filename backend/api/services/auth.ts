@@ -23,7 +23,7 @@ export async function requireField(request:Request,response:Response,next:NextFu
  if(!authRequired()){next();return;}
  const id=request.params.fieldId||(request.body as {fieldId?:string}|undefined)?.fieldId;
  if(!id){next();return;}
- if(typeof id!=='string'||!/^[-a-f0-9]{36}$/i.test(id)){response.status(400).json({error:'fieldId must be a valid UUID'});return;}
+ if(typeof id!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)){response.status(400).json({error:'fieldId must be a valid UUID'});return;}
  try{const result=await pool.query('select id from fields where id=$1 and owner_id=$2',[id,actor(response)?.id]);if(!result.rowCount){response.status(404).json({error:'Field not found'});return;}next();}catch(error){next(error);}
 }
 export function sameOrigin(request:Request,response:Response,next:NextFunction){
@@ -62,7 +62,7 @@ for(const action of ['register','login'] as const)authRouter.post('/'+action,asy
   const value=randomBytes(32).toString('hex');await pool.query("insert into app_sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '7 days')",[hashToken(value),account.id]);
   res.cookie(cookieName,value,{httpOnly:true,sameSite:'strict',secure:process.env.AUTH_SECURE_COOKIE==='1'||process.env.NODE_ENV==='production',path:'/api',maxAge:7*86400000});
   res.json({user:{id:account.id,email:account.email,profile:account.profile}});
- }catch(error){console.error('Authentication unavailable',error);res.status(503).json({error:'Sign-in service unavailable. Retry shortly.'});}
+ }catch {console.error('Authentication unavailable');res.status(503).json({error:'Sign-in service unavailable. Retry shortly.'});}
 });
 
 authRouter.patch('/profile',async(req,res)=>{

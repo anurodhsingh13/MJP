@@ -22,8 +22,8 @@ export async function start() {
     };
     process.once('SIGTERM', shutdown);
     process.once('SIGINT', shutdown);
-  } catch (error) {
-    console.error('PostgreSQL startup failed. Check DATABASE_URL and ensure PostgreSQL is running.', error);
+  } catch {
+    console.error('PostgreSQL startup failed. Check DATABASE_URL and ensure PostgreSQL is running.');
     await pool.end();
     process.exitCode = 1;
   }

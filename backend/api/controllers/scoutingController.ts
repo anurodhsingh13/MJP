@@ -10,7 +10,7 @@ const storage=resolve(process.env.PHOTO_STORAGE_DIR||'.local/scouting-photos');
 export const diagnosisAvailability=()=>({status:'unavailable',provider:null,reason:'No licensed, validated crop-photo diagnosis provider is configured. Photos and scouting remain available; no diagnosis or treatment is inferred.'});
 export async function previewScoutingPhoto(request:Request,response:Response){
  const image=(request.body as {image?:unknown}|undefined)?.image;
- if(!decodeScoutingImage(image)){
+ if(typeof image!=='string'||!decodeScoutingImage(image)){
   response.status(400).json({error:'Choose a JPEG, PNG or WebP image under 5 MB.'});return;
  }
  try{
@@ -50,7 +50,7 @@ export async function saveScouting(request:Request,response:Response){
  if(body.latitude!==undefined&&(!Number.isFinite(body.latitude)||Math.abs(body.latitude)>90||!Number.isFinite(body.longitude)||Math.abs(body.longitude!)>180)){response.status(400).json({error:'Use valid GPS coordinates or omit location'});return;}
  const existing=(await pool.query('select * from scouting_cases where field_id=$1 and client_key=$2',[request.params.fieldId,body.client_key])).rows[0];
  if(existing){const photos=await confirmedScoutingPhotos(existing.id);if(!photos){response.status(503).json({error:'Saved scouting photo could not be verified. Keep the original photo and contact support; do not create a new submission key.'});return;}response.json({...existing,photos});return;}
- if(!decodeScoutingImage(body.image)){response.status(400).json({error:'Upload a JPEG, PNG or WebP photo under 5 MB'});return;}
+ if(typeof body.image!=='string'||!decodeScoutingImage(body.image)){response.status(400).json({error:'Upload a JPEG, PNG or WebP photo under 5 MB'});return;}
  let storageKey:string|undefined;
  let commitAttempted=false;
  try{
@@ -82,7 +82,7 @@ export async function saveScouting(request:Request,response:Response){
     if(!readable.some(Boolean))return null;
     const photos=photoRows.map(({id,width,height,quality})=>({id,width,height,quality}));
     return {...item,photos};
-   },result=>Array.isArray(result.photos)&&result.photos.some(photo=>typeof photo.id==='string'));
+   },result=>Array.isArray(result.photos)&&result.photos.some((photo:{id:string})=>typeof photo.id==='string'));
    if(reconciled.status==='committed'){response.json(reconciled.value);return;}
   }
   response.status(503).json({error:'Photo save could not be confirmed. Keep your draft and retry with the same submission key.'});

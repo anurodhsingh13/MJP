@@ -1,3 +1,5 @@
+import {PwaStatus} from './features/pwa/PwaStatus';
+import './features/platform.css';
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, NavLink, Link } from 'react-router-dom';
 import { House, MapPinned, FileText, CircleHelp } from 'lucide-react';
@@ -38,6 +40,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <PreferencesProvider>
+      <PwaStatus/>
       <AuthGate>
         <Suspense fallback={<LoadingWorkspace/>}>
           <Routes>

@@ -75,8 +75,8 @@ export async function getFields(_request: Request, response: Response) {
         isDemo:row.provenance==='demo'||row.provenance==='public_boundary',
         provenanceNote:row.provenance==='public_boundary'?'Historical public boundary; current crop, dates and yield unverified':row.provenance==='demo'?'Legacy example field; excluded from farm summaries':'Crop, dates, yield and field name are user-reported; satellite evidence is labelled separately'};
     }));
-  } catch (error) {
-    console.error('GET /api/fields failed:', error);
+  } catch {
+    console.error('GET /api/fields failed:');
     response.status(503).json({ error: 'Fields are temporarily unavailable. Check local services and retry.' });
   }
 }
@@ -85,8 +85,8 @@ export async function getFieldAlerts(request: Request, response: Response) {
   try {
         const result = await pool.query('select id,title,severity,observed_at,resolved,action_status,scene_id,boundary_version,interpretation,ST_AsGeoJSON(stress_geom)::jsonb as stress_geojson from public.alerts where field_id=$1 and boundary_version=(select boundary_version from fields where id=$1) order by observed_at desc', [request.params.fieldId]);
     response.json(result.rows);
-  } catch (error) {
-    console.error('GET /api/fields/:fieldId/alerts failed:', error);
+  } catch {
+    console.error('GET /api/fields/:fieldId/alerts failed:');
     response.status(503).json({ error: 'Database unavailable' });
   }
 }
@@ -101,8 +101,8 @@ export async function resolveFieldAlert(request: Request, response: Response) {
     );
     if (!result.rowCount) { response.status(404).json({ error: 'Alert not found' }); return; }
     response.json(result.rows[0]);
-  } catch (error) {
-    console.error('PATCH field alert failed:', error);
+  } catch {
+    console.error('PATCH field alert failed:');
     response.status(503).json({ error: 'Database unavailable' });
   }
 }
@@ -116,15 +116,15 @@ export async function updateFieldAlert(request:Request,response:Response){
       returning id,resolved,action_status`,[request.params.alertId,request.params.fieldId,status]);
     if(!result.rowCount){response.status(404).json({error:'Alert not found or no longer matches this boundary version'});return;}
     response.json(result.rows[0]);
-  }catch(error){console.error('PATCH field alert status failed:',error);response.status(503).json({error:'Alert status could not be updated'});}
+  }catch {console.error('PATCH field alert status failed:');response.status(503).json({error:'Alert status could not be updated'});}
 }
 
 export async function getFieldNdvi(request: Request, response: Response) {
   try {
     const result = await pool.query('select vi.*,ST_AsGeoJSON(inspection_geom)::jsonb as inspection_geojson from public.vegetation_indices vi where field_id = $1 order by observed_on asc,acquired_at asc', [request.params.fieldId]);
     response.json(result.rows);
-  } catch (error) {
-    console.error('GET /api/fields/:fieldId/ndvi failed:', error);
+  } catch {
+    console.error('GET /api/fields/:fieldId/ndvi failed:');
     response.status(503).json({ error: 'Database unavailable' });
   }
 }
@@ -159,8 +159,8 @@ export async function getFieldNdviAnalysis(request: Request, response: Response)
     
     const analysis = await engineResponse.json() as Record<string, unknown>;
     response.json({ ...analysis, languageCode, source: 'Descriptive NDVI change over elapsed days; not a crop forecast' });
-  } catch (error) {
-    console.error('GET NDVI analysis failed:', error);
+  } catch {
+    console.error('GET NDVI analysis failed:');
     response.status(503).json({ error: 'NDVI analysis is unavailable' });
   }
 }
@@ -170,8 +170,8 @@ export async function getFieldWeather(request: Request, response: Response) {
   try {
     const result = await pool.query('select * from public.weather_observations where field_id = $1 order by observed_on asc', [request.params.fieldId]);
     response.json(result.rows);
-  } catch (error) {
-    console.error('GET weather failed:', error);
+  } catch {
+    console.error('GET weather failed:');
     response.status(503).json({ error: 'Database unavailable' });
   }
 }
@@ -179,13 +179,13 @@ export async function getFieldWeather(request: Request, response: Response) {
 export async function calculateNdviFromScene(request: Request, response: Response) {
   try { response.json(await processScene(String(request.params.fieldId),String(request.params.sceneId))); }
   catch(error) {
-    console.error('Scene processing failed:',error);
+    console.error('Scene processing failed:');
     response.status(error instanceof ProcessingError?error.status:503).json({error:error instanceof ProcessingError?error.message:'Image processing unavailable. Please retry.'});
   }
 }
 export async function processLatestScene(request: Request,response: Response) {
   try { response.json(await processLatest(String(request.params.fieldId))); }
-  catch(error) { console.error('Latest scene processing failed:',error); response.status(503).json({error:'Image processing unavailable. Please retry.'}); }
+  catch { console.error('Latest scene processing failed:'); response.status(503).json({error:'Image processing unavailable. Please retry.'}); }
 }
 
 export async function processNdviSentinelHub(_request: Request, response: Response) {
@@ -196,8 +196,8 @@ export async function getFieldScenes(request: Request, response: Response) {
   try {
     const result = await pool.query('select * from public.satellite_scenes where field_id = $1 order by observed_at desc, scene_id desc', [request.params.fieldId]);
     response.json(result.rows);
-  } catch (error) {
-    console.error('GET satellite scenes failed:', error);
+  } catch {
+    console.error('GET satellite scenes failed:');
     response.status(503).json({ error: 'Database unavailable' });
   }
 }
@@ -242,8 +242,8 @@ export async function ingestSentinelScenes(request: Request, response: Response)
       imported += 1;
     }
     response.json({ source: 'Copernicus Sentinel-2', catalogUrl, imported });
-  } catch (error) {
-    console.error('POST Sentinel scene ingestion failed:', error);
+  } catch {
+    console.error('POST Sentinel scene ingestion failed:');
     response.status(503).json({ error: 'Sentinel scene ingestion failed' });
   }
 }
@@ -274,8 +274,8 @@ export async function ingestWeather(request: Request, response: Response) {
       imported++;
     }
     response.json({ source: 'NASA POWER', sourceUrl, imported });
-  } catch (error) {
-    console.error('POST weather ingestion failed:', error);
+  } catch {
+    console.error('POST weather ingestion failed:');
     response.status(503).json({ error: 'Weather ingestion failed' });
   }
 }
@@ -313,8 +313,8 @@ export async function createField(request: Request, response: Response) {
       return;
     }
     response.status(201).json(result.rows[0]);
-  } catch (error) {
-    console.error('POST /api/fields failed:', error);
+  } catch {
+    console.error('POST /api/fields failed:');
     response.status(503).json({ error: 'Database unavailable' });
   }
 }
@@ -335,8 +335,8 @@ export async function updateFieldLocation(request: Request, response: Response) 
     );
     if (!result.rowCount) { response.status(404).json({ error: 'Field not found' }); return; }
     response.json(result.rows[0]);
-  } catch (error) {
-    console.error('PATCH field location failed:', error);
+  } catch {
+    console.error('PATCH field location failed:');
     response.status(503).json({ error: 'Database unavailable' });
   }
 }
@@ -371,8 +371,8 @@ export async function updateField(request: Request, response: Response) {
     );
     if (!result.rowCount) { response.status(404).json({ error: 'Field not found' }); return; }
     response.json(result.rows[0]);
-  } catch (error) {
-    console.error('PATCH field failed:', error);
+  } catch {
+    console.error('PATCH field failed:');
     response.status(503).json({ error: 'Database unavailable' });
   }
 }
@@ -382,8 +382,8 @@ export async function deleteField(request: Request, response: Response) {
     const result = await pool.query('delete from public.fields where id = $1 returning id', [request.params.fieldId]);
     if (!result.rowCount) { response.status(404).json({ error: 'Field not found' }); return; }
     response.status(204).send();
-  } catch (error) {
-    console.error('DELETE field failed:', error);
+  } catch {
+    console.error('DELETE field failed:');
     response.status(503).json({ error: 'Database unavailable' });
   }
 }
@@ -392,26 +392,25 @@ export async function getFieldEvents(request: Request, response: Response) {
   try {
     const result = await pool.query('select * from public.field_events where field_id = $1 order by event_date desc, created_at desc', [request.params.fieldId]);
     response.json(result.rows);
-  } catch (error) {
-    console.error('GET field events failed:', error);
+  } catch {
+    console.error('GET field events failed:');
     response.status(503).json({ error: 'Database unavailable' });
   }
 }
 
 export async function createFieldEvent(request: Request, response: Response) {
-  const { event_type, event_date, notes } = request.body as { event_type?: string; event_date?: string; notes?: string };
-  if (!event_type?.trim() || !event_date?.trim()) {
-    response.status(400).json({ error: 'event_type and event_date are required' });
-    return;
+  const { event_type, event_date, notes,client_key } = (request.body??{}) as { event_type?: unknown; event_date?: unknown; notes?: unknown;client_key?:unknown };
+  if(typeof event_type!=='string'||!['planting','fertilizer','irrigation','pesticide','scouting','harvest','other','dataset_import'].includes(event_type)||typeof event_date!=='string'||!validCalendarDate(event_date)||(notes!==undefined&&(typeof notes!=='string'||notes.length>4000))||(client_key!==undefined&&(typeof client_key!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(client_key)))){
+    response.status(400).json({error:'Use a valid event type, calendar date and notes under 4,000 characters'});return;
   }
   try {
     const result = await pool.query(
-      'insert into public.field_events (field_id, event_type, event_date, notes) values ($1, $2, $3, $4) returning *',
-      [request.params.fieldId, event_type.trim(), event_date.trim(), notes?.trim() ?? null]
+      `insert into public.field_events (field_id, event_type, event_date, notes,client_key) values ($1, $2, $3, $4,$5) on conflict(field_id,client_key) where client_key is not null do update set field_id=excluded.field_id returning *`,
+      [request.params.fieldId, event_type, event_date, typeof notes==='string'?notes.trim():null,client_key||null]
     );
     response.status(201).json(result.rows[0]);
-  } catch (error) {
-    console.error('POST field event failed:', error);
+  } catch {
+    console.error('POST field event failed:');
     response.status(503).json({ error: 'Database unavailable' });
   }
 }
@@ -421,8 +420,8 @@ export async function deleteFieldEvent(request: Request, response: Response) {
     const result = await pool.query('delete from public.field_events where id = $1 and field_id = $2', [request.params.eventId, request.params.fieldId]);
     if (!result.rowCount) { response.status(404).json({ error: 'Event not found' }); return; }
     response.status(204).send();
-  } catch (error) {
-    console.error('DELETE field event failed:', error);
+  } catch {
+    console.error('DELETE field event failed:');
     response.status(503).json({ error: 'Database unavailable' });
   }
 }
@@ -448,7 +447,7 @@ export async function getFieldOverlay(request: Request, response: Response) {
       body: JSON.stringify({
         ...rasterPayload(assets),
         polygonGeojson: field.boundary_geojson
-      })
+      }),signal:AbortSignal.timeout(30000)
     });
     
     if (!engineResponse.ok) {
@@ -458,8 +457,8 @@ export async function getFieldOverlay(request: Request, response: Response) {
     
     const data = await engineResponse.json();
     response.json(data);
-  } catch (error) {
-    console.error('GET overlay failed:', error);
+  } catch {
+    console.error('GET overlay failed:');
     response.status(503).json({ error: 'Overlay generation failed' });
   }
 }
@@ -472,8 +471,8 @@ export async function getFieldTile(request: Request, response: Response) {
       `select scenes.assets, ST_AsGeoJSON(fields.boundary_geom)::jsonb as boundary_geojson
        from public.satellite_scenes scenes
        join public.fields fields on fields.id = scenes.field_id
-       where scenes.field_id = $1 and scenes.scene_id = $2`,
-      [fieldId, sceneId]
+       where scenes.field_id = $1 and scenes.scene_id = $2 and exists(select 1 from vegetation_indices vi where vi.field_id=fields.id and vi.scene_id=scenes.scene_id and vi.boundary_version=fields.boundary_version and vi.accepted and vi.provenance='measured_imagery' and vi.valid_coverage_percent >= $3 and vi.valid_pixel_count >= $4)`,
+      [fieldId, sceneId,evidencePolicy().minCoverage,evidencePolicy().minPixels]
     );
     const scene = sceneResult.rows[0];
     if (!scene) { response.status(404).json({ error: 'Scene not found' }); return; }
@@ -501,8 +500,8 @@ export async function getFieldTile(request: Request, response: Response) {
     response.setHeader('Content-Type', 'image/png');
     response.setHeader('Cache-Control', 'no-store');
     response.send(Buffer.from(buffer));
-  } catch (error) {
-    console.error('GET tile failed:', error);
+  } catch {
+    console.error('GET tile failed:');
     response.status(503).json({ error: 'Tile generation failed' });
   }
 }
@@ -518,5 +517,5 @@ export async function updateBoundary(request:Request,response:Response){
   await pool.query(`update ingestion_jobs set status='failed',error='Boundary changed. Start analysis for the new boundary.',lease_token=null,finished_at=now() where field_id=$1 and boundary_version<>$2 and status in ('queued','running')`,[request.params.fieldId,result.rows[0].boundary_version]);
   await pool.query(`update alerts set action_status='superseded' where field_id=$1 and boundary_version<>$2 and action_status<>'resolved'`,[request.params.fieldId,result.rows[0].boundary_version]);
   response.json(result.rows[0]);
- }catch(error){console.error(error);response.status(503).json({error:'Boundary could not be saved. Retry.'});}
+ }catch {console.error('Database operation failed');response.status(503).json({error:'Boundary could not be saved. Retry.'});}
 }

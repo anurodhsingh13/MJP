@@ -155,12 +155,12 @@ test('field owners cannot read or mutate another account’s field through the A
   assert.equal((await pool.query('select count(*)::int as count from fields where client_key=$1',[clientKey])).rows[0].count,1);
   // Two concurrent retries with one submission key should produce one case, photo and follow-up task.
   const photoKey=randomUUID();
-  const jpeg='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAADAAIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDkKKKK908U/9k=';
+  const jpeg='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAADAAIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDj6KKK8Y8Y/9k=';
   const image='data:image/jpeg;base64,'+jpeg;
   const originalPhotoFetch=globalThis.fetch;
   let inspectCount=0;
   try{
-   globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{
+   globalThis.fetch=(async(input:Parameters<typeof fetch>[0],init?:RequestInit)=>{
     if(String(input).endsWith('/inspect-photo')){
      inspectCount++;
      return new Response(JSON.stringify({image:jpeg,width:2,height:3,quality:'acceptable'}),{status:200,headers:{'content-type':'application/json'}});
@@ -217,7 +217,7 @@ test('field owners cannot read or mutate another account’s field through the A
    const beforeOutage=(await pool.query('select count(*)::int as n from scouting_photos where case_id=$1',[saved[0].id])).rows[0].n;
    const originalInspectionFetch=globalThis.fetch;
    try{
-    globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{
+    globalThis.fetch=(async(input:Parameters<typeof fetch>[0],init?:RequestInit)=>{
      if(String(input).endsWith('/inspect-photo'))throw new Error('Image engine temporarily offline');
      return originalInspectionFetch(input,init);
     }) as typeof fetch;
@@ -240,7 +240,7 @@ test('field owners cannot read or mutate another account’s field through the A
   const failedKey=randomUUID();
   const originalFailedFetch=globalThis.fetch;
   try{
-   globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{
+   globalThis.fetch=(async(input:Parameters<typeof fetch>[0],init?:RequestInit)=>{
     if(String(input).endsWith('/inspect-photo'))return new Response(JSON.stringify({error:'Unreadable photo'}),{status:422,headers:{'content-type':'application/json'}});
     return originalFailedFetch(input,init);
    }) as typeof fetch;

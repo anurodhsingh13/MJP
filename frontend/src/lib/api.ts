@@ -67,17 +67,17 @@ export async function checkApiHealth() {
   return response.json() as Promise<{ status: string; database: string }>
 }
 
-export async function askFieldAssistant(message: string, fieldId?: string, languageCode = 'en-IN') {
+export async function askFieldAssistant(message: string, fieldId?: string, languageCode = 'en-IN',saveHistory=false) {
   const response = await fetch('/api/assistant', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, fieldId, languageCode }),
+    body: JSON.stringify({ message, fieldId, languageCode,saveHistory }),
   })
   if (!response.ok) {
     const payload = await response.json().catch(() => ({})) as { error?: string }
     throw new Error(payload.error ?? 'Assistant unavailable')
   }
-  return response.json() as Promise<{ answer: string; model: string; languageCode: string; evidenceDates?:string[] }>
+  return response.json() as Promise<{ answer: string; historySaved?:boolean; model: string; languageCode: string; evidenceDates?:string[] }>
 }
 
 export async function ingestWeather(fieldId: string) {
@@ -160,11 +160,11 @@ export async function loadFieldEvents(fieldId: string) {
   return response.json() as Promise<FieldEvent[]>
 }
 
-export async function createFieldEvent(fieldId: string, event_type: string, event_date: string, notes?: string) {
+export async function createFieldEvent(fieldId: string, event_type: string, event_date: string, notes?: string, client_key?:string) {
   const response = await fetch(`/api/fields/${fieldId}/events`, { 
     method: 'POST', 
     headers: { 'Content-Type': 'application/json' }, 
-    body: JSON.stringify({ event_type, event_date, notes }) 
+    body: JSON.stringify({ event_type, event_date, notes,client_key })
   })
   if (!response.ok) throw new Error('Unable to create field event')
   return response.json() as Promise<FieldEvent>
@@ -304,7 +304,12 @@ export type FieldForecast={source:'Open-Meteo'|'Synthetic showcase';source_url:s
 export async function loadForecast(fieldId:string):Promise<FieldForecast>{
  const response=await fetch(`/api/fields/${encodeURIComponent(fieldId)}/forecast`);
  if(!response.ok){const payload=await response.json().catch(()=>({})) as {error?:string};throw new Error(payload.error||'Forecast temporarily unavailable');}
- const payload=await response.json() as FieldForecast;
+ const raw=await response.json();
+ const payload:FieldForecast=typeof raw.retrievedAt==='string'?{
+  source:raw.provenance==='demo'?'Synthetic showcase':'Open-Meteo',source_url:raw.sourceUrl,field_id:fieldId,
+  issued_at:raw.retrievedAt,timezone:raw.timezone,units:{temperature:'°C',precipitation:'mm',wind_speed:'km/h'},
+  days:raw.days.map((day:import('../../../shared/forecast').ForecastDay)=>({date:day.date,min_c:day.minC,max_c:day.maxC,rain_probability_percent:day.rainChance,precipitation_mm:day.rainMm,humidity_percent:day.humidity,wind_speed_kmh:day.windKph}))
+ }:raw;
  if(!payload||!Array.isArray(payload.days)||typeof payload.issued_at!=='string')throw new Error('Invalid forecast response');
  return payload;
 }
