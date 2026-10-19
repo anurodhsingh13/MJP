@@ -14,7 +14,7 @@ function check(name,cmd,args,validateOutput=()=>true){
  writeFileSync(log,(result.stdout||'')+(result.stderr||'')+(result.error?'\n'+result.error.message:''),{mode:0o600});
  const status=result.status===0&&validateOutput(result.stdout||'')?'passed':'failed';
  console.log(status.toUpperCase(),name);
- return {name,status,started,ended:new Date().toISOString(),exitCode:result.status,log};
+ return {name,status,started,ended:new Date().toISOString(),exitCode:result.status,signal:result.signal||null,error:result.error?.message||null,log};
 }
 const git=spawnSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'});
 const dirty=spawnSync('git',['status','--porcelain'],{cwd:root,encoding:'utf8'});
@@ -42,6 +42,7 @@ const headAfter=spawnSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'})
 const cleanCheckout=git.status===0&&headAfter.status===0&&git.stdout.trim()===headAfter.stdout.trim()&&dirty.status===0&&dirty.stdout.trim()===''&&dirtyAfter.status===0&&dirtyAfter.stdout.trim()==='';
 const allChecksPassed=results.every(item=>item.status==='passed');
 const summary={
+ failedChecks:results.filter(item=>item.status!=='passed').map(item=>({name:item.name,status:item.status,log:item.log,reason:item.reason||item.error||null})),
  overallStatus:allChecksPassed&&cleanCheckout?'passed':'failed',
  readinessNote:!cleanCheckout?'Evidence requires a clean Git checkout with a known commit.':undefined,
  generatedAt:new Date().toISOString(),
