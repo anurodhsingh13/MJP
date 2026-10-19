@@ -9,6 +9,10 @@ test('platform persistence isolates owners, deduplicates notices and notes, and 
  const users:string[]=[];const fields:string[]=[];const original=globalThis.fetch;
  try{
   for(let i=0;i<2;i++){users.push((await pool.query("insert into app_users(email,password_hash) values($1,'unused') returning id",[`platform-${randomUUID()}@example.invalid`])).rows[0].id);fields.push((await pool.query("insert into fields(name,crop,owner_id,provenance,location) values('Platform fixture','Wheat',$1,'user_reported',ST_SetSRID(ST_MakePoint(77,28),4326)) returning id",[users[i]])).rows[0].id);}
+  const inspection=(await pool.query(`insert into scouting_cases(field_id,client_key,observed_on,boundary_version,observation_category,growth_stage,severity,provenance,verification_status,reported_by)
+   values($1,$2,current_date,1,'visual_symptom','vegetative','moderate','owner_reported','unverified',$3) returning observation_category,growth_stage,severity,provenance,verification_status,reported_by,reviewed_by,reviewed_at`,[fields[0],randomUUID(),users[0]])).rows[0];
+  assert.equal(inspection.observation_category,'visual_symptom');assert.equal(inspection.growth_stage,'vegetative');assert.equal(inspection.severity,'moderate');
+  assert.equal(inspection.provenance,'owner_reported');assert.equal(inspection.verification_status,'unverified');assert.equal(inspection.reported_by,users[0]);assert.equal(inspection.reviewed_by,null);assert.equal(inspection.reviewed_at,null);
   const account={id:users[0],email:'fixture@example.invalid'};
   await pool.query("insert into field_tasks(field_id,title,due_on) values($1,'Visit',current_date)",[fields[0]]);
   await pool.query("insert into ingestion_jobs(field_id,owner_id,boundary_version,kind,status) values($1,$2,1,'satellite','failed')",[fields[0],users[0]]);
@@ -23,9 +27,21 @@ test('platform persistence isolates owners, deduplicates notices and notes, and 
   const client_key=randomUUID(),body={event_type:'scouting',event_date:new Date().toISOString().slice(0,10),notes:'Offline replay test',client_key};
   const first=await invoke(createFieldEvent,account,body,{fieldId:fields[0]}),second=await invoke(createFieldEvent,account,body,{fieldId:fields[0]});assert.equal(first.status,201);assert.equal(second.payload.id,first.payload.id);assert.equal((await pool.query('select count(*)::int n from field_events where field_id=$1 and client_key=$2',[fields[0],client_key])).rows[0].n,1);
   const previousKey=process.env.SARVAM_API_KEY;process.env.SARVAM_API_KEY='fixture-key';
-  globalThis.fetch=(async()=>new Response(JSON.stringify({choices:[{message:{content:'A controlled fixture reply.'}}],model:'fixture'}))) as typeof fetch;
-  try{const answer=await invoke(askAssistant,account,{message:'Explain NDVI',saveHistory:true});assert.equal(answer.status,200);assert.equal(answer.payload.historySaved,true);const history=await invoke(assistantHistory,account);assert.deepEqual(history.payload.map((item:{role:string})=>item.role),['user','assistant']);}finally{if(previousKey===undefined)delete process.env.SARVAM_API_KEY;else process.env.SARVAM_API_KEY=previousKey;}
+  let assistantRequest:{messages:Array<{role:string;content:string}>}|undefined;
+  globalThis.fetch=(async(_input,init)=>{assistantRequest=JSON.parse(String(init?.body));return new Response(JSON.stringify({choices:[{message:{content:'A controlled fixture reply.'}}],model:'fixture'}));}) as typeof fetch;
+  try{
+   const answer=await invoke(askAssistant,account,{message:'Review this field',fieldId:fields[0],saveHistory:true});
+   assert.equal(answer.status,200);assert.equal(answer.payload.historySaved,true);
+   const systemPrompt=assistantRequest?.messages.find(message=>message.role==='system')?.content??'';
+   const fieldContext=assistantRequest?.messages.find(message=>message.role==='user'&&message.content.includes('Field context:'))?.content??'';
+   assert.match(systemPrompt,/scouting stages\/symptoms are account-reported and unverified/);
+   assert.match(fieldContext,/accountReportedScouting/);assert.match(fieldContext,/visual_symptom/);assert.match(fieldContext,/owner_reported/);
+   assert.doesNotMatch(fieldContext,/reported_by|reviewed_by/);
+   const history=await invoke(assistantHistory,account,{}, {},{fieldId:fields[0]});assert.deepEqual(history.payload.map((item:{role:string})=>item.role),['user','assistant']);
+  }finally{if(previousKey===undefined)delete process.env.SARVAM_API_KEY;else process.env.SARVAM_API_KEY=previousKey;}
   await pool.query("insert into assistant_messages(owner_id,field_id,role,content) values($1,$2,'user','Private fixture')",[users[0],fields[0]]);
-  assert.equal((await invoke(assistantHistory,other,{}, {},{fieldId:fields[0]})).status,404);assert.equal((await invoke(assistantHistory,account,{}, {},{fieldId:fields[0]})).payload[0].content,'Private fixture');
+  assert.equal((await invoke(assistantHistory,other,{}, {},{fieldId:fields[0]})).status,404);
+  const privateHistory=await invoke(assistantHistory,account,{}, {},{fieldId:fields[0]});
+  assert.ok(privateHistory.payload.some((item:{content:string})=>item.content==='Private fixture'));
  }finally{globalThis.fetch=original;if(fields.length)await pool.query('delete from fields where id=any($1::uuid[])',[fields]);if(users.length)await pool.query('delete from app_users where id=any($1::uuid[])',[users]);}
 });
