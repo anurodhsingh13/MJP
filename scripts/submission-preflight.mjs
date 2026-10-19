@@ -44,8 +44,10 @@ const allChecksPassed=results.every(item=>item.status==='passed');
 const fullDemoChecksRequested=!options.has('--skip-ui')&&options.has('--smoke');
 const exhibitionChecksPassed=fullDemoChecksRequested&&results.some(item=>item.name==='browser-tests'&&item.status==='passed')&&results.some(item=>item.name==='smoke'&&item.status==='passed');
 const summary={
- validationScope:fullDemoChecksRequested?'full-demo':'partial',
- exhibitionDemoVerified:allChecksPassed&&cleanCheckout&&exhibitionChecksPassed,
+ validationScope:fullDemoChecksRequested?'automated-demo-checks':'partial',
+ automatedDemoChecksPassed:allChecksPassed&&cleanCheckout&&exhibitionChecksPassed,
+ exhibitionDemoVerified:false,
+ manualVerificationRequired:['Real satellite imagery acceptance and crop-health accuracy','Farmer-facing usability walkthrough','Faculty exhibition demo and approval'],
  missingDemoChecks:[...(!options.has('--smoke')?['live-smoke-not-requested']:[]),...(options.has('--skip-ui')?['browser-tests-skipped']:[])],
  failedChecks:results.filter(item=>item.status!=='passed').map(item=>({name:item.name,status:item.status,log:item.log,reason:item.reason||item.error||null})),
  overallStatus:allChecksPassed&&cleanCheckout?'passed':'failed',
