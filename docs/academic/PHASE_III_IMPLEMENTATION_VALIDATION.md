@@ -1,6 +1,6 @@
 # Phase III - Implementation, testing and validation (20 marks)
 
-**Project:** TerraScope Crop Health Monitor (CHM). **Updated:** 16 October 2026. **Rubric period:** 21 September-24 October 2026. Student-requested immediate demo target: 17 October.
+**Project:** TerraScope Crop Health Monitor (CHM). **Updated:** 19 October 2026. **Rubric period:** 21 September-24 October 2026. Student-requested immediate demo target: 17 October.
 
 ## Implementation
 
@@ -8,17 +8,23 @@ The implemented system combines a bilingual React/Vite interface, Express owners
 
 This revision simplifies the first useful path: select a field -> read its next action -> visit/check pictures/record a note. Measurements, experimental scores and detailed image identifiers are optional. The [design document](DESIGN_AND_TRACEABILITY.md) maps requirements to implementation and tests.
 
+### Structured field inspections
+
+Scouting submissions can record an observation category, the grower-reported growth stage and severity alongside the photo and notes. The database records `owner_reported` provenance, `unverified` status and reporter/reviewer identity fields; the API always creates new submissions as owner-reported and unverified, regardless of client input. The diary labels those records as unverified, retains the metadata in its retry draft, and the field assistant receives recent records with instructions to describe them as reports, not confirmed labels or diagnoses. The upload and PostGIS integration tests cover accepted metadata, ownership attribution, status/provenance and omission of internal reviewer IDs from the diary response.
+
+This is a structured reporting foundation, not an expert-review workflow or a research dataset: there is no reviewer-role API, correction history, expert adjudication, image-diagnosis provider or model evaluation. Do not use these owner reports as verified ground truth or claim diagnostic performance.
+
 ## Current executable evidence
 
 | Check | Result | Scope |
 |---|---|---|
-| `npm run build` | Passed locally | TypeScript and production assets. |
-| `npm run lint` | Passed locally | Existing frontend/backend lint scope. |
-| `npm test` | 20 passed, 3 skipped | Controller/unit/export/policy checks; DB tests are a separate gate. |
-| `npm run test:ui` | 34 passed locally | Actual browser UI/Leaflet, fixture HTTP responses and tiles. |
-| `npm run test:integration` | Existing CI gate | Isolated PostGIS, migrations, transactions, ownership, jobs and visits. Check the submitted SHA's Actions result. |
-| Python engine pytest | Existing CI gate (14-test suite) | Controlled raster/date/photo tests; engine unchanged in this UI revision. |
-| `npm run test:smoke` | Not run in this environment | Run against the student's configured local stack before the demo. |
+| `npm run build` | Passed locally | Production assets built as part of the focused Playwright run. |
+| `npm run lint` | Passed locally with warnings | Existing React hook/ref warnings remain; no lint errors. |
+| `npm test` | 75 passed, 4 skipped | Controller/unit/export/policy checks; database-dependent cases are separate. |
+| `npm run test:ui` | 88 passed at baseline; focused scouting test passed after this change | Browser UI/Leaflet, fixture HTTP responses and the structured inspection submission flow. |
+| `npm run test:integration` | 5 passed locally | Isolated PostGIS, migration-backed schema, ownership, metadata attribution and durable jobs/visits. |
+| Python engine pytest | 19 passed at baseline | Controlled raster/date/photo tests; engine unchanged in this implementation. |
+| `npm run test:smoke` | Passed at baseline | Earlier local check against the configured application stack. |
 | Live accepted satellite result | Not demonstrated here | Requires eligible live imagery, actual field boundary and running services. |
 
 GitHub workflow: https://github.com/tusharsingh-1801/91-CHM/actions . Keep the exact submitted commit SHA with its successful workflow result. A green fixture/browser test does not prove a live provider result or agronomic validity.

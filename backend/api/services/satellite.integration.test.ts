@@ -167,12 +167,14 @@ test('field owners cannot read or mutate another account’s field through the A
     }
     return originalPhotoFetch(input,init);
    }) as typeof fetch;
-   const photoBody=JSON.stringify({client_key:photoKey,observed_on:'2026-10-16',image,notes:'Concurrent retry fixture'});
+   const photoBody=JSON.stringify({client_key:photoKey,observed_on:'2026-10-16',image,notes:'Concurrent retry fixture',observation_category:'visual_symptom',growth_stage:'vegetative',severity:'moderate'});
    const upload=()=>originalPhotoFetch(`${base}/${fields[0]}/scouting`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:photoBody});
    const results=await Promise.all([upload(),upload()]);
    assert.ok(results.every(result=>[200,201].includes(result.status)),JSON.stringify(results.map(result=>result.status)));
-   const saved=await Promise.all(results.map(result=>result.json())) as Array<{id:string}>;
+   const saved=await Promise.all(results.map(result=>result.json())) as Array<{id:string;observation_category:string;growth_stage:string;severity:string;provenance:string;verification_status:string}>;
    assert.equal(saved[0].id,saved[1].id);
+   assert.equal(saved[0].observation_category,'visual_symptom');assert.equal(saved[0].growth_stage,'vegetative');assert.equal(saved[0].severity,'moderate');
+   assert.equal(saved[0].provenance,'owner_reported');assert.equal(saved[0].verification_status,'unverified');
    const counts=await pool.query(`select
     (select count(*)::int from scouting_cases where field_id=$1 and client_key=$2) as cases,
     (select count(*)::int from scouting_photos p join scouting_cases c on p.case_id=c.id where c.field_id=$1 and c.client_key=$2) as photos,
@@ -180,6 +182,13 @@ test('field owners cannot read or mutate another account’s field through the A
    assert.equal(counts.rows[0].cases,1);
    assert.equal(counts.rows[0].photos,1);
    assert.equal(counts.rows[0].tasks,1);
+   const record=(await pool.query('select reported_by,provenance,verification_status from scouting_cases where field_id=$1 and client_key=$2',[fields[0],photoKey])).rows[0];
+   assert.equal(record.reported_by,users[0]);assert.equal(record.provenance,'owner_reported');assert.equal(record.verification_status,'unverified');
+   const listed=await originalPhotoFetch(`${base}/${fields[0]}/scouting`,{headers});
+   assert.equal(listed.status,200);
+   const listedCases=await listed.json() as {cases:Array<Record<string,unknown>>};
+   assert.equal(listedCases.cases[0].observation_category,'visual_symptom');
+   assert.equal('reported_by' in listedCases.cases[0],false);assert.equal('reviewed_by' in listedCases.cases[0],false);
    // A successful response must have a real persisted JPEG and a readable, owner-scoped route.
    const persistedPhoto=(await pool.query(`select p.id,p.storage_key,p.width,p.height from scouting_photos p join scouting_cases c on c.id=p.case_id where c.field_id=$1 and c.client_key=$2`,[fields[0],photoKey])).rows[0];
    assert.equal(persistedPhoto.width,2);

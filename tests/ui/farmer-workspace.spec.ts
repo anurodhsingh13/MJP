@@ -35,9 +35,13 @@ test('failed jobs have an obvious retry, and image metadata is hidden until requ
 
 test('reports export exactly the chosen date range and retain quality, provenance and boundary identity',async({page})=>{
   const state=await setup(page);state.observations.push({...latest,scene_id:'old-boundary',boundary_version:0,ndvi_value:.99});
+  state.scouting.push({id:'inspection-1',observed_on:day(1),crop:'Wheat',symptoms:'Leaf spots',notes:'North row',observation_category:'visual_symptom',growth_stage:'vegetative',severity:'moderate',provenance:'owner_reported',verification_status:'unverified',diagnosis_status:'unavailable',diagnosis:{},photos:[{id:'inspection-photo-1',width:640,height:480,quality:'acceptable'}]});
   await page.goto(`/fields/${id}/report`);await page.getByLabel('From',{exact:true}).fill(day(3));await page.getByLabel('To',{exact:true}).fill(day(0));
   const download=page.waitForEvent('download');await page.getByRole('button',{name:'Download readings CSV'}).click();const file=await download;const contents=await readFile((await file.path())!, 'utf8');
   expect(contents).toContain('usable_coverage_percent');expect(contents).toContain('measured_imagery');expect(contents).toContain('scene-1');expect(contents).not.toContain('scene-2');expect(contents).not.toContain('old-boundary');
+  const inspectionsDownload=page.waitForEvent('download');await page.getByRole('button',{name:'Download inspections CSV'}).click();const inspectionsFile=await inspectionsDownload;const inspections=await readFile((await inspectionsFile.path())!,'utf8');
+  expect(inspections).toContain('visual_symptom');expect(inspections).toContain('vegetative');expect(inspections).toContain('moderate');expect(inspections).toContain('owner_reported');expect(inspections).toContain('unverified');expect(inspections).toContain('"1","acceptable"');
+  await expect(page.getByRole('heading',{name:'Scouting inspections in this period'})).toBeVisible();await expect(page.getByText('Leaf spots')).toBeVisible();await expect(page.getByText('Owner-reported; not expert-verified.')).toBeVisible();
   const geometry=page.waitForEvent('download');await page.getByRole('button',{name:'Download boundary'}).click();const boundaryFile=await geometry;const geo=JSON.parse(await readFile((await boundaryFile.path())!,'utf8'));expect(geo.properties.field_id).toBe(id);expect(geo.properties.boundary_version).toBe(1);
   await page.emulateMedia({media:'print'});await expect(page.locator('.report-toolbar')).not.toBeVisible();await expect(page.getByRole('heading',{name:'Test field',exact:true})).toBeVisible();await page.screenshot({path:test.info().outputPath('field-report-print.png'),fullPage:true});expect(state.errors).toEqual([]);
 });

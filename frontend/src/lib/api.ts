@@ -1,4 +1,5 @@
 import type { Assessment, EvidencePolicy, Observation, Provenance, SceneStatus } from '../../../shared/evidence';
+import type { GrowthStage, ObservationCategory, ObservationSeverity } from '../../../shared/inspection';
 import type { FieldTask, ProcessingJob } from '../../../shared/workflows';
 export type { FieldTask, ProcessingJob, TaskState } from '../../../shared/workflows';
 export type { Observation } from '../../../shared/evidence';
@@ -178,6 +179,8 @@ export async function deleteFieldEvent(fieldId: string, eventId: string) {
 export type ScoutingPhoto = { preview_url?:string; id:string; width:number; height:number; quality:string };
 export type ScoutingCase = {
   id:string; observed_on:string; crop:string|null; symptoms:string|null; notes:string|null;
+  observation_category:ObservationCategory; growth_stage:GrowthStage; severity:ObservationSeverity;
+  provenance:'owner_reported'; verification_status:'unverified'|'expert_verified';
   diagnosis_status:string; diagnosis:Record<string,unknown>; photos:ScoutingPhoto[];
 };
 export async function loadScouting(fieldId:string) {
@@ -187,7 +190,7 @@ export async function loadScouting(fieldId:string) {
   if(!Array.isArray(payload.cases))throw new Error('Scouting service returned an invalid response');
   return payload as {cases:ScoutingCase[];diagnosis:{status:string;provider:string|null;reason:string}};
 }
-export async function saveScouting(fieldId:string,entry:{client_key:string;observed_on:string;crop?:string; symptoms?:string;notes?:string;image:string}) {
+export async function saveScouting(fieldId:string,entry:{client_key:string;observed_on:string;crop?:string;symptoms?:string;notes?:string;image:string;observation_category?:ObservationCategory;growth_stage?:GrowthStage;severity?:ObservationSeverity}) {
   const response=await fetch(`/api/fields/${fieldId}/scouting`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
   const payload=await response.json().catch(()=>({})) as ScoutingCase&{error?:string;diagnosis?:Record<string,unknown>};
   if(!response.ok)throw new Error(payload.error??'Scouting note could not be saved. Keep the form open and retry.');
