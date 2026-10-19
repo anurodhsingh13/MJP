@@ -37,8 +37,11 @@ if(options.has('--smoke')){
   console.log('SKIPPED smoke (stack unhealthy)');
  }
 }
+const cleanCheckout=git.status===0&&dirty.status===0&&dirty.stdout.trim()==='';
+const allChecksPassed=results.every(item=>item.status==='passed');
 const summary={
- overallStatus:results.every(item=>item.status==='passed')?'passed':'failed',
+ overallStatus:allChecksPassed&&cleanCheckout?'passed':'failed',
+ readinessNote:!cleanCheckout?'Evidence requires a clean Git checkout with a known commit.':undefined,
  generatedAt:new Date().toISOString(),
  commit:git.status===0?git.stdout.trim():null,
  worktreeClean:dirty.status===0?dirty.stdout.trim()==='':null,
@@ -49,4 +52,4 @@ const summary={
 writeFileSync(resolve(dir,'summary.json'),JSON.stringify(summary,null,2)+'\n',{mode:0o600});
 console.log('Submission evidence:',dir);
 console.log('Checks passed:',results.filter(x=>x.status==='passed').length+'/'+results.length);
-if(results.some(x=>x.status!=='passed'))process.exitCode=1;
+if(!allChecksPassed||!cleanCheckout)process.exitCode=1;
