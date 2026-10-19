@@ -37,14 +37,18 @@ if(options.has('--smoke')){
   console.log('SKIPPED smoke (stack unhealthy)');
  }
 }
-const cleanCheckout=git.status===0&&dirty.status===0&&dirty.stdout.trim()==='';
+const dirtyAfter=spawnSync('git',['status','--porcelain'],{cwd:root,encoding:'utf8'});
+const headAfter=spawnSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'});
+const cleanCheckout=git.status===0&&headAfter.status===0&&git.stdout.trim()===headAfter.stdout.trim()&&dirty.status===0&&dirty.stdout.trim()===''&&dirtyAfter.status===0&&dirtyAfter.stdout.trim()==='';
 const allChecksPassed=results.every(item=>item.status==='passed');
 const summary={
  overallStatus:allChecksPassed&&cleanCheckout?'passed':'failed',
  readinessNote:!cleanCheckout?'Evidence requires a clean Git checkout with a known commit.':undefined,
  generatedAt:new Date().toISOString(),
  commit:git.status===0?git.stdout.trim():null,
- worktreeClean:dirty.status===0?dirty.stdout.trim()==='':null,
+ worktreeClean:dirtyAfter.status===0?dirtyAfter.stdout.trim()==='':null,
+ worktreeCleanBefore:dirty.status===0?dirty.stdout.trim()==='':null,
+ commitUnchanged:git.status===0&&headAfter.status===0?git.stdout.trim()===headAfter.stdout.trim():null,
  environment:{platform:process.platform,arch:process.arch,node:process.version},
  limitations:['Browser tests mock API and map tiles; passing does not establish live satellite acceptance.','Satellite accuracy, field validation, human usability and faculty approval remain independent requirements.'],
  results
