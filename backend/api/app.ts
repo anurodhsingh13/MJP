@@ -21,3 +21,10 @@ const bodyError:ErrorRequestHandler=(error: Error & {status?:number;type?:string
   next(error);
 };
 app.use(bodyError);
+
+const secureError:ErrorRequestHandler=(error:Error&{code?:string},_request,response,_next)=>{
+ const status=error.code==='23505'?409:['22P02','23514','22007','22008'].includes(error.code||'')?400:500;
+ console.error(JSON.stringify({event:'request_failed',status,code:error.code&&/^[A-Z0-9]{5}$/.test(error.code)?error.code:'internal'}));
+ response.status(status).json({error:status===409?'This record already exists':status===400?'The submitted values are invalid':'The service could not complete this request. Please retry.'});
+};
+app.use(secureError);

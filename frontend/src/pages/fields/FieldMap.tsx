@@ -1,3 +1,4 @@
+import {SatelliteDateComparison} from '../../features/fields/SatelliteDateComparison';
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { qualityReason } from '../../../../shared/evidence';
@@ -49,5 +50,6 @@ export function FieldMap() {
     <MapInspectionGuide field={field} imageDate={scene?.observed_at ?? null} accepted={Boolean(accepted)}/>
     <ImageCheckPanel field={field} onComplete={async () => { await refreshField(); apply(await refresh()); }}/>
     <details className="selected-image-evidence"><summary>{t('Technical image details', 'तस्वीर की तकनीकी जानकारी')}</summary><section aria-label={t('Selected image evidence', 'चुनी तस्वीर की जानकारी')}><strong>{label}</strong><p>{t('Acquired at', 'तस्वीर का पूरा समय')}: {scene?.observed_at || t('Unavailable', 'उपलब्ध नहीं')}</p><p>{t('Scene ID', 'Scene ID')}: {scene?.scene_id || t('Unavailable', 'उपलब्ध नहीं')} · {t('Scene processing', 'जाँच की स्थिति')}: {scene?.processing_status || t('Unavailable', 'उपलब्ध नहीं')}</p><p>{t('Selected evidence boundary version', 'चुनी तस्वीर की सीमा का संस्करण')}: {selectedObservation?.boundary_version ?? t('Unavailable', 'उपलब्ध नहीं')} · {t('Current field boundary version', 'अभी की सीमा का संस्करण')}: {field.boundary_version ?? t('Unavailable', 'उपलब्ध नहीं')}</p><p>{t('Usable field coverage', 'जाँचने लायक क्षेत्र')}: {selectedObservation?.valid_coverage_percent != null ? `${selectedObservation.valid_coverage_percent}%` : t('Unavailable', 'उपलब्ध नहीं')} · {t('Usable pixels', 'जाँचने लायक pixels')}: {selectedObservation?.valid_pixel_count ?? t('Unavailable', 'उपलब्ध नहीं')}</p><p>{t('Scene-wide cloud cover', 'पूरे satellite scene में बादल')}: {scene?.cloud_cover != null ? `${scene.cloud_cover}%` : t('Unavailable', 'उपलब्ध नहीं')}{t(' (not field coverage)', ' (यह खेत का साफ़ हिस्सा नहीं है)')}</p>{selectedObservation && !accepted && <p>{t('Not accepted', 'जाँच में उपयोग नहीं किया')}: {selectedObservation.quality_reason || qualityReason(selectedObservation, field.policy) || t('Unverified legacy evidence', 'पुरानी जानकारी सत्यापित नहीं')}</p>}<p>{selectedObservation?.source}</p></section></details>
+    <SatelliteDateComparison key={field.id} field={field} observations={observations}/>
   </div>;
 }

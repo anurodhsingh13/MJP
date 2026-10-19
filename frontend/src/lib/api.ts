@@ -67,17 +67,17 @@ export async function checkApiHealth() {
   return response.json() as Promise<{ status: string; database: string }>
 }
 
-export async function askFieldAssistant(message: string, fieldId?: string, languageCode = 'en-IN') {
+export async function askFieldAssistant(message: string, fieldId?: string, languageCode = 'en-IN',saveHistory=false) {
   const response = await fetch('/api/assistant', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, fieldId, languageCode }),
+    body: JSON.stringify({ message, fieldId, languageCode,saveHistory }),
   })
   if (!response.ok) {
     const payload = await response.json().catch(() => ({})) as { error?: string }
     throw new Error(payload.error ?? 'Assistant unavailable')
   }
-  return response.json() as Promise<{ answer: string; model: string; languageCode: string; evidenceDates?:string[] }>
+  return response.json() as Promise<{ answer: string; historySaved?:boolean; model: string; languageCode: string; evidenceDates?:string[] }>
 }
 
 export async function ingestWeather(fieldId: string) {
@@ -160,11 +160,11 @@ export async function loadFieldEvents(fieldId: string) {
   return response.json() as Promise<FieldEvent[]>
 }
 
-export async function createFieldEvent(fieldId: string, event_type: string, event_date: string, notes?: string) {
+export async function createFieldEvent(fieldId: string, event_type: string, event_date: string, notes?: string, client_key?:string) {
   const response = await fetch(`/api/fields/${fieldId}/events`, { 
     method: 'POST', 
     headers: { 'Content-Type': 'application/json' }, 
-    body: JSON.stringify({ event_type, event_date, notes }) 
+    body: JSON.stringify({ event_type, event_date, notes,client_key })
   })
   if (!response.ok) throw new Error('Unable to create field event')
   return response.json() as Promise<FieldEvent>

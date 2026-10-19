@@ -1,3 +1,5 @@
+import {FieldForecast} from '../weather/FieldForecast';
+import {SatelliteDateComparison} from '../fields/SatelliteDateComparison';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './dashboard-addons.css';
 import './observation-quality.css';
@@ -133,6 +135,7 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
     </>:<p>{pending?t('Loading weather…','मौसम ला रहे हैं…'):t('No weather data available','मौसम की जानकारी नहीं मिली')}</p>}
    </article>
   </div>
+  {dataset[0]&&<FieldForecast key={dataset[0].id} field={dataset[0]} compact/>}
   <ObservationQualityPanel fields={dataset}/>
   <FieldHealthLeaderboard fields={fields}/>
   <article className="addon-card addon-insights"><h3><Activity size={19}/>{t('Crop insights','फ़सल के बदलाव')}</h3><div className="addon-insight-grid">{insights.length?insights.map(({field,latest,diff})=>{
@@ -146,6 +149,7 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
      <div className="addon-comparison-controls"><label>{t('Before','पहले')}<select value={older.scene_id??''} onChange={e=>setOldScene(e.target.value)}>{readings.filter(o=>o.scene_id!==newer.scene_id).map(o=><option value={o.scene_id??''} key={o.scene_id}>{date(o.observed_on)}</option>)}</select></label><label>{t('After','बाद में')}<select value={newer.scene_id??''} onChange={e=>setNewScene(e.target.value)}>{readings.filter(o=>o.scene_id!==older.scene_id).map(o=><option value={o.scene_id??''} key={o.scene_id}>{date(o.observed_on)}</option>)}</select></label></div>
      <div className="addon-comparison-images"><div><VegetationPreview value={Number(older.ndvi_value)} scene={date(older.observed_on)}/><small>{t('Earlier image representation','पहली तस्वीर का चित्रण')}</small></div><div><VegetationPreview value={Number(newer.ndvi_value)} scene={date(newer.observed_on)}/><small>{t('Later image representation','बाद की तस्वीर का चित्रण')}</small></div></div>
      <p className="addon-change-note">{t('Greenness difference','हरियाली का अंतर')}: <strong>{(Number(newer.ndvi_value)-Number(older.ndvi_value)).toFixed(2)}</strong> · {t('Illustrative colour representation from NDVI readings, not original satellite pixels.','NDVI से बनाया रंगीन चित्र, असली सैटेलाइट पिक्सल नहीं।')}</p>
+     <SatelliteDateComparison key={current.id} field={current} observations={readings}/>
      <Link to={'/fields/'+current.id+'/analysis'}>{t('Open detailed trend','पूरा ग्राफ़ देखें')} <ArrowRight size={16}/></Link>
     </>:<p>{t('Add two accepted images to compare dates.','तुलना के लिए दो तस्वीरें चाहिए।')}</p>}
    </article>

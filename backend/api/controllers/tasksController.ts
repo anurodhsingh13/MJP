@@ -26,8 +26,8 @@ export async function createTask(request: Request, response: Response) {
       on conflict(field_id,client_key) where client_key is not null do update set client_key=excluded.client_key returning *`,
     [request.params.fieldId, client_key, title.trim(), reason.trim(), due_on, scene_id ?? null, field.boundary_version]);
     await client.query('commit'); response.status(201).json(result.rows[0]);
-  } catch (error) {
-    await client.query('rollback'); console.error('Save field visit', error);
+  } catch {
+    await client.query('rollback'); console.error('Save field visit');
     response.status(503).json({ error: 'Your visit could not be saved. Keep the form open and retry.' });
   } finally { client.release(); }
 }

@@ -1,0 +1,5 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';
+import {notificationPreferences} from './notifications.ts';
+import {providerJson} from './provider.ts';
+test('notification preferences preserve explicit opt-out and reject malformed settings',()=>{assert.equal(notificationPreferences({browser:false,imagery:false}).imagery,false);assert.equal(notificationPreferences({}).browser,false);assert.throws(()=>notificationPreferences({browser:'yes'}));assert.throws(()=>notificationPreferences(null));});
+test('provider requests retry only bounded transient failures',async()=>{const original=globalThis.fetch;let calls=0;globalThis.fetch=(async()=>{calls++;return calls===1?new Response('',{status:503}):new Response('{"ok":true}');}) as typeof fetch;try{assert.deepEqual(await providerJson('https://provider.invalid'),{ok:true});assert.equal(calls,2);calls=0;globalThis.fetch=(async()=>{calls++;return new Response('',{status:400});}) as typeof fetch;await assert.rejects(()=>providerJson('https://provider.invalid'));assert.equal(calls,1);}finally{globalThis.fetch=original;}});

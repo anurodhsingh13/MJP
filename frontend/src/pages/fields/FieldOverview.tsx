@@ -1,3 +1,4 @@
+import {FieldForecast} from '../../features/weather/FieldForecast';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useOutletContext, useSearchParams } from 'react-router-dom';
 import { CalendarCheck, Camera, Map, Sprout, ArrowRight } from 'lucide-react';
@@ -90,5 +91,6 @@ export function FieldOverview() {
       </article>)}
       {tasks.some(task => task.status === 'resolved') && <p className="quiet">{t('Closing a task records your action. It does not confirm crop recovery.', 'काम बंद करना आपकी कार्रवाई दर्ज करता है। इससे फ़सल के ठीक होने की पुष्टि नहीं होती।')}</p>}
     </section>
+    <div id="field-forecast"><FieldForecast key={field.id} field={field}/></div>
   </div>;
 }

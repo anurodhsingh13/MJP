@@ -33,7 +33,7 @@ export async function saveScouting(request:Request,response:Response){
    await client.query(`insert into field_tasks(field_id,case_id,title,due_on) values($1,$2,'Follow up on crop photo and inspect the field',$3)`,[request.params.fieldId,item.id,body.follow_up||body.observed_on]);
    await client.query('commit');response.status(201).json({...item,photos:[photoRecord],quality:photo.quality,diagnosis:diagnosisAvailability()});
   }catch(error){await client.query('rollback');throw error;}finally{client.release();}
- }catch(error){if(storageKey)await unlink(resolve(storage,storageKey)).catch(()=>{});console.error('Scouting upload',error);response.status(503).json({error:'Photo could not be saved. Keep your draft and retry when the image service is available.'});}
+ }catch {if(storageKey)await unlink(resolve(storage,storageKey)).catch(()=>{});console.error('Scouting upload');response.status(503).json({error:'Photo could not be saved. Keep your draft and retry when the image service is available.'});}
 }
 export async function photoContent(request:Request,response:Response){
  const photo=(await pool.query(`select p.storage_key from scouting_photos p join scouting_cases c on c.id=p.case_id where p.id=$1 and c.field_id=$2`,[request.params.photoId,request.params.fieldId])).rows[0];
