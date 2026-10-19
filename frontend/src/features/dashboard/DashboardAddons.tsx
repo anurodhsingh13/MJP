@@ -1,4 +1,3 @@
-import {FieldForecast} from '../weather/FieldForecast';
 import {SatelliteDateComparison} from '../fields/SatelliteDateComparison';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './dashboard-addons.css';
@@ -136,11 +135,7 @@ export function DashboardAddons({fields}:{fields:DatabaseField[]}){
     </>:<p>{pending?t('Loading weather…','मौसम ला रहे हैं…'):t('No weather data available','मौसम की जानकारी नहीं मिली')}</p>}
    </article>
   </div>
-<<<<<<< HEAD
-  {dataset[0]&&<FieldForecast key={dataset[0].id} field={dataset[0]} compact/>}
-=======
   <ForecastPreview fields={dataset}/>
->>>>>>> origin/main
   <ObservationQualityPanel fields={dataset}/>
   <FieldHealthLeaderboard fields={fields}/>
   <article className="addon-card addon-insights"><h3><Activity size={19}/>{t('Crop insights','फ़सल के बदलाव')}</h3><div className="addon-insight-grid">{insights.length?insights.map(({field,latest,diff})=>{

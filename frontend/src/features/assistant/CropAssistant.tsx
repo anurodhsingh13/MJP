@@ -23,7 +23,6 @@ export function CropAssistant() {
   const isDemo = document.documentElement.dataset.showcase === 'true';
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState('');
-<<<<<<< HEAD
   const account=useAccountSettings();
   const contextKey=(account.email||'local')+':'+(selectedField||'general');
   const [busyContext,setBusyContext]=useState<string|null>(null);const busy=busyContext===contextKey;
@@ -42,12 +41,6 @@ export function CropAssistant() {
     if(saveHistory)void fetch('/api/assistant/history'+(selectedField?'?fieldId='+selectedField:'')).then(response=>{if(!response.ok)throw Error('History unavailable');return response.json();}).then(value=>{if(active&&Array.isArray(value))setConversations(current=>current[contextKey]?.length?current:({...current,[contextKey]:value.filter(item=>['user','assistant'].includes(item.role)&&typeof item.content==='string').map(item=>({role:item.role,text:item.content}))}));}).catch(()=>{if(active)setErrorValue({key:contextKey,text:'Saved conversation could not load. Your current chat remains available.'});});
     return()=>{active=false;};
   },[open,saveHistory,selectedField,contextKey]);
-=======
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [providerStatus,setProviderStatus]=useState<'checking'|'configured'|'unconfigured'|'unavailable'>('checking');
->>>>>>> origin/main
 
   useEffect(() => {
     const onQuestion=(event:Event)=>{
@@ -59,15 +52,6 @@ export function CropAssistant() {
     return ()=>window.removeEventListener('terrascope:assistant-question',onQuestion);
   },[]);
 
-  useEffect(()=>{
-    if(!open||isDemo)return;
-    const controller=new AbortController();
-    void fetch('/api/assistant/status',{signal:controller.signal})
-      .then(async response=>{if(!response.ok)throw new Error('status unavailable');return response.json() as Promise<{configured:boolean}>;})
-      .then(status=>setProviderStatus(status.configured?'configured':'unconfigured'))
-      .catch(()=>{if(!controller.signal.aborted)setProviderStatus('unavailable');});
-    return ()=>controller.abort();
-  },[open,isDemo]);
 
   async function send(text:string) {
     const value = text.trim();
@@ -91,11 +75,7 @@ export function CropAssistant() {
     </button>
     {open && <section id="crop-assistant-window" className="crop-assistant-window no-print" aria-label={t('Crop assistant chat','फ़सल सहायक चैट')}>
       <header className="crop-assistant-header">
-<<<<<<< HEAD
         <div><strong><Bot size={21} aria-hidden="true"/> {t('Crop assistant','फ़सल सहायक')}</strong><small>{isDemo ? t('Sarvam AI interface · example answers','Sarvam AI इंटरफ़ेस · नमूना जवाब') : 'Sarvam AI'}{selectedField ? ' · '+(contextName||t('Selected field','चुना हुआ खेत')) : ''}</small></div>
-=======
-        <div><strong><Bot size={21} aria-hidden="true"/> {t('Crop assistant','फ़सल सहायक')}</strong><small>{isDemo ? t('Sarvam AI interface · example answers','Sarvam AI इंटरफ़ेस · नमूना जवाब') : 'Sarvam AI'}{selectedField ? t(' · Selected field',' · चुना हुआ खेत') : ''}</small>{!isDemo&&<small role="status">{providerStatus==='configured'?t('Key configured · live connection not yet verified','API key सेट है · लाइव कनेक्शन की पुष्टि नहीं'):providerStatus==='unconfigured'?t('AI API key is missing on server','सर्वर पर AI API key नहीं है'):providerStatus==='unavailable'?t('Could not check AI configuration','AI की स्थिति नहीं मिल सकी'):t('Checking AI configuration…','AI की स्थिति जाँच रहे हैं…')}</small>}</div>
->>>>>>> origin/main
         <button type="button" aria-label={t('Close assistant','सहायक बंद करें')} onClick={() => setOpen(false)}><X size={20}/></button>
       </header>
       <div className="assistant-history-controls"><small>{isDemo?t('Demo replies · no provider request','डेमो जवाब · सेवा को अनुरोध नहीं'):availability===false?t('Provider not configured','सेवा कॉन्फ़िगर नहीं है'):availability===true?t('Provider configured · availability checked on send','सेवा कॉन्फ़िगर है · भेजने पर कनेक्शन जाँचा जाएगा'):t('Provider status unavailable','सेवा की स्थिति उपलब्ध नहीं')}</small>{(account.signedIn||isDemo)&&<label><input type="checkbox" disabled={busy} checked={saveHistory} onChange={event=>setSaveHistory(event.target.checked)}/>{t('Save conversation history','बातचीत का इतिहास सेव करें')}</label>}{saveHistory&&<button type="button" disabled={busy} onClick={async()=>{try{const response=await fetch('/api/assistant/history',{method:'DELETE'});if(!response.ok)throw Error('Could not clear saved history');setConversations({});}catch{setError(t('Could not clear saved history','इतिहास हट नहीं पाया'));}}}>{t('Clear all saved history','पूरा सेव किया इतिहास हटाएँ')}</button>}</div>

@@ -9,8 +9,6 @@ import express, { Router } from 'express';
 import {session,sameOrigin,authRouter,requireAccount,requireField} from '../services/auth.ts';
 import { getHealth } from '../controllers/healthController.ts';
 import { askAssistant } from '../controllers/assistantController.ts';
-import {sarvamConfigured} from '../services/assistantBudget.ts';
-import { getFieldForecast } from '../controllers/forecastController.ts';
 import { 
   getFields, getFieldAlerts, resolveFieldAlert, updateFieldAlert, getFieldNdvi, getFieldNdviAnalysis,
   getFieldWeather, calculateNdviFromScene, processNdviSentinelHub, processLatestScene,
@@ -44,12 +42,7 @@ router.patch('/notifications/read',readNotifications);
 router.patch('/notifications/preferences',saveNotificationPreferences);
 router.use('/fields/:fieldId',requireField);
 router.use('/assistant',requireField);
-<<<<<<< HEAD
 router.post('/assistant', rateLimit('assistant',20),askAssistant);
-=======
-router.get('/assistant/status',(_request,response)=>response.json({provider:'Sarvam AI',configured:sarvamConfigured(),liveVerified:false,mode:'real',message:sarvamConfigured()?'API key configured; live connectivity is not verified by this status endpoint.':'SARVAM_API_KEY is not configured on the server.'}));
-router.post('/assistant', askAssistant);
->>>>>>> origin/main
 
 router.get('/fields', getFields);
 router.post('/fields', createField);
@@ -66,11 +59,7 @@ router.patch('/fields/:fieldId/alerts/:alertId/resolve', resolveFieldAlert);
 router.get('/fields/:fieldId/ndvi', getFieldNdvi);
 router.get('/fields/:fieldId/ndvi/analysis', getFieldNdviAnalysis);
 router.get('/fields/:fieldId/weather', getFieldWeather);
-<<<<<<< HEAD
 router.get('/fields/:fieldId/forecast',rateLimit('forecast',60),getForecast);
-=======
-router.get('/fields/:fieldId/forecast',getFieldForecast);
->>>>>>> origin/main
 router.post('/fields/:fieldId/ndvi/from-scene/:sceneId', calculateNdviFromScene);
 router.post('/fields/:fieldId/ndvi/process-latest', processLatestScene);
 router.post('/fields/:fieldId/ndvi/process', processNdviSentinelHub);
@@ -83,12 +72,8 @@ router.get('/fields/:fieldId/tiles/:sceneId/:z/:x/:y.png', getFieldTile);
 router.post('/fields/:fieldId/events', createFieldEvent);
 router.delete('/fields/:fieldId/events/:eventId', deleteFieldEvent);
 router.get('/fields/:fieldId/scouting',listScouting);
-<<<<<<< HEAD
 router.post('/fields/:fieldId/scouting',rateLimit('photos',20),express.json({limit:'8mb'}),saveScouting);
-=======
-router.post('/fields/:fieldId/scouting',express.json({limit:'8mb'}),saveScouting);
-router.post('/fields/:fieldId/scouting/quality-preview',express.json({limit:'8mb'}),previewScoutingPhoto);
->>>>>>> origin/main
+router.post('/fields/:fieldId/scouting/quality-preview',rateLimit('photo-preview',20),express.json({limit:'8mb'}),previewScoutingPhoto);
 router.delete('/fields/:fieldId/scouting/:caseId',deleteScouting);
 router.post('/fields/:fieldId/scouting/:caseId/retry-diagnosis',retryDiagnosis);
 router.get('/fields/:fieldId/scouting/:caseId/photos/:photoId',photoContent);

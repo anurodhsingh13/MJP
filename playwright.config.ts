@@ -3,6 +3,7 @@ export default defineConfig({
   testDir: './tests/ui',
   fullyParallel: false,
   timeout:60000,
+  expect:{timeout:15000},
   use: { baseURL: 'http://127.0.0.1:5174', channel: process.env.PLAYWRIGHT_EXECUTABLE_PATH ? undefined : process.env.PLAYWRIGHT_CHANNEL || (process.platform === 'darwin' ? 'chrome' : undefined), headless: true, trace: 'retain-on-failure',
     launchOptions: process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH, args:['--no-sandbox','--no-zygote','--disable-dev-shm-usage'] } : {},
   },

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import type {Request,Response} from 'express';
 import {pool} from '../db/pool.ts';
 import {providerJson} from './provider.ts';
@@ -25,7 +24,8 @@ export async function getForecast(request:Request,response:Response){
  try{response.json(await forecastFor(String(request.params.fieldId)));}catch(error){
   const noLocation=error instanceof Error&&error.message.startsWith('Add field');response.status(noLocation?422:502).json({error:noLocation?'Add field coordinates to enable the forecast':'Forecast provider unavailable. Historical weather is unchanged; retry shortly.'});
  }
-=======
+}
+
 /** Seven-day field forecast. Separate from historical NASA POWER observations. */
 export type ForecastDay={date:string;min_c:number|null;max_c:number|null;rain_probability_percent:number|null;precipitation_mm:number|null;humidity_percent:number|null;wind_speed_kmh:number|null};
 export type FieldForecast={source:'Open-Meteo'|'Synthetic showcase';source_url:string;field_id:string;issued_at:string;timezone:string;units:{temperature:'°C';precipitation:'mm';wind_speed:'km/h'};days:ForecastDay[]};
@@ -62,5 +62,4 @@ export function forecastUrl(lat:number,lon:number){
  url.searchParams.set('daily','temperature_2m_min,temperature_2m_max,precipitation_probability_max,precipitation_sum,wind_speed_10m_max');
  url.searchParams.set('hourly','relative_humidity_2m');
  return url.toString();
->>>>>>> origin/main
 }

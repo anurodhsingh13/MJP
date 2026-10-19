@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express';
 import {recordAssistantSuccess} from '../services/assistantHistory.ts';
-import {actor} from '../services/auth.ts';
 import { pool } from '../db/pool.ts';
 import { assessEvidence, type Observation } from '../../../shared/evidence.ts';
 import { evidencePolicy } from '../services/policy.ts';

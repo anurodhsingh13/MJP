@@ -304,7 +304,12 @@ export type FieldForecast={source:'Open-Meteo'|'Synthetic showcase';source_url:s
 export async function loadForecast(fieldId:string):Promise<FieldForecast>{
  const response=await fetch(`/api/fields/${encodeURIComponent(fieldId)}/forecast`);
  if(!response.ok){const payload=await response.json().catch(()=>({})) as {error?:string};throw new Error(payload.error||'Forecast temporarily unavailable');}
- const payload=await response.json() as FieldForecast;
+ const raw=await response.json();
+ const payload:FieldForecast=typeof raw.retrievedAt==='string'?{
+  source:raw.provenance==='demo'?'Synthetic showcase':'Open-Meteo',source_url:raw.sourceUrl,field_id:fieldId,
+  issued_at:raw.retrievedAt,timezone:raw.timezone,units:{temperature:'°C',precipitation:'mm',wind_speed:'km/h'},
+  days:raw.days.map((day:import('../../../shared/forecast').ForecastDay)=>({date:day.date,min_c:day.minC,max_c:day.maxC,rain_probability_percent:day.rainChance,precipitation_mm:day.rainMm,humidity_percent:day.humidity,wind_speed_kmh:day.windKph}))
+ }:raw;
  if(!payload||!Array.isArray(payload.days)||typeof payload.issued_at!=='string')throw new Error('Invalid forecast response');
  return payload;
 }

@@ -25,7 +25,7 @@ test('dashboard image comparison changes when different field is selected',async
  await page.goto('/?demo=1');
  const area=page.locator('.addon-comparison');
  await expect(area).toContainText('Wheat North');
- await area.getByLabel('Field').selectOption({label:'Rice East'});
+ await area.getByRole('combobox',{name:'Field',exact:true}).selectOption({label:'Rice East'});
  await expect(area).toContainText('Rice East');
  await expect(area.locator('.addon-satellite-tile')).toHaveCount(2);
 });

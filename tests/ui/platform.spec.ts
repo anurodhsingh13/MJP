@@ -3,16 +3,15 @@ import {setup,id} from './fixtures';
 import {demoForecast} from '../../shared/forecast';
 
 test('demo forecast, independent processed layers and synthetic report labels work without providers',async({page})=>{
- await page.goto('/?demo=1');
+ await page.goto('/fields/00000000-0000-4000-8000-000000000001/overview?demo=1');
  const forecast=page.getByRole('region',{name:'Seven-day forecast',exact:true}).first();await expect(forecast.locator('.forecast-days article')).toHaveCount(7);
  await expect(forecast).toContainText('Synthetic demo forecast');
- await page.getByRole('heading',{name:'Wheat North',exact:true}).getByRole('link').click();
  await page.getByRole('link',{name:'Field map',exact:true}).click();
  const comparison=page.getByRole('region',{name:'Processed satellite image comparison',exact:true});
  await expect(comparison.locator('.open-field-map')).toHaveCount(2);await expect(comparison).toContainText('Illustrative demo layers');
- const before=comparison.getByLabel('Before acquisition',{exact:true});const after=comparison.getByLabel('After acquisition',{exact:true});
+ const before=comparison.getByRole('combobox',{name:'Before acquisition',exact:true});const after=comparison.getByRole('combobox',{name:'After acquisition',exact:true});
  const current=await after.inputValue();await before.selectOption(current);await expect(comparison.getByRole('alert')).toContainText('Choose two different');
- await page.getByRole('link',{name:'Field report',exact:true}).click();
+ await page.getByRole('link',{name:'Report',exact:true}).click();
  await expect(page.getByText('Synthetic demo report — these are fictional records, not real satellite evidence.',{exact:true})).toBeVisible();
  const appendix=page.getByRole('region',{name:'Additional monitoring report',exact:true});await expect(appendix).toContainText('All report values and forecasts are synthetic demo fixtures.');
 });
@@ -33,9 +32,9 @@ test('offline draft retains text in this tab and retries the same identity on re
   return attempts===1?route.fulfill({status:503,json:{error:'Retry'}}):route.fulfill({status:201,json:{id:'saved-draft',...body}});
  });
  await page.goto(`/fields/${id}/history`);const draft=page.getByRole('region',{name:'Offline note draft',exact:true});
- await draft.getByLabel('Draft note',{exact:true}).fill('Irrigation outlet needs a field visit.');await draft.getByRole('button',{name:'Sync draft now',exact:true}).click();
+ await draft.getByRole('textbox',{name:'Draft note',exact:true}).fill('Irrigation outlet needs a field visit.');await draft.getByRole('button',{name:'Sync draft now',exact:true}).click();
  await expect(draft.getByRole('alert')).toContainText('draft is retained');await page.reload();
- await expect(draft.getByLabel('Draft note',{exact:true})).toHaveValue('Irrigation outlet needs a field visit.');
+ await expect(draft.getByRole('textbox',{name:'Draft note',exact:true})).toHaveValue('Irrigation outlet needs a field visit.');
  await page.evaluate(()=>window.dispatchEvent(new Event('offline')));await draft.getByLabel('Sync automatically when this tab reconnects',{exact:true}).check();
  await page.evaluate(()=>window.dispatchEvent(new Event('online')));await expect(draft.getByRole('status')).toContainText('Draft synced');
  expect(keys).toHaveLength(2);expect(keys[0]).toBe(keys[1]);
