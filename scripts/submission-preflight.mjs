@@ -41,7 +41,12 @@ const dirtyAfter=spawnSync('git',['status','--porcelain'],{cwd:root,encoding:'ut
 const headAfter=spawnSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'});
 const cleanCheckout=git.status===0&&headAfter.status===0&&git.stdout.trim()===headAfter.stdout.trim()&&dirty.status===0&&dirty.stdout.trim()===''&&dirtyAfter.status===0&&dirtyAfter.stdout.trim()==='';
 const allChecksPassed=results.every(item=>item.status==='passed');
+const fullDemoChecksRequested=!options.has('--skip-ui')&&options.has('--smoke');
+const exhibitionChecksPassed=fullDemoChecksRequested&&results.some(item=>item.name==='browser-tests'&&item.status==='passed')&&results.some(item=>item.name==='smoke'&&item.status==='passed');
 const summary={
+ validationScope:fullDemoChecksRequested?'full-demo':'partial',
+ exhibitionDemoVerified:allChecksPassed&&cleanCheckout&&exhibitionChecksPassed,
+ missingDemoChecks:[...(!options.has('--smoke')?['live-smoke-not-requested']:[]),...(options.has('--skip-ui')?['browser-tests-skipped']:[])],
  failedChecks:results.filter(item=>item.status!=='passed').map(item=>({name:item.name,status:item.status,log:item.log,reason:item.reason||item.error||null})),
  overallStatus:allChecksPassed&&cleanCheckout?'passed':'failed',
  readinessNote:!cleanCheckout?'Evidence requires a clean Git checkout with a known commit.':undefined,
