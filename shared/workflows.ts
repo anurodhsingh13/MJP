@@ -4,7 +4,7 @@ export interface FieldTask {
   reason?: string | null; scene_id?: string | null; boundary_version?: number | null;
 }
 export interface ProcessingJob {
-  id: string; field_id: string; boundary_version: number; kind: 'satellite' | 'weather';
+  id: string; field_id: string; boundary_version: number; kind: 'satellite' | 'weather' | 'history';
   status: 'queued' | 'running' | 'succeeded' | 'failed'; progress: string;
   result: { accepted?: boolean; sceneId?: string; validCoverage?: number; imported?: number; message?: string } | null;
   error: string | null; created_at: string; finished_at: string | null;

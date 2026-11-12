@@ -1,5 +1,8 @@
 import 'dotenv/config';
 import { mkdirSync, writeFileSync } from 'node:fs';
+// Same rule as the API: Earth Engine only for a real project id, otherwise open Sentinel-2 from Earth Search.
+const satelliteRoute=()=>{const choice=(process.env.SATELLITE_PROVIDER||'auto').trim().toLowerCase();const project=(process.env.EARTH_ENGINE_PROJECT_ID||'').trim();
+ if(choice==='earth-search')return 'sentinel-scenes';if(choice==='earth-engine')return 'earth-engine-scenes';return project&&!project.startsWith('your-')?'earth-engine-scenes':'sentinel-scenes';};
 const base=`http://127.0.0.1:${process.env.API_PORT || 3001}/api`;
 const days=Number(process.env.SYNC_WEATHER_DAYS || 30);
 if(!Number.isInteger(days)||days<1||days>365)throw new Error('SYNC_WEATHER_DAYS must be 1–365');
@@ -19,7 +22,7 @@ for(const field of fields){
  const result={id:field.id,name:field.name,weather:null,satellite:null,processed:[],errors:[]};report.fields.push(result);persist();
  console.log(`Syncing ${field.name}…`);
  if(field.latitude==null||field.longitude==null){result.errors.push('GPS location missing; supply actual coordinates or a boundary.');console.log('  Skipped: location missing.');persist();continue;}
- for(const [name,path,body] of [['weather',`/fields/${field.id}/ingest/weather`,report.weatherRange],['satellite',`/fields/${field.id}/ingest/earth-engine-scenes?days=90`,undefined]]){
+ for(const [name,path,body] of [['weather',`/fields/${field.id}/ingest/weather`,report.weatherRange],['satellite',`/fields/${field.id}/ingest/${satelliteRoute()}?days=90`,undefined]]){
   try{const data=await request(path,'POST',body);result[name]={imported:data.imported,source:data.source};console.log(`  ${name}: ${data.imported} records synced.`);}
   catch(error){result.errors.push(`${name}: ${error.message}`);console.log(`  ${name}: ${error.message}`);}
   persist();

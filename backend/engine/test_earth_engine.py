@@ -188,6 +188,7 @@ def test_index_reduction_returns_pixel_coverage_and_preserves_index_shape(monkey
                 'ndvi_mean': 0.6, 'ndvi_min': 0.2, 'ndvi_max': 0.9,
                 'ndvi_median': 0.61, 'ndvi_stdDev': 0.1, 'ndvi_count': 800,
                 'ndre_mean': 0.4, 'ndmi_mean': 0.3, 'savi_mean': 0.5, 'evi_mean': 0.7,
+                'zone_bare_mean': 0.1, 'zone_low_mean': 0.2, 'zone_moderate_mean': 0.3, 'zone_high_mean': 0.4,
             })
 
     class FakeReducer:
@@ -212,6 +213,7 @@ def test_index_reduction_returns_pixel_coverage_and_preserves_index_shape(monkey
     assert result['validPixels'] == 800
     assert result['validCoverage'] == 80
     assert result['calculationVersion'] == 'gee-sentinel-reflectance-scl-v1'
+    assert result['ndviClasses'] == {'bare': 10.0, 'low': 20.0, 'moderate': 30.0, 'high': 40.0}
 
 
 def test_worldcereal_summary_uses_official_annual_collection_and_field_area(monkeypatch):

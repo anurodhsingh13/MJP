@@ -1,12 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { setup, id, boundary, day } from './fixtures';
+import {readFileSync} from 'node:fs';
+const sourceCount=(JSON.parse(readFileSync('datasets/catalog.json','utf8')) as {datasets:unknown[]}).datasets.length;
 
 test('dashboard retry, empty state, wizard boundary controls and saved-field retry', async ({page}) => {
   const state=await setup(page);state.fields=[];state.fail.add('GET /api/fields');
   await page.goto('/');await expect(page.getByRole('alert')).toContainText('Fields unavailable');
   state.fail.clear();await page.getByRole('button',{name:'Retry',exact:true}).click();
-  await page.getByRole('button',{name:'Add your first field'}).click();await page.getByRole('button',{name:'Cancel',exact:true}).click();
-  await page.getByRole('button',{name:'+ Add field',exact:true}).click();
+  await page.getByRole('button',{name:'Add New Field'}).click();await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.getByRole('button',{name:'Add New Field'}).click();
   await page.getByLabel('Field Name').fill('New field');await page.getByLabel('Crop Type').fill('Wheat');
   await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByRole('button',{name:'Back',exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();
   const map=page.getByLabel('Draw or edit field boundary on OpenStreetMap');
@@ -24,7 +26,7 @@ test('dashboard retry, empty state, wizard boundary controls and saved-field ret
 
 test('field management, boundary editing, navigation and deletion work on mobile',async({page})=>{
   test.slow(); // Full mobile editing, boundary drawing and deletion can exceed default 30s on CI.
-  const state=await setup(page);await page.goto('/');await page.getByRole('link',{name:'Test field',exact:true}).click();
+  const state=await setup(page);await page.goto('/');await page.locator('.fh-field',{hasText:'Test field'}).click();
   await expect(page).toHaveURL(new RegExp('/overview$'));
   await page.getByRole('button',{name:'Manage field',exact:true}).click();await page.getByRole('button',{name:'Cancel',exact:true}).click();
   await page.getByRole('button',{name:'Manage field',exact:true}).click();await page.getByLabel('Name',{exact:true}).fill('Renamed');await page.getByRole('button',{name:'Save changes'}).click();await expect(page.getByRole('heading',{name:'Renamed'})).toBeVisible();
@@ -67,7 +69,7 @@ test('image job status survives reload, keeps selected image and supports alert 
 });
 
 test('wizard keyboard focus and saved-field exit work after queue failure',async({page})=>{
-  const state=await setup(page);await page.goto('/');const add=page.getByRole('button',{name:'+ Add field',exact:true});await add.click();await page.keyboard.press('Shift+Tab');await expect(page.getByRole('button',{name:'Next',exact:true})).toBeFocused();await page.keyboard.press('Escape');await expect(add).toBeFocused();
+  const state=await setup(page);await page.goto('/');const add=page.getByRole('button',{name:'Add New Field'});await add.click();await page.keyboard.press('Shift+Tab');await expect(page.getByRole('button',{name:'Next',exact:true})).toBeFocused();await page.keyboard.press('Escape');await expect(add).toBeFocused();
   await add.click();await page.getByRole('button',{name:'Close add field'}).click();await add.click();await page.getByLabel('Field Name').fill('Another field');await page.getByLabel('Crop Type').fill('Rice');await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();
   await page.getByLabel('Import GeoJSON Polygon').setInputFiles({name:'boundary.geojson',mimeType:'application/geo+json',buffer:Buffer.from(JSON.stringify(boundary))});await expect(page.locator('.boundary-tools')).toContainText('4 points');await page.getByRole('button',{name:'Finish boundary'}).click();await page.getByRole('button',{name:'Review',exact:true}).click();
   state.fail.add(`POST /api/fields/${id}/jobs`);await page.getByRole('button',{name:'Save & check images'}).click();await page.getByRole('button',{name:'Open saved field'}).click();await expect(page).toHaveURL(new RegExp('/overview$'));expect(state.created).toBe(1);expect(state.errors).toEqual([]);
@@ -78,7 +80,7 @@ test('point-only records cannot request image processing without a field boundar
 });
 
 test('help catalog filters and historical public-boundary attribution remain accessible',async({page})=>{
-  const state=await setup(page);await page.goto('/');await page.getByRole('link',{name:'How to use',exact:true}).click();await page.getByRole('link',{name:'For more detail: data sources & limitations'}).click();await expect(page.getByRole('heading',{name:'Project datasets'})).toBeVisible();await expect(page.getByRole('status')).toContainText('10 sources');await page.getByLabel('Search datasets').fill('soil');await expect(page.getByRole('heading',{name:'ISRIC SoilGrids'})).toBeVisible();await page.getByLabel('Integration status').selectOption('Connected');await expect(page.getByText('No sources match this search.',{exact:false})).toBeVisible();await page.getByLabel('Search datasets').fill('');await expect(page.getByRole('status')).toContainText('3 sources');
+  const state=await setup(page);await page.goto('/');await page.getByRole('link',{name:'Help',exact:true}).click();await page.getByRole('link',{name:'For more detail: data sources & limitations'}).click();await expect(page.getByRole('heading',{name:'Project datasets'})).toBeVisible();await expect(page.getByRole('status')).toContainText(`${sourceCount} sources`);await page.getByLabel('Search datasets').fill('Earth Search');await expect(page.getByRole('heading',{name:'Sentinel-2 L2A Collection 1 via Earth Search (AWS Open Data)'})).toBeVisible();await page.getByLabel('Integration status').selectOption('Connected');await expect(page.getByText('No sources match this search.',{exact:false})).toBeVisible();await page.getByLabel('Search datasets').fill('');await expect(page.getByRole('status')).toContainText('2 sources');
   state.fields[0].isDemo=true;state.fields[0].provenance='public_boundary';state.events=[{id:'source-event',field_id:id,created_at:new Date().toISOString(),event_type:'dataset_import',event_date:day(0),notes:JSON.stringify({dataset:'FTW India',boundary_year:2016,license:'CC BY 4.0',source_url:'https://source.coop/example'})}];
   await page.setViewportSize({width:390,height:844});await page.goto(`/fields/${id}/history`);await expect(page.getByText('Historical boundary recorded in 2016. Current crop and dates are unverified.')).toBeVisible();await expect(page.getByRole('link',{name:'Dataset source and attribution',exact:false})).toHaveAttribute('href','https://source.coop/example');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();expect(state.errors).toEqual([]);
 });

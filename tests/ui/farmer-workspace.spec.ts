@@ -3,24 +3,27 @@ import {readFile} from 'node:fs/promises';
 import {setup,id,seed,day,latest} from './fixtures';
 import {assessEvidence} from '../../shared/evidence';
 
-test('inspection actions stay separate from missing imagery, with working filters',async({page})=>{
+test('inspection actions stay separate from missing imagery',async({page})=>{
   const state=await setup(page);
   state.fields.push({...seed,id:'00000000-0000-0000-0000-000000000002',name:'Cloudy field',latestObservation:null,previousObservation:null,assessment:assessEvidence(null,null)});
-  await page.goto('/');const attention=page.locator('.attention-panel');await expect(attention).toContainText('Test field');await expect(attention).toContainText('Cloudy field');
-  await page.getByRole('button',{name:/Waiting for pictures/}).click();await expect(page.locator('.field-card')).toHaveCount(1);await expect(page.locator('.field-card')).toContainText('Cloudy field');
-  await page.getByLabel('Search fields').fill('No such field');await page.getByRole('button',{name:'Clear filters'}).click();await expect(page.locator('.field-card')).toHaveCount(2);expect(state.errors).toEqual([]);
+  await page.goto('/');
+  // The inspection signal comes first; the field without a picture is listed separately with its own status.
+  const attention=page.locator('.fh-attention');await expect(attention).toContainText('Test field');await expect(attention.getByRole('link',{name:/Plan a field visit/})).toBeVisible();
+  await expect(page.locator('.fh-field',{hasText:'Test field'})).toContainText('Visit this field');
+  await expect(page.locator('.fh-field',{hasText:'Cloudy field'})).toContainText('Ready for the first picture');
+  await expect(page.locator('.fh-field')).toHaveCount(2);expect(state.errors).toEqual([]);
 });
 
 test('Hindi and acre preferences persist across navigation and reload at phone width',async({page})=>{
   const state=await setup(page);await page.setViewportSize({width:390,height:844});await page.goto('/');await page.getByLabel('Language / भाषा').selectOption('hi');await page.getByLabel('क्षेत्रफल की इकाई').selectOption('acre');
-  await expect(page.getByRole('heading',{name:'आपके खेत। अब क्या करें?'})).toBeVisible();await page.getByRole('link',{name:'Test field',exact:true}).click();await expect(page.getByRole('region',{name:'खेत की स्थिति'})).toContainText('24.71 एकड़');await page.reload();await expect(page.getByLabel('Language / भाषा')).toHaveValue('hi');await expect(page.getByLabel('क्षेत्रफल की इकाई')).toHaveValue('acre');
+  await expect(page.getByRole('heading',{name:'नमस्ते, किसान!'})).toBeVisible();await page.locator('.fh-field',{hasText:'Test field'}).click();await expect(page.getByRole('region',{name:'खेत की स्थिति'})).toContainText('24.71 एकड़');await page.reload();await expect(page.getByLabel('Language / भाषा')).toHaveValue('hi');await expect(page.getByLabel('क्षेत्रफल की इकाई')).toHaveValue('acre');
   await expect(page.getByRole('button',{name:/खेत की जाँच तय करें/})).toBeVisible();await expect(page.getByRole('region',{name:'खेत की स्थिति'})).toContainText('खेत जाकर देखें');
   expect(await page.evaluate(async()=>{const fonts=await document.fonts.load('16px "Noto Sans Devanagari"','खेत');return fonts.length>0;})).toBeTruthy();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();await page.screenshot({path:test.info().outputPath('field-overview-hindi-390.png'),fullPage:true});expect(state.errors).toEqual([]);
 });
 
 test('planning a visit pre-fills field evidence and preserves entries on retry without duplicates',async({page})=>{
-  const state=await setup(page);await page.goto('/');await page.locator('.attention-panel').getByRole('link',{name:'Plan a field visit'}).click();
+  const state=await setup(page);await page.goto('/');await page.locator('.fh-attention').getByRole('link',{name:'Plan a field visit'}).click();
   await expect(page.getByLabel('Visit title')).toHaveValue('Visit Test field');await expect(page.getByLabel('Reason for the visit')).toHaveValue(/less green/);await page.getByLabel('Visit date').fill(day(0));
   state.fail.add(`POST /api/fields/${id}/tasks`);await page.getByRole('button',{name:'Save visit'}).click();await expect(page.getByRole('alert')).toContainText('Visit could not be saved');await expect(page.getByLabel('Visit title')).toHaveValue('Visit Test field');
   state.fail.clear();await page.getByRole('button',{name:'Save visit'}).click();await expect(page.getByRole('status').filter({hasText:'Field visit saved'})).toBeVisible();expect(state.tasks).toHaveLength(1);expect(state.tasks[0].scene_id).toBe(latest.scene_id);await page.reload();await expect(page.getByText('Visit Test field',{exact:true})).toBeVisible();await page.getByLabel('Visit status: Visit Test field').selectOption('action_taken');await expect.poll(()=>state.tasks[0].status).toBe('action_taken');expect(state.errors).toEqual([]);

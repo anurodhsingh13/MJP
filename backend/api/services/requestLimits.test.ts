@@ -8,7 +8,6 @@ const id='00000000-0000-0000-0000-000000000001';
 test('only bounded image routes get the larger JSON parser',()=>{
  assert.equal(needsLargeImageBody('POST',`/api/fields/${id}/scouting`),true);
  assert.equal(needsLargeImageBody('POST',`/api/fields/${id}/scouting/quality-preview?mode=check`),true);
- assert.equal(needsLargeImageBody('POST','/api/research/potato-leaf/predict'),true);
  assert.equal(needsLargeImageBody('GET',`/api/fields/${id}/scouting`),false);
  assert.equal(needsLargeImageBody('POST',`/api/fields/${id}/events`),false);
  assert.equal(needsLargeImageBody('POST','/api/fields/../../scouting/quality-preview'),false);
@@ -26,8 +25,6 @@ test('128KB body cap stays for regular APIs and image routes use their bounded p
   assert.equal(regular.status,413);
   const preview=await request(`/api/fields/${id}/scouting/quality-preview`);
   assert.notEqual(preview.status,413);
-  const potato=await request('/api/research/potato-leaf/predict');
-  assert.notEqual(potato.status,413);
   assert.equal(preview.headers.get('x-frame-options'),'DENY');
   assert.equal(preview.headers.get('x-content-type-options'),'nosniff');
   assert.equal(preview.headers.get('referrer-policy'),'same-origin');

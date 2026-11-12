@@ -1,12 +1,12 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
 export type Language = 'en' | 'hi';
-export type AreaUnit = 'ha' | 'acre';
+export type AreaUnit = 'ha' | 'acre' | 'm2';
 const storageKey = 'terrascope.preferences.v1';
 function readPreferences(): { language: Language; unit: AreaUnit } {
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
-    return { language: saved.language === 'hi' ? 'hi' : 'en', unit: saved.unit === 'acre' ? 'acre' : 'ha' };
+    return { language: saved.language === 'hi' ? 'hi' : 'en', unit: saved.unit === 'acre' ? 'acre' : saved.unit === 'm2' ? 'm2' : 'ha' };
   } catch { return { language: 'en', unit: 'ha' }; }
 }
 export function usePreferenceState() {
@@ -29,8 +29,8 @@ export function usePreferenceState() {
     },
     area: (value: unknown) => {
       if (value == null || value === '' || !Number.isFinite(Number(value))) return t('Area unknown', 'क्षेत्रफल अज्ञात');
-      const amount = Number(value) * (unit === 'acre' ? 2.4710538147 : 1);
-      return `${amount.toLocaleString(locale, { maximumFractionDigits: 2 })} ${unit === 'acre' ? t('acres', 'एकड़') : t('ha', 'हेक्टेयर')}`;
+      const amount = Number(value) * (unit === 'acre' ? 2.4710538147 : unit === 'm2' ? 10000 : 1);
+      return `${amount.toLocaleString(locale, { maximumFractionDigits: 2 })} ${unit === 'acre' ? t('acres', 'एकड़') : unit === 'm2' ? 'm²' : t('ha', 'हेक्टेयर')}`;
     },
   };
 }

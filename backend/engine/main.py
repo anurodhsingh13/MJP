@@ -1,4 +1,13 @@
 from datetime import datetime
+import os
+
+# Remote Cloud-Optimized GeoTIFFs: avoid S3 directory listings and merge range requests.
+for _key, _value in {
+    'GDAL_DISABLE_READDIR_ON_OPEN': 'EMPTY_DIR', 'CPL_VSIL_CURL_ALLOWED_EXTENSIONS': '.tif,.TIF,.tiff',
+    'GDAL_HTTP_MERGE_CONSECUTIVE_RANGES': 'YES', 'GDAL_HTTP_MULTIPLEX': 'YES', 'VSI_CACHE': 'TRUE',
+    'GDAL_HTTP_MAX_RETRY': '3', 'GDAL_HTTP_RETRY_DELAY': '1',
+}.items():
+    os.environ.setdefault(_key, _value)
 from typing import Optional
 import base64
 import io
@@ -24,6 +33,19 @@ from matplotlib.colors import Normalize
 app = FastAPI(title='TerraScope Engine API')
 CALCULATION_VERSION = 'sentinel-reflectance-scl-v2'
 INVALID_SCL = [0, 1, 2, 3, 8, 9, 10, 11]
+# NDVI zone breaks: bare/very low < 0.2 <= low < 0.4 <= moderate < 0.6 <= high. Greenness ranges, not health grades.
+NDVI_CLASS_BREAKS = (0.2, 0.4, 0.6)
+
+def ndvi_classes(values):
+    """Percent of clear field pixels in each NDVI range; the four shares add up to 100."""
+    values = np.asarray(values, dtype=float)
+    values = values[np.isfinite(values)]
+    if not values.size:
+        return None
+    low, moderate, high = NDVI_CLASS_BREAKS
+    counts = [(values < low).sum(), ((values >= low) & (values < moderate)).sum(), ((values >= moderate) & (values < high)).sum(), (values >= high).sum()]
+    shares = [round(float(count) / values.size * 100, 1) for count in counts]
+    return dict(zip(('bare', 'low', 'moderate', 'high'), shares))
 MAX_PIXELS = 4_000_000
 
 @app.get('/')
@@ -215,6 +237,7 @@ def calculate_indices(payload: CalculateIndicesRequest):
                 'median':round(float(np.median(values)),4),'standardDeviation':round(float(np.std(values)),4),
                 'stressGeojson':mapping(MultiPolygon(polygons)) if polygons else None,
                 'affectedCoverage':round(float(anomaly.sum())/max(1,int(inside.sum()))*100,2),
+                'ndviClasses':ndvi_classes(values),
                 'calculationVersion':CALCULATION_VERSION}
     except HTTPException: raise
     except Exception as exc: raise HTTPException(502,'Raster processing failed') from exc
@@ -325,11 +348,3 @@ def inspect_photo(payload: PhotoRequest):
                 'qualityNote':'Capture quality review only; not a disease diagnosis', 'assessment':assessment}
     except Exception as exc:
         raise HTTPException(422,'Photo could not be decoded safely. Use JPEG, PNG or WebP under 5 MB and 20 megapixels.') from exc
-
-# Experimental maize leaf classification
-from backend.engine.maize_inference import router as maize_router
-app.include_router(maize_router)
-
-# Experimental field-photo classification is separate from satellite observations.
-from backend.engine.potato_inference import router as potato_router
-app.include_router(potato_router)

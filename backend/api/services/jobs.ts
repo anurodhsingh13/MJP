@@ -3,16 +3,31 @@ import type {Request,Response} from 'express';
 import {pool} from '../db/pool.ts';
 import {actor} from './auth.ts';
 import {processLatest} from './satellite.ts';
+import {ingestOpenSentinel,satelliteProvider} from './openSentinel.ts';
+import {backfillHistory} from './history.ts';
+import {evidencePolicy} from './policy.ts';
 import {ingestEarthEngineScenes,ingestWeather} from '../controllers/fieldsController.ts';
-export interface Job{id:string;field_id:string;owner_id:string|null;boundary_version:number;kind:'satellite'|'weather';status:'queued'|'running'|'succeeded'|'failed';attempts:number;max_attempts:number;lease_token:string;progress:string;result:Record<string,unknown>|null;error:string|null}
+export interface Job{id:string;field_id:string;owner_id:string|null;boundary_version:number;kind:'satellite'|'weather'|'history';status:'queued'|'running'|'succeeded'|'failed';attempts:number;max_attempts:number;lease_token:string;progress:string;result:Record<string,unknown>|null;error:string|null}
 const publicColumns='id,field_id,boundary_version,kind,status,progress,result,error,created_at,finished_at';
-async function controllerWork(handler:typeof ingestWeather,fieldId:string){
+/**
+ * Earth Engine when configured; otherwise (or when Earth Engine is unavailable in auto mode) open
+ * Sentinel-2 L2A from Earth Search, so image checks work without a Google account.
+ */
+async function ingestScenes(fieldId:string,days=evidencePolicy().searchDays){
+ if(satelliteProvider()==='earth-engine'){
+  try{return {provider:'earth-engine' as const,...await controllerWork(ingestEarthEngineScenes,fieldId,{days:String(days)})};}
+  catch(error){if((process.env.SATELLITE_PROVIDER||'').trim().toLowerCase()==='earth-engine')throw error;}
+ }
+ const end=new Date(Date.now()+86400000).toISOString().slice(0,10),start=new Date(Date.now()-days*86400000).toISOString().slice(0,10);
+ return {provider:'earth-search' as const,...await ingestOpenSentinel(fieldId,{start,end})};
+}
+async function controllerWork(handler:typeof ingestWeather,fieldId:string,query:Record<string,string>={}){
  let status=200;let payload:Record<string,unknown>={};
- await handler({params:{fieldId},query:{},body:{}} as unknown as Request,{status(code:number){status=code;return this;},json(value:Record<string,unknown>){payload=value;}} as unknown as Response);
+ await handler({params:{fieldId},query,body:{}} as unknown as Request,{status(code:number){status=code;return this;},json(value:Record<string,unknown>){payload=value;}} as unknown as Response);
  if(status>=400)throw new Error(String(payload.error||'Provider unavailable'));return payload;
 }
 export async function enqueue(request:Request,response:Response){
- const kind=request.body?.kind??'satellite';if(!['satellite','weather'].includes(kind)){response.status(400).json({error:'Choose satellite or weather processing'});return;}
+ const kind=request.body?.kind??'satellite';if(!['satellite','weather','history'].includes(kind)){response.status(400).json({error:'Choose satellite, history or weather processing'});return;}
  const id=String(request.params.fieldId);
  const client=await pool.connect();
  try{
@@ -50,13 +65,26 @@ export async function runOne(execute?:(job:Job)=>Promise<Record<string,unknown>>
   let result:Record<string,unknown>;
   if(execute)result=await execute(job);
   else if(job.kind==='weather')result=await controllerWork(ingestWeather,job.field_id);
+  else if(job.kind==='history'){
+   const progress=async(text:string)=>{await pool.query('update ingestion_jobs set progress=$3,heartbeat_at=now() where id=$1 and lease_token=$2',[job.id,token,text]);};
+   const provider=satelliteProvider();
+   let summary;
+   try{summary=await backfillHistory(job.field_id,provider,days=>controllerWork(ingestEarthEngineScenes,job.field_id,{days:String(days)}),progress);}
+   catch(error){
+    // Auto mode falls back to open data when Earth Engine is not usable.
+    if(provider!=='earth-engine'||(process.env.SATELLITE_PROVIDER||'').trim().toLowerCase()==='earth-engine')throw error;
+    summary=await backfillHistory(job.field_id,'earth-search',async()=>undefined,progress);
+   }
+   result={...summary,acceptedImages:summary.accepted,accepted:summary.accepted>0};
+   if(!summary.accepted&&summary.failed)throw new Error('Image processing failed for every attempted date. Your saved readings are unchanged.');
+  }
   else{
-   await controllerWork(ingestEarthEngineScenes,job.field_id);
+   const ingestion=await ingestScenes(job.field_id);
    await pool.query("update ingestion_jobs set progress='Processing newest candidates; checking field coverage' where id=$1 and lease_token=$2",[job.id,token]);
-   const processed=await processLatest(job.field_id);result=processed;
+   const processed=await processLatest(job.field_id);result={...processed,provider:ingestion.provider};
    if(!processed.accepted&&processed.attempts.some(attempt=>attempt.status==='failed'))throw new Error('Processing failed. The saved field and last accepted evidence are unchanged.');
   }
-  await pool.query(`update ingestion_jobs set status='succeeded',result=$3,progress=$4,error=null,finished_at=now(),lease_token=null where id=$1 and lease_token=$2 and status='running'`,[job.id,token,JSON.stringify(result),job.kind==='weather'?'Historical weather synced':result.accepted?'Usable observation accepted':'No usable image available']);
+  await pool.query(`update ingestion_jobs set status='succeeded',result=$3,progress=$4,error=null,finished_at=now(),lease_token=null where id=$1 and lease_token=$2 and status='running'`,[job.id,token,JSON.stringify(result),job.kind==='weather'?'Historical weather synced':job.kind==='history'?`Season history: ${Number(result.accepted)?'images added':'no new usable images'}`:result.accepted?'Usable observation accepted':'No usable image available']);
  }catch(error){
   const message=error instanceof Error?error.message:'Processing failed';
   await pool.query(`update ingestion_jobs set status=case when attempts>=max_attempts then 'failed' else 'queued' end,error=$3,progress=case when attempts>=max_attempts then 'Image check failed; please retry' else 'Retry scheduled' end,available_at=now()+($4 * interval '1 second'),lease_token=null,finished_at=case when attempts>=max_attempts then now() else null end where id=$1 and lease_token=$2 and status='running'`,[job.id,token,message,Math.min(60,5*2**job.attempts)]);

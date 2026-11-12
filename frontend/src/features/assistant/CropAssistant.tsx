@@ -90,7 +90,7 @@ export function CropAssistant() {
         {!messages.length && <><p className="crop-assistant-intro">{t('Ask about your crop, satellite pictures or weather.', 'फ़सल, सैटेलाइट तस्वीर और मौसम के बारे में पूछें।')}</p>
           <div className="crop-assistant-prompts">{prompts.map(([en,hi])=><button key={en} type="button" onClick={() => void send(t(en,hi))} disabled={busyContext!==null}>{t(en,hi)}</button>)}</div>
         </>}
-        {messages.map(message=><p key={message.id} className={message.role === 'user' ? 'assistant-user-message' : 'assistant-answer-message'}><span>{message.role==='user' ? t('You','आप') : t('Assistant','सहायक')}</span>{message.text}</p>)}
+        {messages.map(message=><p key={message.id} className={message.role === 'user' ? 'assistant-user-message' : 'assistant-answer-message'}><span>{message.role==='user' ? t('You','आप') : t('Assistant','सहायक')}</span>{message.text}{message.role==='assistant'&&<> </>}</p>)}
         {busy && <p role="status">{t('Writing reply…','जवाब तैयार हो रहा है…')}</p>}
       </div>
       {error && <p className="crop-assistant-error" role="alert">{error}</p>}

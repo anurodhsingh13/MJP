@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { usePreferences } from '../../lib/preferencesContext';
-import {UserRound} from 'lucide-react';
+import {UserRound,ChevronDown} from 'lucide-react';
 import {Link} from 'react-router-dom';
 import {AccountSettingsContext} from './AccountSettingsContext';
 import {emptyProfile,validateProfile,type ProfileValues} from '../../../../shared/profile';
@@ -129,7 +129,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     <FarmerAccountContext.Provider value={farmerAccount}>
       <PreferencesBar>
         <Notifications key={session.user?.id||'local'} accountId={session.user?.id||'local'}/>
-        <Link to="/profile" aria-label={t('Your account','आपका खाता')} className="header-profile-button header-profile-link"><span className="header-avatar"><UserRound size={20} aria-hidden="true"/></span><span className="header-profile-copy"><small>{session.user?t('Signed in','साइन इन है'):t('Your profile','आपकी प्रोफ़ाइल')}</small><strong>{farmerAccount.displayName}</strong></span></Link>
+        <Link to="/profile" aria-label={t('Your account','आपका खाता')} className="header-profile-button header-profile-link"><span className="header-avatar"><UserRound size={20} aria-hidden="true"/></span><span className="header-profile-copy"><strong>{farmerAccount.displayName}</strong></span><ChevronDown size={14} aria-hidden="true"/></Link>
       </PreferencesBar>
       {children}
     </FarmerAccountContext.Provider>

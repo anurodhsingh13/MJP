@@ -34,7 +34,8 @@ export function FieldMap() {
   const scene = scenes.find(item => item.scene_id === selected);
   const accepted = selectedObservation?.accepted && selectedObservation.provenance === 'measured_imagery' && !qualityReason(selectedObservation, field.policy);
   const label = accepted ? selected === latestId ? t('Latest clear picture', 'पिछली साफ़ तस्वीर') : t('Older clear picture', 'पुरानी साफ़ तस्वीर') : selectedObservation ? t('Picture too unclear to use', 'तस्वीर में खेत साफ़ नहीं दिखा') : t('Picture not checked for this field outline', 'इस सीमा के लिए तस्वीर की जाँच नहीं हुई');
-  const tileUrl = accepted && showLayer ? `/api/fields/${field.id}/tiles/${encodeURIComponent(selected)}/{z}/{x}/{y}.png` : null;
+  // The boundary version in the URL keeps cached tiles from showing an old boundary mask.
+  const tileUrl = accepted && showLayer ? `/api/fields/${field.id}/tiles/${encodeURIComponent(selected)}/{z}/{x}/{y}.png?v=${field.boundary_version ?? 1}` : null;
   const activeAlert = alerts.find(item => !['resolved','superseded'].includes(item.action_status) && !item.resolved && item.scene_id === selected);
   const hasLocation = field.latitude != null && field.longitude != null && Number.isFinite(Number(field.latitude)) && Number.isFinite(Number(field.longitude));
   return <div className="field-map-panel">
