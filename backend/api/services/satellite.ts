@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { pool } from '../db/pool.ts';
-import { qualityReason, vegetationScore, numeric, type Observation } from '../../../shared/evidence.ts';
+import { qualityReason, vegetationScore, numeric, comparablePair, seasonStage, validNdviClasses, type NdviClasses, type Observation } from '../../../shared/evidence.ts';
 import { evidencePolicy } from './policy.ts';
 
 interface Asset { href?: string; image_id?: string; earth_engine?: { image_id?: string }; 'raster:bands'?: Array<{ scale?: number; offset?: number; nodata?: number }> }
 export interface SatelliteScene {
   scene_id: string; observed_at: string | Date; cloud_cover: number | string | null;
-  assets: Record<string, Asset>; source?: string; processing_status?: string;
+  assets: Record<string, Asset>; source?: string; processing_status?: string; tile_id?: string | null;
 }
 export class ProcessingError extends Error {
   status: number;
@@ -29,18 +29,19 @@ interface RasterResult {
   ndvi: number; ndre: number | null; ndmi: number | null; savi: number | null; evi: number | null;
   validPixels: number; validCoverage: number; minimum: number; maximum: number; median: number;
   standardDeviation: number; stressGeojson?: Record<string, unknown> | null; affectedCoverage?: number;
+  ndviClasses?: NdviClasses | null;
 }
 function validateResult(data: unknown): RasterResult {
   const result = data as RasterResult;
   if (!result || !Number.isFinite(result.ndvi) || result.ndvi < -1 || result.ndvi > 1 || !Number.isInteger(result.validPixels) || result.validPixels < 1 || !Number.isFinite(result.validCoverage) || result.validCoverage < 0 || result.validCoverage > 100) throw new ProcessingError('Raster engine returned invalid measurements');
   for (const key of ['ndre','ndmi','savi','evi'] as const) if (result[key] !== null && !Number.isFinite(result[key])) throw new ProcessingError('Raster engine returned invalid optional measurements');
-  return result;
+  return { ...result, ndviClasses: validNdviClasses(result.ndviClasses) };
 }
 export async function processScene(fieldId: string, sceneId: string) {
   const scene = (await pool.query<SatelliteScene>('select * from public.satellite_scenes where field_id=$1 and scene_id=$2', [fieldId,sceneId])).rows[0];
   if (!scene) throw new ProcessingError('Satellite scene not found',404);
   if (!Number.isFinite(new Date(scene.observed_at).getTime()) || new Date(scene.observed_at).getTime()>Date.now()) throw new ProcessingError('Acquisition date is invalid or in the future');
-  const field = (await pool.query<{boundary_version:number; boundary_geojson:Record<string,unknown> | null}>('select boundary_version, ST_AsGeoJSON(boundary_geom)::jsonb as boundary_geojson from public.fields where id=$1',[fieldId])).rows[0];
+  const field = (await pool.query<{boundary_version:number; boundary_geojson:Record<string,unknown> | null; planting_date:string|null; harvest_date:string|null}>('select boundary_version, planting_date, harvest_date, ST_AsGeoJSON(boundary_geom)::jsonb as boundary_geojson from public.fields where id=$1',[fieldId])).rows[0];
   if (!field?.boundary_geojson) throw new ProcessingError('Save a field boundary first',400);
   const version = field.boundary_version;
   const earthEngineImageId = scene.assets.earth_engine?.image_id;
@@ -74,30 +75,33 @@ export async function processScene(fieldId: string, sceneId: string) {
       await client.query(`insert into public.vegetation_indices
         (field_id,observed_on,scene_id,ndvi_value,ndre_value,ndmi_value,savi_value,evi_value,cloud_cover,source,
          valid_pixel_count,valid_coverage_percent,ndvi_min,ndvi_max,ndvi_median,ndvi_stddev,
-         boundary_version,acquired_at,accepted,quality_reason,calculation_version,provenance,vegetation_score)
-        values ($1,$2::timestamptz at time zone 'UTC',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$2,$18,$19,$20,'measured_imagery',$21)
+         boundary_version,acquired_at,accepted,quality_reason,calculation_version,provenance,vegetation_score,tile_id,ndvi_classes)
+        values ($1,$2::timestamptz at time zone 'UTC',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$2,$18,$19,$20,'measured_imagery',$21,$22,$23)
         on conflict (field_id,scene_id,observed_on,boundary_version) do update set
          ndvi_value=excluded.ndvi_value,ndre_value=excluded.ndre_value,ndmi_value=excluded.ndmi_value,
          savi_value=excluded.savi_value,evi_value=excluded.evi_value,valid_pixel_count=excluded.valid_pixel_count,
          valid_coverage_percent=excluded.valid_coverage_percent,ndvi_min=excluded.ndvi_min,ndvi_max=excluded.ndvi_max,
          ndvi_median=excluded.ndvi_median,ndvi_stddev=excluded.ndvi_stddev,accepted=excluded.accepted,
          quality_reason=excluded.quality_reason,calculation_version=excluded.calculation_version,
-         provenance=excluded.provenance,vegetation_score=excluded.vegetation_score,acquired_at=excluded.acquired_at`,
+         provenance=excluded.provenance,vegetation_score=excluded.vegetation_score,acquired_at=excluded.acquired_at,
+         tile_id=excluded.tile_id,ndvi_classes=excluded.ndvi_classes`,
         [fieldId,scene.observed_at,sceneId,result.ndvi,result.ndre,result.ndmi,result.savi,result.evi,
           scene.cloud_cover===null?null:Math.round(Number(scene.cloud_cover)), isEarthEngine?EARTH_ENGINE_SOURCE:'Copernicus Sentinel-2 L2A / Earth Search',
           result.validPixels,result.validCoverage,result.minimum,result.maximum,result.median,result.standardDeviation,
-          version,accepted,reason,calculationVersion,score]);
+          version,accepted,reason,calculationVersion,score,scene.tile_id ?? null,result.ndviClasses ? JSON.stringify(result.ndviClasses) : null]);
       await client.query(`update public.vegetation_indices set inspection_geom=case when $4::text is null then null else ST_Multi(ST_GeomFromGeoJSON($4)) end, affected_coverage_percent=$5 where field_id=$1 and scene_id=$2 and boundary_version=$3`,[fieldId,sceneId,version,result.stressGeojson?JSON.stringify(result.stressGeojson):null,result.affectedCoverage??null]);
       if (!boundaryChanged) {
         // Recompute from accepted, distinct acquisition days, never completion order or previous stored score.
         const latestRows = (await client.query<Observation & {vegetation_score:number}>(`select distinct on (observed_on) * from public.vegetation_indices
           where field_id=$1 and boundary_version=$2 and accepted and provenance='measured_imagery'
             and valid_coverage_percent >= $3 and valid_pixel_count >= $4
-          order by observed_on desc,acquired_at desc,scene_id desc limit 2`,[fieldId,version,policy.minCoverage,policy.minPixels])).rows;
-        const [latest,previous] = latestRows;
+          order by observed_on desc,acquired_at desc,scene_id desc limit 8`,[fieldId,version,policy.minCoverage,policy.minPixels])).rows;
+        // Compare only with a recent image of the same method and Sentinel-2 tile; a fall the crop calendar explains is not an alert.
+        const [latest,previous] = comparablePair(latestRows,policy) as [(Observation & {vegetation_score:number})|null,(Observation & {vegetation_score:number})|null];
         if (latest) {
-          const comparable = previous?.calculation_version === latest.calculation_version;
-          const declined = comparable && numeric(latest.ndvi_value)!-numeric(previous!.ndvi_value)! <= -policy.declineThreshold;
+          const comparable = Boolean(previous);
+          const stage = seasonStage({plantingDate:field.planting_date,harvestDate:field.harvest_date},latest.observed_on);
+          const declined = comparable && numeric(latest.ndvi_value)!-numeric(previous!.ndvi_value)! <= -policy.declineThreshold && stage!=='maturity' && stage!=='after_harvest';
           const currentEvidenceKey=declined?`decline:${version}:${latest.scene_id}`:null;
           await client.query(`update public.alerts set action_status='superseded'
             where field_id=$1 and boundary_version=$2 and evidence_key like 'decline:%'
@@ -105,7 +109,7 @@ export async function processScene(fieldId: string, sceneId: string) {
               and ($3::text is null or evidence_key<>$3)`,[fieldId,version,currentEvidenceKey]);
           await client.query(`update public.fields set health_score=$2,ndvi_average=$3,last_observation=$4,
             latest_observed_at=$5,latest_scene_id=$6,health_delta=$7 where id=$1`,
-            [fieldId,latest.vegetation_score,latest.ndvi_value,latest.observed_on,latest.acquired_at,latest.scene_id,comparable?latest.vegetation_score-previous.vegetation_score:0]);
+            [fieldId,latest.vegetation_score,latest.ndvi_value,latest.observed_on,latest.acquired_at,latest.scene_id,comparable?latest.vegetation_score-previous!.vegetation_score:0]);
           if (declined) {
             await client.query(`insert into public.alerts(field_id,title,severity,observed_at,scene_id,boundary_version,evidence_key,interpretation)
               values($1,'Vegetation decreased — inspect the field','neutral',$2,$3,$4,$5,$6)
@@ -119,7 +123,7 @@ export async function processScene(fieldId: string, sceneId: string) {
           where field_id=$1 and scene_id=$2 and processing_token=$3`,[fieldId,sceneId,token,accepted?'processed':'rejected',quality,result.validCoverage,result.validPixels]);
       }
       await client.query('commit');
-      return {sceneId,observedAt:scene.observed_at,...result,accepted:accepted&&!boundaryChanged,qualityReason:quality,boundaryVersion:version,healthScore:score,source:isEarthEngine?EARTH_ENGINE_SOURCE:'Copernicus Sentinel-2',calculationVersion};
+      return {sceneId,observedAt:scene.observed_at,...result,accepted:accepted&&!boundaryChanged,qualityReason:quality,boundaryVersion:version,healthScore:score,source:isEarthEngine?EARTH_ENGINE_SOURCE:'Copernicus Sentinel-2 L2A / Earth Search',calculationVersion,tileId:scene.tile_id ?? null};
     } catch(error) { await client.query('rollback'); throw error; }
     finally { client.release(); }
   } catch(error) {

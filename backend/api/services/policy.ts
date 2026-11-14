@@ -13,5 +13,6 @@ export function evidencePolicy(): EvidencePolicy {
     searchDays: Math.floor(setting('SATELLITE_SEARCH_DAYS', defaultPolicy.searchDays, 1, 365)),
     candidateLimit: Math.floor(setting('SATELLITE_CANDIDATE_LIMIT', defaultPolicy.candidateLimit, 1, 100)),
     maxAttempts: Math.floor(setting('SATELLITE_MAX_ATTEMPTS', defaultPolicy.maxAttempts, 1, 10)),
+    compareDays: Math.floor(setting('EVIDENCE_COMPARE_DAYS', defaultPolicy.compareDays, 5, 120)),
   };
 }

@@ -147,7 +147,7 @@ export function FieldBoundaryEditor({boundary,onChange,boundaryFinished=false,fo
   },[boundary,boundaryFinished,t,mapReady]);
 
   return <div className="boundary-map-wrap">
-    <div ref={element} className="boundary-map" aria-label={t('Draw or edit field boundary on satellite map', 'उपग्रह नक्शे पर खेत की सीमा बनाएँ या बदलें')}/>
+    <div ref={element} className="boundary-map" aria-label={apiKey ? t('Draw or edit field boundary on satellite map', 'उपग्रह नक्शे पर खेत की सीमा बनाएँ या बदलें') : t('Draw or edit field boundary on OpenStreetMap', 'OpenStreetMap नक्शे पर खेत की सीमा बनाएँ या बदलें')}/>
     <span className="boundary-map-crosshair" aria-hidden="true">+</span>
     <button className="boundary-map-add-center" type="button" onClick={addCenterPoint} disabled={boundaryFinished}>{t('Add corner at crosshair','बीच के निशान पर कोना जोड़ें')}</button>
   </div>;

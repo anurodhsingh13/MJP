@@ -777,3 +777,43 @@ body:has(.field-shell) .field-shell,body:has(.simple-farm) .dashboard-shell { co
 .header-profile-link { display:flex; align-items:center; gap:8px; padding:4px 12px 4px 4px; border:1px solid #567761; color:#fff; text-decoration:none; background:#ffffff0b; border-radius:99px; min-height:44px; box-sizing:border-box; }.header-profile-link:hover { background:#ffffff1c; }.header-profile-link:focus-visible { outline:3px solid #d7b958; outline-offset:3px; }
 
 @media(max-width:900px) { .header-profile-link { padding:3px; } }
+
+/* Reference-style top navigation */
+.preferences-bar { grid-template-columns:auto minmax(0,1fr) auto auto !important; gap:28px !important; padding:12px max(16px,calc((100% - 1262px)/2)) !important; }
+.preferences-bar .brand { display:flex; align-items:center; gap:10px; font-size:1.5rem; }
+.preferences-bar .brand b { font-weight:700; letter-spacing:-.01em; }
+.brand-leaf { color:#9fd0a8; }
+.top-nav { display:flex; gap:30px; align-items:center; }
+.top-nav a { position:relative; padding:14px 0; color:#c4d3c6; text-decoration:none; font-weight:600; font-size:.95rem; }
+.top-nav a.active { color:#fff; }
+.top-nav a.active::after { content:''; position:absolute; left:0; right:0; bottom:-12px; height:2px; background:#d9a07c; border-radius:2px; }
+.preferences-bar .preference-controls { gap:10px; }
+.preferences-bar .preference-controls label { color:#c4d3c6; font-size:.82rem; }
+.preferences-bar .preference-controls select { min-height:38px; background:#1b2d23; border:1px solid #ffffff26; color:#fff; border-radius:8px; }
+.sr-only-sm { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+.header-icon-button { border:0 !important; background:transparent !important; width:40px; height:40px; }
+.notification-count { background:#d9a07c !important; color:#1a2e24 !important; border-color:#1d3227 !important; }
+.header-profile-link { border:0 !important; background:transparent !important; padding:0 !important; gap:10px !important; }
+.header-profile-link .header-avatar { background:#d9b99d; }
+.header-profile-copy strong { font-size:.88rem !important; max-width:110px !important; }
+@media(max-width:900px) { .preferences-bar { grid-template-columns:auto minmax(0,1fr) !important; } .top-nav { grid-row:2; grid-column:1 / -1; gap:18px; overflow-x:auto; } .preferences-bar .preference-controls { grid-row:3 !important; } }
+
+.preferences-bar .brand { font-size:1.35rem; } .top-nav { gap:24px; }
+.preferences-bar { height:68px; padding-top:0 !important; padding-bottom:0 !important; align-items:center; }
+.preferences-bar select { min-height:32px !important; padding:.2rem .6rem !important; }
+.header-profile-link { min-height:0 !important; }
+.top-nav a.active::after { bottom:0 !important; }
+@media(max-width:1100px) {
+  .preferences-bar { height:auto !important; padding:10px 16px !important; grid-template-columns:auto minmax(0,1fr) !important; gap:8px 12px !important; }
+  .preferences-bar .header-account-actions { grid-row:1 !important; grid-column:2 !important; justify-self:end; }
+  .preferences-bar .top-nav { grid-row:2 !important; grid-column:1 / -1 !important; overflow-x:auto; gap:6px; padding-bottom:2px; }
+  .preferences-bar .preference-controls { grid-row:3 !important; grid-column:1 / -1 !important; width:100%; justify-content:flex-start; }
+  .top-nav a { padding:6px 14px !important; white-space:nowrap; }
+}
+/* Small screens already have the bottom navigation, so the header keeps only brand, controls and account. */
+@media(max-width:760px) {
+  .preferences-bar .top-nav { display:none !important; }
+  .preferences-bar .preference-controls { grid-row:2 !important; }
+}
+/* Dialogs sit above the fixed phone navigation and the assistant button, so their bottom actions stay tappable. */
+.wizard-modal { z-index:1300 !important; }

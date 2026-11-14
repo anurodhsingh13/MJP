@@ -28,14 +28,8 @@ test.beforeEach(async({page})=>{
 });
 test('15 fixture scenarios render as supplied records',async({page})=>{
  await page.goto('/');
- await expect(page.getByRole('heading',{name:'Your farm. Your next step.'})).toBeVisible();
- await expect(page.locator('.farmer-field-card')).toHaveCount(15);
- await expect(page.getByText('DEMO • Wheat - inspect').first()).toBeVisible();
- await expect(page.locator('.field-card .demo-label')).toHaveCount(0);
-});
-test('synthetic crop search narrows sample plot list without touching a database',async({page})=>{
- await page.goto('/');
- await page.getByPlaceholder('Search your fields or crops').fill('Tomato');
- await expect(page.locator('.farmer-field-card')).toHaveCount(1);
- await expect(page.locator('.farmer-field-card').first()).toContainText('incompatible method');
+ await expect(page.getByRole('heading',{name:'Hello, Farmer!'})).toBeVisible();
+ await expect(page.locator('.fh-field')).toHaveCount(15);
+ await expect(page.locator('.fh-field',{hasText:'DEMO • Wheat - inspect'}).first()).toBeVisible();
+ await expect(page.locator('.fh-field .demo-label')).toHaveCount(0);
 });

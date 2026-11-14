@@ -24,6 +24,14 @@ export function fieldCopy(field: DatabaseField, language: Language) {
     not_enough_data: [oneImage ? 'One more picture is needed' : 'A clear picture is needed', oneImage ? 'एक और तस्वीर चाहिए' : 'साफ़ तस्वीर चाहिए', oneImage ? 'We have one clear picture. A second date is needed to see what changed.' : 'We cannot see enough of this field clearly yet. The crop condition is unknown.', oneImage ? 'एक साफ़ तस्वीर मिली है। बदलाव देखने के लिए दूसरी तारीख़ की तस्वीर चाहिए।' : 'खेत अभी साफ़ नहीं दिखा। फ़सल का हाल बताने के लिए जानकारी पूरी नहीं है।'],
     awaiting_analysis: ['Ready for the first picture', 'पहली तस्वीर देखें', 'Your field is saved. Find a clear satellite picture to begin.', 'आपका खेत सेव है। शुरू करने के लिए उपग्रह से ली गई साफ़ तस्वीर खोजें।'],
   }[assessment.state];
+  // A drop the recorded crop calendar explains (ripening or harvest) is told as such, not as "no change".
+  if (assessment.expectedDecline) {
+    const afterHarvest = assessment.stage === 'after_harvest';
+    copy[0] = afterHarvest ? 'Harvested or bare field' : 'Crop is ripening';
+    copy[1] = afterHarvest ? 'कटा हुआ या खाली खेत' : 'फ़सल पक रही है';
+    copy[2] = afterHarvest ? 'Greenness fell after your recorded harvest date. That is expected. Update the crop dates when you sow again.' : 'Greenness fell close to your recorded harvest date. Ripening crops lose greenness. Visit only if the crop is not yet ready for harvest.';
+    copy[3] = afterHarvest ? 'आपकी दर्ज कटाई की तारीख़ के बाद हरियाली घटी। यह सामान्य है। अगली बुवाई पर फ़सल की तारीख़ें अपडेट करें।' : 'दर्ज कटाई की तारीख़ के पास हरियाली घटी। पकती फ़सल की हरियाली कम होती है। फ़सल कटाई के लिए तैयार न हो तभी खेत जाएँ।';
+  }
   const action = fieldNextAction(field);
   const actionCopy = {
     visit: ['Plan a field visit', 'खेत की जाँच तय करें', 'Check the crop, water and recent harvesting. Add a photo of what you find.', 'फ़सल, पानी और हाल की कटाई देखें। जो दिखे उसकी फ़ोटो जोड़ें।'],

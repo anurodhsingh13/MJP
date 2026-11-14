@@ -1,20 +1,91 @@
 {
-  "reviewedOn": "2026-10-30",
+  "reviewedOn": "2026-11-12",
   "scope": "A curated set of public data sources matching TerraScope, not an exhaustive inventory of the internet.",
   "datasets": [
-    {"id":"sentinel-2","name":"Sentinel-2 L2A via Google Earth Engine","category":"Satellite imagery","status":"Live API verified; field ingestion integrated","url":"https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED","access":"https://developers.google.com/earth-engine/guides/service_account","coverage":"Global; dated Sentinel-2 scenes","resolution":"10 m visible/NIR; 20 m red-edge/SWIR bands","license":"Copernicus Sentinel data terms; preserve source attribution","provides":["Earth Engine scene search by field boundary, date and cloudiness","NDVI, NDRE, NDMI, SAVI and EVI calculated on the Earth Engine API","Valid-pixel coverage and scene-linked map tiles"],"limits":"Live queries require a registered Earth Engine Cloud project with the API enabled and ADC authorized for the backend. Clear-pixel masking and the existing minimum field coverage/pixel-count policy remain in force. Health scores are experimental derived indicators, not measured yield."},
-    {"id":"nasa-power","name":"NASA POWER daily meteorology","category":"Weather","status":"Connected","url":"https://power.larc.nasa.gov/docs/services/api/temporal/daily/","access":"https://power.larc.nasa.gov/api/temporal/daily/point","coverage":"Global historical daily weather","resolution":"Gridded daily estimates, not an on-farm weather station","license":"NASA POWER data policy and citation guidance","provides":["Temperature","Corrected precipitation","Relative humidity"],"limits":"Coordinates required. Meteorological availability trails by about 2–3 days; fill values are excluded. Weather at a nearby grid cell is not proof of actual irrigation."},
-    {"id":"open-meteo","name":"Open-Meteo seven-day forecast","category":"Weather forecast","status":"Connected","url":"https://open-meteo.com/","access":"https://api.open-meteo.com/v1/forecast","coverage":"Global modeled forecast","resolution":"Seven-day forecast at supplied coordinates","license":"Open-Meteo terms and attribution requirements","provides":["Daily minimum/maximum temperature","Precipitation amount and probability","Humidity and wind speed"],"limits":"Forecasts are modeled predictions, not historical observations or on-farm measurements. Requires field coordinates; forecast issue time is not provided."},
-    {"id":"ftw-india","name":"Fields of the World — India boundaries","category":"Field boundaries","status":"Research sample only","url":"https://source.coop/kerner-lab/fields-of-the-world-india/boundaries_india_2016.parquet","access":"https://data.source.coop/kerner-lab/fields-of-the-world-india/boundaries_india_2016.parquet","coverage":"India benchmark; 2016 reference boundaries","resolution":"10,013 annotated field polygons","license":"CC BY 4.0; attribute original authors and FTW/Kerner Lab","provides":["Public sample parcel polygons","Coordinates and boundary-derived area"],"limits":"A three-parcel static extract is retained for research and attribution only; it is not imported into the app. Historical benchmark polygons are not the user's farms. Crop type, current planting/harvest dates and yield are not supplied."},
-    {"id":"cropharvest","name":"NASA Harvest CropHarvest","category":"Model training","status":"Labels and processed features acquired","url":"https://zenodo.org/records/10251170","access":"https://zenodo.org/api/records/10251170","coverage":"Global agricultural labels from multiple source datasets","resolution":"Labelled points/polygons with associated remote-sensing time series","license":"CC BY-SA 4.0 for CropHarvest; constituent source terms also apply","provides":["Verified labels.geojson downloaded from pinned Zenodo record 10251170","Reproducible local HDF5 feature-manifest training/evaluation pipeline","87,464 official processed HDF5 samples with verified archive MD5 and per-file SHA-256 receipts"],"limits":"113,893 benchmark labels and 87,464 processed feature samples acquired. Source-specific training attribution and held-out evaluation remain separate. No trained model or accuracy is claimed; these are not current farm measurements."},
-    {"id":"worldcereal","name":"ESA WorldCereal 2021 v100","category":"Crop maps","status":"Integrated through Google Earth Engine; active-field result persisted","url":"https://esa-worldcereal.org/en/products/global-maps","access":"https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCereal_2021_MODELS_v100","coverage":"Global 2021 products; seasonal coverage varies by agro-ecological zone","resolution":"10 m crop and irrigation maps","license":"CC BY 4.0; preserve product attribution","provides":["Field-area-weighted 2021 annual temporary-crop classification and confidence via Earth Engine","Historical AOI GeoTIFF import remains available with source checksum validation"],"limits":"The active development field has a 99.95% mapped-area coverage result; 2.28% of its whole area was classified as temporary crops. This is a historical binary classification, not current crop identity. Regional AEZ images are mosaicked as documented by ESA."},
-    {"id":"worldcover","name":"ESA WorldCover 2021 v200","category":"Land cover","status":"Field result integrated in local development database","url":"https://esa-worldcover.org/en/data-access","access":"https://esa-worldcover.s3.amazonaws.com/v200/2021/esa_worldcover_grid.fgb","coverage":"Global 2021 map","resolution":"10 m land-cover classes","license":"CC BY 4.0; include ESA WorldCover/Copernicus attribution","provides":["Official FlatGeobuf tile index and intersecting S3 raster tile acquisition","Nodata-aware equal-area field clipping, land-cover classes and cropland percent"],"limits":"A local user-reported field result is persisted; verify the boundary before interpretation. Cropland is not an individual crop type or cadastral boundary."},
-    {"id":"soilgrids","name":"ISRIC SoilGrids 2.0","category":"Soil","status":"Field result integrated in local development database","url":"https://isric.org/explore/soilgrids","access":"https://docs.isric.org/globaldata/soilgrids/wcs.html","coverage":"Global soil-property predictions","resolution":"250 m native grid; surface 0–5 cm currently requested","license":"CC BY 4.0","provides":["WCS AOI coverage for pH, organic carbon, nitrogen and sand/silt/clay","Mean, Q0.05, Q0.95 and uncertainty with source units/scaling"],"limits":"One local development field result has 17.68% spatial coverage and must not be treated as representative of the whole field. Modeled estimates do not replace soil tests; the REST API is temporarily paused by ISRIC."},
-    {"id":"chirps","name":"UCSB CHIRPS v3 rainfall","category":"Weather alternative","status":"Daily field rainfall persisted in local development database","url":"https://chc.ucsb.edu/data/chirps3","access":"https://data.chc.ucsb.edu/products/CHIRPS/v3.0/","coverage":"60°N–60°S, 1981 to near-present","resolution":"0.05° rainfall estimates","license":"CC BY 4.0; preserve CHC citation","provides":["Official daily final-rnl and preliminary-sat selection with missing-day handling","Area-weighted daily mm and monthly totals with revision/source attribution"],"limits":"Local field data covers 1 September–24 October 2026 and includes missing/preliminary days; consult the field panel for completeness. Separate product, not a drop-in replacement for all NASA weather variables."},
-    {"id":"fao-calendar","name":"FAO Crop Calendar","category":"Crop reference","status":"Permission-reviewed manual CSV required","url":"https://cropcalendar.apps.fao.org/","access":"https://cropcalendar.apps.fao.org/","coverage":"Selected countries, crops and agroecological zones","resolution":"Regional seasonal reference windows","license":"Per-record permission required","provides":["Field-scoped validated manual CSV import with source, license, access date and permission reference","Clearly labeled regional recommendations; actual farmer dates are unchanged"],"limits":"No permitted direct bulk-download workflow verified. User must provide and review a permission-sourced CSV; provenance is recorded, not independently certified."},
-    {"id":"des-agri-apy","name":"DES Area, Production & Yield reports","category":"Crop yield reference","status":"District APY CSVs acquired locally from the India Data Portal mirror","url":"https://data.desagri.gov.in/website/crops-apy-report-web","access":"https://ckandev.indiadataportal.com/dataset/area-production-yield-apy","coverage":"India; DES dataset 1997–2023 and DES/UPAg district dataset 2013–14 to 2024–25","resolution":"Aggregated state or district crop statistics","license":"Open Data Commons Attribution License listed by the mirror; confirm for redistribution","provides":["Local source CSVs and a Uttar Pradesh wheat/rice 2021–22 onward subset under ignored .local/datasets/yield/raw/","Area, production and yield with source units and checksums recorded in a manifest"],"limits":"District aggregates are not measured farm yields and must not be copied into individual field records. Data is sourced via a third-party mirror; preserve crop codes, units and provenance and review terms before redistribution."},
-    {"id":"upag-calendar","name":"UPAg Domestic Crop Calendar","category":"Crop reference","status":"Reference only","url":"https://upag.gov.in/national-calendar","access":"https://upag.gov.in/national-calendar","coverage":"Indian states, seasons and crops as listed by the portal","resolution":"Regional monthly sowing/harvest windows","license":"Government portal; reuse terms need confirmation","provides":["Domestic crop calendar reference and regional sowing/harvest windows"],"limits":"The portal identifies its calendar source as ICAR and Indian Horticulture Database 2014. This is dated regional guidance, not field-specific dates or current observations; confirm source terms before redistribution."},
-    {"id":"icar-kharif-advisory-2025","name":"ICAR Kharif Agro-Advisories for Farmers 2025","category":"Crop reference","status":"Local reference downloaded (PDF)","url":"https://icar.gov.in/sites/default/files/2025-10/ICAR-En-Kharif-Agro-Advisories-for-Farmers-2025.pdf","access":"https://icar.gov.in/sites/default/files/2025-10/ICAR-En-Kharif-Agro-Advisories-for-Farmers-2025.pdf","coverage":"India; crop and regional advisories include Uttar Pradesh","resolution":"Seasonal agronomic recommendations","license":"No redistribution license identified; review ICAR terms","provides":["Kharif crop practices and timing recommendations, including Uttar Pradesh rice"],"limits":"Saved in the local ignored calendar cache and linked here for reference. This PDF is not a structured crop calendar or field observation; do not redistribute until terms are confirmed."},
-    {"id":"pldd-up-potato-leaf-disease","name":"PLDD-UP: Potato Leaf Disease Dataset from Uttar Pradesh, India","category":"Image classification research","status":"Locally verified; experimental pipeline ready","url":"https://data.mendeley.com/datasets/3j4nfkvp2n/1","access":"https://data.mendeley.com/datasets/3j4nfkvp2n/1","doi":"10.17632/3j4nfkvp2n.1","license":"CC BY 4.0; attribute dataset contributors Prakash Kumar Singh and Aseem Chandel and the Mendeley Data record. Review downstream model and deployment obligations separately.","coverage":"Field-collected potato leaf photographs from Mainpuri, Etawah and Jaswantnagar, Uttar Pradesh, India","resolution":"Photographs; no satellite or field-boundary resolution","collectionPeriod":"Rabi 2025-26 (October 2025 to March 2026)","crop":"potato","classes":[{"label":"Healthy","images":4600},{"label":"Early Blight","images":4803},{"label":"Late Blight","images":6116}],"imageCount":15519,"localPath":".local/datasets/up/pldd-up/","verification":"Source archives have verified SHA-256 checksums; extracted images were reported decoded by Pillow. The reproducible local inventory pipeline additionally checks every image and checksum.","provenance":"Mendeley Data, DOI 10.17632/3j4nfkvp2n.1; dataset contributors Prakash Kumar Singh and Aseem Chandel; field photographs collected in Uttar Pradesh during Rabi 2025-26.","intendedUse":"Research classification, model training/evaluation and demonstrations only; source photographs are referenced locally and are not stored in PostgreSQL.","provides":["15,519 field-collected images across Healthy (4,600), Early Blight (4,803) and Late Blight (6,116)","Offline inventory, image validation, exact/perceptual duplicate audit and grouped training manifest","Optional isolated experimental classifier pipeline; no model is claimed trained until evaluation artifacts exist"],"limits":"Leaf photographs are not live satellite crop-health observations or satellite-matched field labels. The dataset is not representative of all Uttar Pradesh districts or potato varieties. No validated commercial diagnosis is provided; experimental probabilities are not diagnostic confidence. CC BY 4.0 attribution is required and does not settle every downstream model or deployment obligation."}
+    {
+      "id": "sentinel-2-earth-search",
+      "name": "Sentinel-2 L2A Collection 1 via Earth Search (AWS Open Data)",
+      "category": "Satellite imagery",
+      "status": "Connected; verified live 12 Nov 2026 (field image check and season history)",
+      "url": "https://registry.opendata.aws/sentinel-2-l2a-cogs/",
+      "access": "https://earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a",
+      "coverage": "Global; dated Sentinel-2 L2A scenes, 5-day revisit with Sentinel-2A/B/C",
+      "resolution": "10 m red/NIR/blue; 20 m red-edge, SWIR and scene classification (SCL)",
+      "license": "Copernicus Sentinel data terms (free and open); cite 'Contains modified Copernicus Sentinel data' and Element 84 Earth Search",
+      "provides": [
+        "STAC search by field boundary, date and scene cloudiness (no account or key)",
+        "Cloud-Optimized GeoTIFF bands read directly for the field window",
+        "Reflectance scale/offset from STAC raster:bands (processing baseline 04.00+ offset handled)",
+        "SCL cloud, shadow, cirrus and snow masking; one MGRS tile per field for a consistent time series"
+      ],
+      "limits": "Scenes above 40% cloud are not searched. Overlapping MGRS tiles carry separately corrected reflectance, so each field keeps one primary tile. Fields smaller than about 10 pixels (0.1 ha) cannot be measured reliably at 10 m."
+    },
+    {
+      "id": "sentinel-2",
+      "name": "Sentinel-2 L2A via Google Earth Engine",
+      "category": "Satellite imagery",
+      "status": "Optional; used when an Earth Engine project is configured",
+      "url": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED",
+      "access": "https://developers.google.com/earth-engine/guides/service_account",
+      "coverage": "Global; dated Sentinel-2 scenes",
+      "resolution": "10 m visible/NIR; 20 m red-edge/SWIR bands",
+      "license": "Copernicus Sentinel data terms; preserve source attribution",
+      "provides": [
+        "Earth Engine scene search by field boundary, date and cloudiness",
+        "NDVI, NDRE, NDMI, SAVI and EVI calculated on the Earth Engine API",
+        "Valid-pixel coverage and scene-linked map tiles"
+      ],
+      "limits": "Live queries require a registered Earth Engine Cloud project with the API enabled and ADC authorized for the backend. Clear-pixel masking and the existing minimum field coverage/pixel-count policy remain in force. Health scores are experimental derived indicators, not measured yield."
+    },
+    {
+      "id": "nasa-power",
+      "name": "NASA POWER daily meteorology",
+      "category": "Weather",
+      "status": "Connected",
+      "url": "https://power.larc.nasa.gov/docs/services/api/temporal/daily/",
+      "access": "https://power.larc.nasa.gov/api/temporal/daily/point",
+      "coverage": "Global historical daily weather",
+      "resolution": "Gridded daily estimates, not an on-farm weather station",
+      "license": "NASA POWER data policy and citation guidance",
+      "provides": [
+        "Temperature",
+        "Corrected precipitation",
+        "Relative humidity"
+      ],
+      "limits": "Coordinates required. Meteorological availability trails by about 2–3 days; fill values are excluded. Weather at a nearby grid cell is not proof of actual irrigation."
+    },
+    {
+      "id": "open-meteo",
+      "name": "Open-Meteo seven-day forecast",
+      "category": "Weather forecast",
+      "status": "Connected",
+      "url": "https://open-meteo.com/",
+      "access": "https://api.open-meteo.com/v1/forecast",
+      "coverage": "Global modeled forecast",
+      "resolution": "Seven-day forecast at supplied coordinates",
+      "license": "Open-Meteo terms and attribution requirements",
+      "provides": [
+        "Daily minimum/maximum temperature",
+        "Precipitation amount and probability",
+        "Humidity and wind speed"
+      ],
+      "limits": "Forecasts are modeled predictions, not historical observations or on-farm measurements. Requires field coordinates; forecast issue time is not provided."
+    },
+    {
+      "id": "fao-calendar",
+      "name": "FAO Crop Calendar",
+      "category": "Crop reference",
+      "status": "Permission-reviewed manual CSV required",
+      "url": "https://cropcalendar.apps.fao.org/",
+      "access": "https://cropcalendar.apps.fao.org/",
+      "coverage": "Selected countries, crops and agroecological zones",
+      "resolution": "Regional seasonal reference windows",
+      "license": "Per-record permission required",
+      "provides": [
+        "Field-scoped validated manual CSV import with source, license, access date and permission reference",
+        "Clearly labeled regional recommendations; actual farmer dates are unchanged"
+      ],
+      "limits": "No permitted direct bulk-download workflow verified. User must provide and review a permission-sourced CSV; provenance is recorded, not independently certified."
+    }
   ]
 }

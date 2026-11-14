@@ -22,6 +22,7 @@ export async function setup(page:Page) {
     if(path==='/api/notifications')return route.fulfill({json:{mode:'account',preferences:noticePreferences,notifications:state.fields.filter(field=>field.assessment?.state==='needs_inspection').map(field=>({id:field.id,field_id:field.id,field_name:field.name,title_en:'A field visit is recommended',title_hi:'खेत की जाँच करें',href:`/fields/${field.id}/map`,kind:'imagery',read_at:readNotices.has(field.id)?new Date().toISOString():null}))}});
     if(path==='/api/notifications/read'){for(const id of req.postDataJSON().ids||[])readNotices.add(id);return route.fulfill({json:{ok:true}});}
     if(path==='/api/notifications/preferences'){noticePreferences=req.postDataJSON();return route.fulfill({json:{preferences:noticePreferences}});}
+    if(path.endsWith('/air-quality'))return route.fulfill({status:503,json:{error:'Google APIs are not configured.',code:'not_configured'}});
     if(path.endsWith('.png'))return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"/>'});
     let json:unknown=[];
     if(path==='/api/fields'){

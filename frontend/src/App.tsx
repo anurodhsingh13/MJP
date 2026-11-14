@@ -20,7 +20,6 @@ const FieldOverview = lazy(() => import('./pages/fields/FieldOverview').then(mod
 const FieldReport = lazy(() => import('./pages/fields/FieldReport').then(module => ({ default: module.FieldReport })));
 const Reports = lazy(() => import('./pages/fields/FieldReport').then(module => ({ default: module.Reports })));
 const Help = lazy(() => import('./pages/help/Help').then(module => ({ default: module.Help })));
-const ResearchReview = lazy(() => import('./pages/ResearchReview').then(module => ({default:module.ResearchReview})));
 
 function LoadingWorkspace() {
   const {t}=usePreferences();
@@ -31,7 +30,7 @@ function FarmerMobileNavigation() {
   const { t } = usePreferences();
   return <nav className="farmer-mobile-nav" aria-label={t('Main mobile navigation', 'मोबाइल मुख्य नेविगेशन')}>
     <NavLink to="/" end><House aria-hidden="true" size={21}/><span>{t('Home', 'होम')}</span></NavLink>
-    <Link to="/#my-fields" onClick={() => { if (window.location.pathname === '/') document.getElementById('my-fields')?.scrollIntoView({ behavior: 'smooth' }); }}><MapPinned aria-hidden="true" size={21}/><span>{t('Fields', 'खेत')}</span></Link>
+    <Link to="/" onClick={() => { if (window.location.pathname === '/') document.getElementById('fh-fields')?.scrollIntoView({ behavior: 'smooth' }); }}><MapPinned aria-hidden="true" size={21}/><span>{t('Fields', 'खेत')}</span></Link>
     <NavLink to="/reports"><FileText aria-hidden="true" size={21}/><span>{t('Reports', 'रिपोर्ट')}</span></NavLink>
     <NavLink to="/help"><CircleHelp aria-hidden="true" size={21}/><span>{t('Help', 'मदद')}</span></NavLink>
   </nav>;
@@ -51,7 +50,6 @@ export default function App() {
             <Route path="/gallery" element={<CropGallery />} />
             <Route path="/help" element={<Help />} />
             <Route path="/reports" element={<Reports />} />
-            <Route path="/research/review" element={<ResearchReview/>} />
             <Route path="/fields/:fieldId" element={<FieldLayout />}>
               <Route index element={<Navigate to="overview" replace />} />
               <Route path="overview" element={<FieldOverview />} />

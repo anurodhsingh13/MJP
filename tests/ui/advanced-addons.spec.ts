@@ -1,11 +1,11 @@
 import {test,expect} from '@playwright/test';
 import {setup,id} from './fixtures';
-test('forecast and notification components extend dashboard and field without removing original content',async({page})=>{
+test('dashboard and field overview show the forecast alongside the field summary',async({page})=>{
  await setup(page);
  await page.goto('/');
- await expect(page.getByRole('heading',{name:'Your farm. Your next step.'})).toBeVisible();
- await expect(page.getByRole('heading',{name:'Visit reminders'})).toBeVisible();
- await expect(page.locator('.farmer-field-card').first()).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Hello, Farmer!'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Next 7 Days Weather Forecast'})).toBeVisible();
+ await expect(page.locator('.fh-field').first()).toBeVisible();
  await page.goto(`/fields/${id}/overview`);
  await expect(page.getByRole('heading',{name:'Next 7 days · Weather forecast'})).toBeVisible();
  await expect(page.getByRole('region',{name:'Field summary'})).toBeVisible();

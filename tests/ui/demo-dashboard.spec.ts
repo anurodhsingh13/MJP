@@ -15,25 +15,16 @@ test.beforeEach(async ({page}) => {
   await page.route('**/api/fields',route=>route.fulfill({json:fields}));
 });
 
-test('farmer sees urgent fields first and can find a field',async({page})=>{
+test('farmer sees urgent fields first',async({page})=>{
   await page.goto('/');
-  const cards=page.locator('.farmer-field-card');
+  const cards=page.locator('.fh-field');
   await expect(cards).toHaveCount(5);
-  await expect(cards.first()).toContainText('TEST Wheat');
+  // Inspection signal, then due visits, then fields waiting for a picture, then routine fields.
+  await expect(cards.nth(0)).toContainText('TEST Wheat');
   await expect(cards.nth(1)).toContainText('TEST Rice');
-  await page.getByPlaceholder('Search your fields or crops').fill('Mustard');
-  await expect(cards).toHaveCount(1);
-  await expect(cards.first()).toContainText('TEST Mustard');
-});
-
-test('advanced filters can isolate missing imagery',async({page})=>{
-  await page.goto('/');
-  await page.getByRole('button',{name:'Filters'}).click();
-  await page.getByLabel('Show fields').selectOption('data');
-  const cards=page.locator('.farmer-field-card');
-  await expect(cards).toHaveCount(2);
-  await expect(cards.first()).toContainText('TEST Mustard');
-  await expect(cards.nth(1)).toContainText('TEST New field');
+  await expect(cards.nth(2)).toContainText('TEST Mustard');
+  await expect(cards.nth(3)).toContainText('TEST New field');
+  await expect(cards.nth(4)).toContainText('TEST Maize');
 });
 
 test('mobile navigation is visible and reaches reports',async({page})=>{
@@ -47,11 +38,12 @@ test('mobile navigation is visible and reaches reports',async({page})=>{
   await expect(nav.getByRole('link',{name:'Help'})).toBeVisible();
 });
 
-test('attention section retains inspection, due visits and missing-imagery priorities together',async({page})=>{
+test('attention card shows the most urgent field and the summary counts inspection signals',async({page})=>{
   await page.goto('/');
-  const priority=page.locator('.farmer-priority');
-  await expect(priority).toContainText('TEST Wheat');
-  await expect(priority).toContainText('TEST Rice');
-  await expect(priority).toContainText('TEST Mustard');
-  await expect(priority).toContainText('4 fields need attention');
+  const attention=page.locator('.fh-attention');
+  await expect(attention).toContainText('TEST Wheat');
+  await expect(attention).toContainText('Action Required');
+  const summary=page.getByRole('region',{name:'Farm summary'});
+  await expect(summary.locator('article').nth(0).locator('strong')).toHaveText('5');
+  await expect(summary.locator('article').nth(2).locator('strong')).toHaveText('1');
 });

@@ -114,3 +114,28 @@ def test_calculate_indices_rejects_cloud_only_scene(tmp_path):
         "polygonGeojson": polygon,
     })
     assert response.status_code == 422
+
+
+def test_ndvi_classes_use_inclusive_lower_breaks_and_ignore_missing_pixels():
+    from backend.engine.main import ndvi_classes
+    assert ndvi_classes([0.1, 0.2, 0.4, 0.6, float('nan')]) == {'bare': 25.0, 'low': 25.0, 'moderate': 25.0, 'high': 25.0}
+    assert ndvi_classes([]) is None
+
+
+def test_calculate_indices_reports_ndvi_zone_shares(tmp_path):
+    red = np.full((256, 256), 0.1, dtype=np.float32)
+    nir = np.full((256, 256), 0.8, dtype=np.float32)   # NDVI ~0.78 on the left half
+    red[:, 128:] = 0.3
+    nir[:, 128:] = 0.35                                 # NDVI ~0.08 (bare soil) on the right half
+    paths = {name: os.path.join(tmp_path, f"{name}.tif") for name in ("red", "nir", "scl")}
+    create_synthetic_geotiff(paths["red"], red)
+    create_synthetic_geotiff(paths["nir"], nir)
+    create_synthetic_geotiff(paths["scl"], np.full((256, 256), 4, dtype=np.uint8))
+    polygon = {"type": "Polygon", "coordinates": [[[77.2018, 28.599], [77.2238, 28.599], [77.2238, 28.590], [77.2018, 28.590], [77.2018, 28.599]]]}
+    response = client.post("/calculate-indices", json={"redUrl": paths["red"], "nirUrl": paths["nir"], "sclUrl": paths["scl"], "polygonGeojson": polygon})
+    assert response.status_code == 200, response.text
+    zones = response.json()["ndviClasses"]
+    assert set(zones) == {"bare", "low", "moderate", "high"}
+    assert sum(zones.values()) == pytest.approx(100, abs=0.5)
+    assert zones["high"] == pytest.approx(50, abs=3)
+    assert zones["bare"] == pytest.approx(50, abs=3)

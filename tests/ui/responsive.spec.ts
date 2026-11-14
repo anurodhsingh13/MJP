@@ -31,7 +31,7 @@ for (const size of [
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'My fields' })).toBeVisible();
     await fits();
-    await page.getByRole('button', { name: '+ Add field', exact: true }).click();
+    await page.getByRole('button', { name: 'Add New Field' }).click();
     await page.getByLabel('Field Name').fill('Phone field');
     await page.getByLabel('Crop Type').fill('Rice');
     await page.getByRole('button', { name: 'Next', exact: true }).click();
@@ -40,8 +40,8 @@ for (const size of [
     await page.getByRole('button', { name: 'Close add field' }).click();
     await page.goto('/datasets', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Project datasets' })).toBeVisible();
-    await page.getByLabel('Search datasets').fill('soil');
-    await expect(page.getByRole('heading', { name: 'ISRIC SoilGrids' })).toBeVisible();
+    await page.getByLabel('Search datasets').fill('Earth Search');
+    await expect(page.getByRole('heading', { name: 'Sentinel-2 L2A Collection 1 via Earth Search (AWS Open Data)' })).toBeVisible();
     await fits();
     for (const tab of ['map', 'analysis', 'history']) {
       await page.goto(`/fields/${id}/${tab}`, { waitUntil: 'domcontentloaded' });

@@ -1,6 +1,8 @@
 import { useEffect, useState, lazy, Suspense, type FormEvent } from 'react';
 import { useOutletContext, Link } from 'react-router-dom';
-import { qualityReason } from '../../../../shared/evidence';
+import { qualityReason, seasonStage } from '../../../../shared/evidence';
+import { SeasonHistoryPanel } from '../../features/fields/SeasonHistoryPanel';
+import { useStageLabel } from '../../features/fields/season';
 import { loadNdviAnalysis, loadNdvi, askFieldAssistant, loadWeather, queueFieldJob, loadFieldEvents, loadFieldJobs, type DatabaseField, type NdviAnalysis, type VegetationIndexObservation, type WeatherObservation, type FieldEvent } from '../../lib/api';
 import { usePreferences } from '../../lib/preferencesContext';
 import { fieldCopy } from '../../lib/fieldCopy';
@@ -8,7 +10,7 @@ const VegetationChart=lazy(()=>import('../../features/fields/VegetationChart').t
 const HistoricalWeatherCharts=lazy(()=>import('../../features/weather/HistoricalWeatherCharts').then(module=>({default:module.HistoricalWeatherCharts})));
 
 export function FieldAnalysis() {
-  const { field } = useOutletContext<{ field: DatabaseField }>();
+  const { field, editField } = useOutletContext<{ field: DatabaseField; editField?: () => void }>();
   const { t, language, date } = usePreferences();
   const [analysis, setAnalysis] = useState<NdviAnalysis | null>(null);
   const [observations, setObservations] = useState<VegetationIndexObservation[]>([]);
@@ -67,6 +69,9 @@ export function FieldAnalysis() {
   const comparable = selectedOlder && selectedNewer && selectedOlder.observed_on < selectedNewer.observed_on && selectedOlder.calculation_version === selectedNewer.calculation_version;
   const change = comparable ? Number(selectedNewer.ndvi_value)-Number(selectedOlder.ndvi_value) : null;
   const copy = fieldCopy(field, language);
+  const stageLabel = useStageLabel();
+  const season = { plantingDate: field.planting_date, harvestDate: field.harvest_date };
+  const latestStage = dated.at(-1) ? seasonStage(season, dated.at(-1)!.observed_on) : null;
   async function ask(event: FormEvent) {
     event.preventDefault(); if (!question.trim() || asking) return;
     setAsking(true); setAnswer(''); setAssistantError('');
@@ -82,7 +87,9 @@ export function FieldAnalysis() {
     {comparable && change != null && <section className="picture-change" aria-label={t('Picture comparison summary', 'तस्वीरों में बदलाव का सारांश')}><strong>{change < 0 ? t('The crop looked less green in the later picture', 'बाद की तस्वीर में हरियाली कम दिखी') : change > 0 ? t('The crop looked greener in the later picture', 'बाद की तस्वीर में हरियाली ज़्यादा दिखी') : t('Greenness looked similar in both pictures', 'दोनों तस्वीरों में हरियाली एक जैसी दिखी')}</strong><p>{date(selectedOlder.observed_on)} → {date(selectedNewer.observed_on)}</p><p>{t('This describes those two pictures. A field visit helps explain the change.', 'यह इन दो तस्वीरों का बदलाव है। वजह समझने के लिए खेत में देखें।')}</p></section>}
     <section className="vegetation-trends" aria-label={t('Vegetation trends', 'हरियाली में बदलाव')}><h3>{t('What changed in the field?', 'खेत में क्या बदला?')}</h3><p>{t('Each dot is a real image date. Lines guide your eye; we have no readings between the dots. A falling signal is a reason to inspect, not a disease diagnosis.', 'हर बिंदु एक असली तस्वीर की तारीख़ है। बीच की लाइन केवल समझने के लिए है; उन दिनों की रीडिंग नहीं है। गिरावट दिखे तो खेत जाँचें; यह बीमारी की पहचान नहीं है।')}</p>
       <div className="analysis-controls"><label>{t('Date range', 'समय अवधि')}<select value={range} onChange={event => setRange(event.target.value)}><option value="30">{t('30 days', '30 दिन')}</option><option value="90">{t('90 days', '90 दिन')}</option><option value="season">{field.planting_date ? t('Since recorded planting', 'दर्ज बुवाई से') : t('All available dates', 'सभी उपलब्ध तारीख़ें')}</option></select></label><label>{t('Show on chart', 'ग्राफ़ में क्या देखें')}<select value={index} onChange={event => setIndex(event.target.value as typeof index)}><option value="ndvi_value">{t('Greenness', 'हरियाली')}</option><option value="ndmi_value">{t('Water signal in plants', 'पौधों में पानी का संकेत')}</option><option value="ndre_value">{t('Leaf reflectance', 'पत्तियों से लौटने वाली रोशनी')}</option></select></label></div>
-      {chart.length ? <Suspense fallback={<p aria-live="polite">{t('Loading chart…','ग्राफ़ लोड हो रहा है…')}</p>}><VegetationChart simple observations={chart} index={index} events={events.filter(item => Date.parse(item.event_date) >= cutoff)}/></Suspense> : <p>{t('No accepted observations in this range. Find a usable image on the Map tab.', 'इस अवधि की साफ़ तस्वीर नहीं है। नक्शे वाले पेज पर नई तस्वीर जाँचें।')}</p>}
+      {chart.length ? <Suspense fallback={<p aria-live="polite">{t('Loading chart…','ग्राफ़ लोड हो रहा है…')}</p>}><VegetationChart simple observations={chart} index={index} season={season} events={events.filter(item => Date.parse(item.event_date) >= cutoff)}/></Suspense> : <p>{t('No accepted observations in this range. Find a usable image on the Map tab.', 'इस अवधि की साफ़ तस्वीर नहीं है। नक्शे वाले पेज पर नई तस्वीर जाँचें।')}</p>}
+          {latestStage && <p className="season-stage-line">{t('Crop stage at the latest image (from your sowing/harvest dates):','नई तस्वीर के समय फ़सल की अवस्था (आपकी बुवाई/कटाई की तारीख़ों से):')} <strong>{stageLabel(latestStage)}</strong></p>}
+      <SeasonHistoryPanel field={field} onEditDates={editField} onComplete={() => setReload(value => value + 1)}/>
     </section>
     <details className="technical-observations"><summary>{t('Advanced: measurements and experimental score', 'तकनीकी जानकारी: रीडिंग और प्रयोगात्मक स्कोर')}</summary>
       <section aria-label={t('Two-date comparison', 'दो तारीख़ों की तुलना')}><h3>{t('Compare two accepted images', 'दो साफ़ तस्वीरों की तुलना')}</h3>{dated.length < 2 ? <p>{t('Two accepted acquisition dates are needed for comparison.', 'तुलना के लिए दो तारीख़ों की साफ़ तस्वीर चाहिए।')}</p> : <><div className="analysis-controls"><label>{t('Earlier acquisition', 'पहली तस्वीर')}<select value={selectedOlder?.observed_on || ''} onChange={event => setOlderDate(event.target.value)}>{dated.filter(item => item.observed_on !== selectedNewer?.observed_on).map(item => <option key={item.observed_on} value={item.observed_on}>{date(item.observed_on)}</option>)}</select></label><label>{t('Later acquisition', 'दूसरी तस्वीर')}<select value={selectedNewer?.observed_on || ''} onChange={event => setNewerDate(event.target.value)}>{dated.filter(item => item.observed_on !== selectedOlder?.observed_on).map(item => <option key={item.observed_on} value={item.observed_on}>{date(item.observed_on)}</option>)}</select></label></div>{[selectedOlder,selectedNewer].map(item => item && <p key={item.scene_id}>{date(item.observed_on)} · {item.scene_id} · NDVI {item.ndvi_value} · {item.valid_coverage_percent}% · {item.valid_pixel_count} pixels · {item.source}</p>)}<p>{change == null ? t('These dates are not comparable: check their order and calculation versions.', 'ये तारीख़ें तुलना योग्य नहीं: क्रम और गणना के संस्करण जाँचें।') : t(`NDVI change between these dates: ${change.toFixed(3)}. This is not a diagnosis or verified recovery.`, `इन तारीख़ों के बीच NDVI बदलाव: ${change.toFixed(3)}। यह बीमारी की पहचान या ठीक होने की पुष्टि नहीं है।`)}</p></>}</section>

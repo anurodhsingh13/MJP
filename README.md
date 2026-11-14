@@ -1,6 +1,6 @@
 # TerraScope Crop Health Monitor
 
-Crop health dashboard using Sentinel-2 imagery from Google Earth Engine, a Node API, a Python processing engine and PostgreSQL/PostGIS.
+Crop health monitoring using NDVI from Sentinel-2 satellite imagery: open Copernicus Sentinel-2 L2A from Earth Search (AWS Open Data, no account needed) by default, or Google Earth Engine when configured. React frontend, Node API, Python raster engine and PostgreSQL/PostGIS.
 
 ## Start / stop locally
 
@@ -106,13 +106,13 @@ For the full submission check use `npm run submission:check`. A timestamped repo
 
 ## Sync project data
 
-With native services running and Earth Engine configured, run `npm run sync:data` to import 30 available days of NASA POWER weather and search the last 90 days of Sentinel-2 observations for saved field locations through Google Earth Engine. NASA meteorological availability typically trails by 2–3 days; missing-value sentinels are excluded from measurements. Set `SYNC_WEATHER_DAYS` to choose 1–365 days. This sends saved coordinates to NASA POWER and the authorized Earth Engine project.
+With native services running, run `npm run sync:data` to import 30 available days of NASA POWER weather and search the last 90 days of Sentinel-2 observations for saved fields (open Earth Search data, or Google Earth Engine when configured). NASA meteorological availability typically trails by 2–3 days; missing-value sentinels are excluded from measurements. Set `SYNC_WEATHER_DAYS` to choose 1–365 days. This sends saved coordinates to NASA POWER and the authorized Earth Engine project.
 
 Fields with no coordinates are skipped. Field-level indices require an actual polygon boundary; a point lookup only supplies scene metadata. Successful observations update vegetation indices and field health, and may generate stress alerts. The local sync report is `.local/data-sync-report.json`. Planting/harvest dates, yield and management events must come from the field manager.
 
 ## Dataset catalog and source status
 
-Open **Explore datasets** on the dashboard for thirteen reviewed sources and their actual integration status. District APY data is synchronized to PostgreSQL for regional comparisons; other reference-only entries and the static research sample retain their stated limits. See [datasets/README.md](datasets/README.md) for source limitations and attribution. Sample parcel polygons are not imported as farm records.
+Open **Datasets** in the top navigation for the five sources the project uses (Sentinel-2 via Earth Search, Sentinel-2 via Earth Engine, NASA POWER, Open-Meteo, FAO crop calendar) and their actual integration status. See [datasets/README.md](datasets/README.md) for source limitations and attribution. Sample parcel polygons are not imported as farm records.
 
 ## Phones, tablets, and other computers
 
@@ -120,19 +120,14 @@ The web interface adapts to phones, tablets, laptops, and desktops, including po
 
 To use the running app from another device on the same trusted Wi-Fi, set `WEB_HOST=0.0.0.0` in `.env`, restart with `npm run stop` then `npm start`, and open `http://<computer-LAN-IP>:5173` on that device (or your configured `WEB_PORT`). Allow the web port through the computer's firewall if needed. Keep the API and Python engine local: the frontend proxies `/api` to them, so devices share the same data. Automatic geolocation requires HTTPS on remote devices; otherwise pan and zoom the OpenStreetMap view to draw a boundary manually. For access outside your Wi-Fi, deploy the services behind HTTPS.
 
-## Reference datasets (opt-in)
+## NDVI method
 
-TerraScope integrates field-boundary-aware public reference datasets: ESA WorldCover, CHIRPS v3, SoilGrids WCS, ESA WorldCereal AOI exports, NASA Harvest CropHarvest labels, and permission-reviewed FAO crop-calendar CSVs. These sources provide historical maps, modeled estimates or regional guidance; they do not establish current crop identity, laboratory soil results or actual farm dates.
-
-After migrations, synchronize explicit, existing field UUIDs (select only fields you are authorized to manage):
-
-```bash
-npm run migrate
-npm start
-npm run data:sync:references -- --fields <owned-field-uuid> --providers worldcover,chirps,soilgrids --start YYYY-MM-DD --end YYYY-MM-DD
-```
-
-The command records source, license, retrieval timestamp, coverage, provider errors and the field boundary version. It never substitutes synthetic values. Review [dataset status and reproduction commands](datasets/STATUS.md) for verified acquisitions, manual WorldCereal/FAO workflows and remaining data requirements.
+- **Imagery.** `SATELLITE_PROVIDER=auto` uses Google Earth Engine (`COPERNICUS/S2_SR_HARMONIZED`) when `EARTH_ENGINE_PROJECT_ID` is a real project, otherwise Earth Search `sentinel-2-c1-l2a`. Earth Search needs no account; the engine reads only the field window of the public Cloud-Optimized GeoTIFFs.
+- **NDVI** = (B8 − B4) / (B8 + B4) on surface reflectance. Scale/offset come from STAC `raster:bands` (baseline 04.00+ offset −0.1 is applied). SCL classes 0, 1, 2, 3, 8, 9, 10, 11 are masked. An image is accepted when ≥ 70% of the field and ≥ 10 pixels are clear.
+- **One tile per field.** Sentinel-2 overlap zones deliver the same pass in two MGRS tiles with separately corrected reflectance (same field, same day: NDVI 0.246 in 43RGK vs 0.317 in 43RGL). Each field keeps one primary tile, one scene per day is ingested, and changes are compared only within the same tile.
+- **Change signal.** A decrease of ≥ 0.10 between two accepted images at most `EVIDENCE_COMPARE_DAYS` (30) apart asks for a field visit, except within 30 days before or 45 days after the recorded harvest date, where it is reported as expected ripening/harvest.
+- **NDVI zones.** Each accepted image stores the share of clear field pixels below 0.2, 0.2–0.4, 0.4–0.6 and ≥ 0.6 (shown on the field overview and dashboard map card).
+- **Season history.** *Changes over time → Build season history* queues a background job that adds one clear image about every 10 days, from 15 days before sowing (or the last 180 days).
 
 ## Evidence-first monitoring
 
@@ -142,7 +137,7 @@ Run `npm run migrate` before starting this version. The evidence migrations pres
 
 `EVIDENCE_MIN_COVERAGE=70`, `EVIDENCE_MIN_PIXELS=10`, `EVIDENCE_FRESH_DAYS=14`, and `EVIDENCE_DECLINE_THRESHOLD=0.10` are initial product heuristics, not validated agricultural thresholds. Restart after changing them. Scene discovery searches `SATELLITE_SEARCH_DAYS=90` days, retrieves up to `SATELLITE_CANDIDATE_LIMIT=100` recent candidates and processes at most `SATELLITE_MAX_ATTEMPTS=6` sequentially. Missing required bands, insufficient field coverage and unusable pixels cause a candidate to be rejected. No accepted candidate leaves the previous evidence in place. `POST /api/fields/:id/ndvi/process-latest` processes discovered candidates; discover first via the existing ingestion endpoint. The app also includes PostgreSQL-backed job records, bounded retries and worker lease recovery; this queue still needs full restart/concurrency validation before shared production use.
 
-Experimental vegetation scores remain under advanced details, independent of image quality. A decrease is a reason to inspect, not disease detection. Trends use elapsed dates, not observation sequence numbers. There is no crop-stage or next-NDVI forecast. Historical weather is modeled NASA POWER data, not a forecast. Manually closing a notice does not establish recovery.
+Experimental vegetation scores remain under advanced details, independent of image quality. A decrease is a reason to inspect, not disease detection. Trends use elapsed dates, not observation sequence numbers. Crop stage (establishment, growing, maturity, after harvest) is only derived from the sowing and harvest dates the farmer enters; there is no next-NDVI forecast. Historical weather is modeled NASA POWER data, not a forecast. Manually closing a notice does not establish recovery.
 
 The engine requires red/NIR/SCL bands and trustworthy reflectance scale/offset metadata (STAC `raster:bands`, or raster metadata). It refuses to guess integer-band scaling. Statistics, tiles and overlays share masking and normalization. Boundary updates archive the old geometry, invalidate summaries, and isolate old observations by revision. OpenStreetMap/Leaflet provides the key-free basemap; it is not the selected Sentinel acquisition.
 
@@ -207,4 +202,4 @@ If an older launcher first reported `ECONNREFUSED` during migration and then `co
 
 ### Research fixtures
 
-Fictional scenarios remain under `tests/fixtures/` for automated regression checks only. The FTW public-boundary extract under `datasets/demo/` is retained as a cited research sample; neither is loaded into the running application.
+Fictional scenarios remain under `tests/fixtures/` for automated regression checks only; they are never loaded into the running application. The earlier demo seed scripts, public-boundary sample parcels and illustrative crop calendar have been removed.

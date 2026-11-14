@@ -101,7 +101,13 @@ export async function ingestEarthEngineScenes(fieldId: string) {
   return payload
 }
 
-export const ingestSentinelScenes = ingestEarthEngineScenes;
+/** Open Sentinel-2 L2A search (Earth Search / AWS Open Data); works without a Google account. */
+export async function ingestSentinelScenes(fieldId: string) {
+  const response = await fetch(`/api/fields/${fieldId}/ingest/sentinel-scenes`, { method: 'POST' })
+  const payload = await response.json().catch(() => ({})) as { error?: string; imported?: number; tile?: string | null }
+  if (!response.ok) throw new Error(payload.error ?? 'Open Sentinel-2 scene search failed')
+  return payload
+}
 
 export async function loadScenes(fieldId: string) {
   const response = await fetch(`/api/fields/${fieldId}/scenes`)
@@ -189,7 +195,7 @@ export type ScoutingCase = {
   id:string; observed_on:string; crop:string|null; symptoms:string|null; notes:string|null;
   observation_category:ObservationCategory; growth_stage:GrowthStage; severity:ObservationSeverity;
   provenance:'owner_reported'; verification_status:'unverified'|'expert_verified';
-  diagnosis_status:string; diagnosis:Record<string,unknown>; photos:ScoutingPhoto[]; research_consent?:boolean;
+  diagnosis_status:string; diagnosis:Record<string,unknown>; photos:ScoutingPhoto[];
 };
 export async function loadScouting(fieldId:string) {
   const response=await fetch(`/api/fields/${fieldId}/scouting`);
@@ -203,31 +209,6 @@ export async function saveScouting(fieldId:string,entry:{client_key:string;obser
   const payload=await response.json().catch(()=>({})) as ScoutingCase&{error?:string;diagnosis?:Record<string,unknown>};
   if(!response.ok)throw new Error(payload.error??'Scouting note could not be saved. Keep the form open and retry.');
   return payload;
-}
-export async function setScoutingResearchConsent(fieldId:string,caseId:string,consented:boolean) {
-  const response=await fetch(`/api/fields/${fieldId}/scouting/${caseId}/research-consent`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({consented})});
-  const payload=await response.json().catch(()=>({})) as {error?:string;consented?:boolean};
-  if(!response.ok||payload.consented!==consented)throw new Error(payload.error??'Research consent could not be updated');
-  return payload.consented;
-}
-export type ResearchReviewCase={case_id:string;observed_on:string;latitude:number;longitude:number};
-export type ExpertReviewInput={observed_on:string;observation_category:ObservationCategory;growth_stage:GrowthStage;severity:ObservationSeverity;attest_ground_visit:true};
-function isResearchReviewCase(value:unknown):value is ResearchReviewCase{
-  if(!value||typeof value!=='object')return false;
-  const item=value as Record<string,unknown>;
-  return typeof item.case_id==='string'&&typeof item.observed_on==='string'&&typeof item.latitude==='number'&&Number.isFinite(item.latitude)&&typeof item.longitude==='number'&&Number.isFinite(item.longitude);
-}
-export async function loadResearchReviewQueue() {
-  const response=await fetch('/api/research/review-queue');
-  const payload=await response.json().catch(()=>({})) as {cases?:unknown;error?:string};
-  if(!response.ok)throw new Error(payload.error??'Research review queue is unavailable');
-  if(!Array.isArray(payload.cases)||!payload.cases.every(isResearchReviewCase))throw new Error('Research review queue returned invalid records');
-  return payload.cases as ResearchReviewCase[];
-}
-export async function submitExpertInspectionReview(caseId:string,entry:ExpertReviewInput) {
-  const response=await fetch(`/api/research/cases/${caseId}/reviews`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
-  const payload=await response.json().catch(()=>({})) as {error?:string};
-  if(!response.ok)throw new Error(payload.error??'Field visit review could not be saved');
 }
 export async function loadFieldTasks(fieldId:string) {
   const response=await fetch(`/api/fields/${fieldId}/tasks`);
@@ -247,7 +228,7 @@ function isJob(value: unknown): value is ProcessingJob {
   if (!value || typeof value !== 'object') return false;
   const job = value as ProcessingJob;
   return typeof job.id === 'string' && Number.isInteger(job.boundary_version)
-    && ['satellite','weather'].includes(job.kind) && ['queued','running','succeeded','failed'].includes(job.status);
+    && ['satellite','weather','history'].includes(job.kind) && ['queued','running','succeeded','failed'].includes(job.status);
 }
 export async function loadFieldJobs(fieldId: string) {
   const response = await fetch(`/api/fields/${fieldId}/jobs`, { signal: AbortSignal.timeout(10000) });
@@ -255,7 +236,7 @@ export async function loadFieldJobs(fieldId: string) {
   if (!response.ok || !Array.isArray(payload) || !payload.every(isJob)) throw new Error('Unable to check image progress');
   return payload as ProcessingJob[];
 }
-export async function queueFieldJob(fieldId: string, kind: 'satellite'|'weather' = 'satellite') {
+export async function queueFieldJob(fieldId: string, kind: 'satellite'|'weather'|'history' = 'satellite') {
   const response = await fetch(`/api/fields/${fieldId}/jobs`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kind}), signal:AbortSignal.timeout(15000) });
   const payload: unknown = await response.json();
   if (!response.ok || !isJob(payload)) throw new Error('Image check could not be started. Your field is saved.');
@@ -394,103 +375,3 @@ export async function loadForecast(fieldId:string,options:{signal?:AbortSignal;t
  }
 }
 
-export type MaizePredictionResult = {
-  status: 'experimental';
-  crop: 'maize';
-  prediction: string;
-  probability: number;
-  predictions: Array<{label:string;probability:number}>;
-  model: string;
-  disclaimer: string;
-};
-
-export async function predictMaizeLeaf(
-  fieldId:string,
-  image:string
-):Promise<MaizePredictionResult> {
-  const response = await fetch(
-    `/api/fields/${encodeURIComponent(fieldId)}/maize/predict`,
-    {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({image})
-    }
-  );
-
-  const payload = await response.json().catch(
-    () => ({})
-  ) as Partial<MaizePredictionResult> & {error?:string};
-
-  if (!response.ok) {
-    throw new Error(
-      payload.error || 'Maize analysis unavailable.'
-    );
-  }
-
-  if (
-    payload.status !== 'experimental' ||
-    !Array.isArray(payload.predictions) ||
-    typeof payload.prediction !== 'string' ||
-    typeof payload.probability !== 'number'
-  ) {
-    throw new Error('Invalid prediction response.');
-  }
-
-  return payload as MaizePredictionResult;
-}
-
-export type PotatoLeafStatus = {
-  dataset_id: 'pldd-up-potato-leaf-disease';
-  model_available: boolean;
-};
-
-export type PotatoLeafPredictionResult = {
-  status: 'experimental';
-  crop: 'potato';
-  dataset_id: 'pldd-up-potato-leaf-disease';
-  prediction: 'Healthy' | 'Early Blight' | 'Late Blight';
-  probability: number;
-  predictions: Array<{label:'Healthy'|'Early Blight'|'Late Blight';probability:number}>;
-  model: string;
-  dataset_provenance: string;
-  limitations: string[];
-  disclaimer: string;
-};
-
-export async function getPotatoLeafStatus(signal?: AbortSignal):Promise<PotatoLeafStatus> {
-  const response = await fetch('/api/research/potato-leaf', {signal});
-  const payload = await response.json().catch(() => ({})) as Partial<PotatoLeafStatus> & {error?:string};
-  if (!response.ok) throw new Error(payload.error || 'Potato research service is unavailable.');
-  if (payload.dataset_id !== 'pldd-up-potato-leaf-disease' || typeof payload.model_available !== 'boolean') {
-    throw new Error('Invalid potato research status response.');
-  }
-  return payload as PotatoLeafStatus;
-}
-
-export async function predictPotatoLeaf(image:string):Promise<PotatoLeafPredictionResult> {
-  const response = await fetch('/api/research/potato-leaf/predict', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({image}),
-  });
-  const payload = await response.json().catch(() => ({})) as Partial<PotatoLeafPredictionResult> & {error?:string};
-  if (!response.ok) throw new Error(payload.error || 'Potato analysis is unavailable.');
-  const classLabels = new Set(['Healthy', 'Early Blight', 'Late Blight']);
-  if (
-    payload.status !== 'experimental' ||
-    payload.crop !== 'potato' ||
-    payload.dataset_id !== 'pldd-up-potato-leaf-disease' ||
-    typeof payload.prediction !== 'string' ||
-    !classLabels.has(payload.prediction) ||
-    typeof payload.probability !== 'number' ||
-    !Number.isFinite(payload.probability) ||
-    !Array.isArray(payload.predictions) ||
-    payload.predictions.length !== 3 ||
-    !Array.isArray(payload.limitations) ||
-    payload.limitations.length < 3 ||
-    !payload.limitations.every(item => typeof item === 'string')
-  ) {
-    throw new Error('Invalid potato prediction response.');
-  }
-  return payload as PotatoLeafPredictionResult;
-}

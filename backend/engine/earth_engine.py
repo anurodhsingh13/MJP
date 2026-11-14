@@ -125,7 +125,9 @@ def search_scenes(geojson, start, end, limit):
             if not re.fullmatch(rf'{re.escape(COLLECTION)}/[A-Za-z0-9_-]+', image_id):
                 continue
             observed_at = datetime.fromtimestamp(milliseconds / 1000, tz=timezone.utc).isoformat()
+            tile = re.search(r'_T(\d{2}[C-X][A-Z]{2})$', index)
             scenes.append({
+                'tile': tile.group(1) if tile else None,
                 'id': index,
                 'image_id': image_id,
                 'observed_at': observed_at,
@@ -156,7 +158,14 @@ def calculate_indices(image_id, geojson):
         savi = nir.subtract(red).multiply(1.5).divide(nir.add(red).add(0.5)).rename('savi').updateMask(valid)
         evi_denominator = nir.add(red.multiply(6)).subtract(blue.multiply(7.5)).add(1)
         evi = nir.subtract(red).multiply(2.5).divide(evi_denominator).rename('evi').updateMask(valid.And(evi_denominator.neq(0)))
-        indices = ee.Image.cat([ndvi, ndre, ndmi, savi, evi])
+        # NDVI zones as 0/1 indicator bands: their mean over clear pixels is the share in each range.
+        zones = ee.Image.cat([
+            ndvi.lt(0.2).rename('zone_bare'),
+            ndvi.gte(0.2).And(ndvi.lt(0.4)).rename('zone_low'),
+            ndvi.gte(0.4).And(ndvi.lt(0.6)).rename('zone_moderate'),
+            ndvi.gte(0.6).rename('zone_high'),
+        ]).updateMask(valid)
+        indices = ee.Image.cat([ndvi, ndre, ndmi, savi, evi, zones])
         reducer = ee.Reducer.mean()
         for next_reducer in (ee.Reducer.min(), ee.Reducer.max(), ee.Reducer.median(), ee.Reducer.stdDev(), ee.Reducer.count()):
             reducer = reducer.combine(reducer2=next_reducer, sharedInputs=True)
@@ -173,6 +182,10 @@ def calculate_indices(image_id, geojson):
             value = stats.get(f'{name}_{statistic}')
             return round(float(value), 4) if value is not None else None
 
+        shares = [stats.get(f'zone_{name}_mean') for name in ('bare', 'low', 'moderate', 'high')]
+        classes = None
+        if all(value is not None for value in shares):
+            classes = dict(zip(('bare', 'low', 'moderate', 'high'), (round(float(value) * 100, 1) for value in shares)))
         return {
             'ndvi': metric('ndvi', 'mean'),
             'ndre': metric('ndre', 'mean'),
@@ -187,6 +200,7 @@ def calculate_indices(image_id, geojson):
             'standardDeviation': metric('ndvi', 'stdDev'),
             'stressGeojson': None,
             'affectedCoverage': None,
+            'ndviClasses': classes,
             'calculationVersion': 'gee-sentinel-reflectance-scl-v1',
         }
     except HTTPException:

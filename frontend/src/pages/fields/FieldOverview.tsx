@@ -1,4 +1,3 @@
-import {ReferenceDatasets} from '../../features/fields/ReferenceDatasets';
 import {FieldForecast} from '../../features/weather/FieldForecast';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useOutletContext, useSearchParams } from 'react-router-dom';
@@ -9,6 +8,7 @@ import { usePreferences } from '../../lib/preferencesContext';
 import { ImageCheckPanel } from '../../features/fields/ImageCheckPanel';
 import { FieldNextSteps } from '../../features/fields/FieldNextSteps';
 import { FieldJourney } from '../../features/fields/FieldJourney';
+import { NdviZones } from '../../features/fields/NdviZones';
 import { cropPhoto } from '../../lib/cropPhotos';
 
 const today = () => new Date().toLocaleDateString('en-CA');
@@ -60,8 +60,8 @@ export function FieldOverview() {
         <div><dt>{t('Field visible clearly', 'खेत का साफ़ दिखा हिस्सा')}</dt><dd>{field.latestObservation?.valid_coverage_percent != null ? `${field.latestObservation.valid_coverage_percent}%` : t('Not available', 'उपलब्ध नहीं')}</dd></div>
         <div><dt>{t('Field area', 'खेत का क्षेत्रफल')}</dt><dd>{area(field.area_hectares)}</dd></div></dl><p className="quiet">{t('Pictures show changes in greenness. A field visit helps explain why. The clear-view percentage describes the picture, not crop health.', 'तस्वीरें हरियाली का बदलाव दिखाती हैं। वजह खेत जाकर समझें। साफ़ दिखा प्रतिशत तस्वीर का है, फ़सल की सेहत का नहीं।')}</p></details>
     </section>
+    {field.latestObservation?.ndvi_classes && <NdviZones classes={field.latestObservation.ndvi_classes} date={field.latestObservation.observed_on} tile={field.latestObservation.tile_id}/>}
     <FieldJourney field={field}/>
-    <ReferenceDatasets fieldId={field.id}/>
     <FieldNextSteps field={field}/>
     {copy.action === 'images' && <ImageCheckPanel field={field} onComplete={refreshField}/>}
     <section className="quick-actions field-shortcuts no-print" aria-label={t('Field shortcuts', 'खेत के काम')}>

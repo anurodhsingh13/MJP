@@ -22,7 +22,7 @@ const currentObservation = {
 test('onboarding leaves a saved field available while its image check runs in the background', async ({page}) => {
   const {setup,id,boundary}=await import('./fixtures');
   const state=await setup(page);state.fields=[];
-  await page.goto('/');await page.getByRole('button',{name:'+ Add field',exact:true}).click();
+  await page.goto('/');await page.getByRole('button',{name:'Add New Field'}).click();
   await page.getByLabel('Field Name').fill('North block');await page.getByLabel('Crop Type').fill('Wheat');
   await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();
   await page.getByLabel('Import GeoJSON Polygon').setInputFiles({name:'field.geojson',mimeType:'application/geo+json',buffer:Buffer.from(JSON.stringify(boundary))});

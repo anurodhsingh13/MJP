@@ -35,8 +35,10 @@ test('rapid duplicate submits send and display a question only once',async({page
 test('late replies stay in their original field conversation',async({page})=>{
  await setup(page);let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve;});
  await page.route('**/api/assistant',async route=>{await gate;await route.fulfill({json:{answer:'Original general reply'}});});
- await page.goto('/');await page.getByRole('button',{name:'Ask crop assistant'}).click();await page.getByLabel('Your question').fill('General question');await page.getByRole('button',{name:'Send question'}).click();
+ // The dashboard has its own inline chat, so the floating assistant is opened from Help and kept open while navigating.
+ await page.goto('/help');await page.getByRole('button',{name:'Ask crop assistant'}).click();await page.getByLabel('Your question').fill('General question');await page.getByRole('button',{name:'Send question'}).click();
  await expect(page.getByRole('button',{name:'Send question'})).toBeDisabled();
- await page.getByRole('link',{name:'Test field',exact:true}).first().click();await expect(page).toHaveURL(new RegExp(id));release();
+ await page.getByRole('link',{name:'Dashboard',exact:true}).click();
+ await page.locator('.fh-field',{hasText:'Test field'}).first().click();await expect(page).toHaveURL(new RegExp(id));release();
  const panel=page.getByRole('region',{name:'Crop assistant chat'});await expect(panel).not.toContainText('Original general reply');await expect(panel).not.toContainText('General question');
 });

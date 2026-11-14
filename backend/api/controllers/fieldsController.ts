@@ -1,9 +1,10 @@
 import type { Request, Response } from 'express';
 import { pool } from '../db/pool.ts';
 import {actor,authRequired} from '../services/auth.ts';
-import { assessEvidence, vegetationScore, type Observation } from '../../../shared/evidence.ts';
+import { assessEvidence, comparablePair, vegetationScore, type Observation } from '../../../shared/evidence.ts';
 import { evidencePolicy } from '../services/policy.ts';
 import { processScene, processLatest, ProcessingError, rasterPayload, EARTH_ENGINE_SOURCE } from '../services/satellite.ts';
+import { ingestOpenSentinel } from '../services/openSentinel.ts';
 
 const DEFAULT_PYTHON_ENGINE_URL = 'http://127.0.0.1:8000';
 
@@ -45,7 +46,7 @@ export async function getFields(_request: Request, response: Response) {
           select distinct on (observed_on) * from public.vegetation_indices
           where field_id=fields.id and boundary_version=fields.boundary_version and accepted
             and provenance='measured_imagery' and valid_coverage_percent >= $1 and valid_pixel_count >= $2
-          order by observed_on desc,acquired_at desc,scene_id desc limit 2
+          order by observed_on desc,acquired_at desc,scene_id desc limit 8
         ) vi
       ) evidence on true
       left join lateral (
@@ -64,15 +65,16 @@ export async function getFields(_request: Request, response: Response) {
         and (not $4::boolean or fields.owner_id=$3::uuid)
       order by fields.created_at asc`, [policy.minCoverage,policy.minPixels,actor(response)?.id??null,authRequired()]);
     response.json(result.rows.map((row: Record<string, unknown> & { evidence: Observation[] }) => {
-      const [latest,previous] = row.evidence;
-      const assessment = assessEvidence(latest??null,previous??null,policy);
+      // The latest accepted image and the most recent earlier image that is fair to compare (same tile, method, ≤ compareDays).
+      const [latest,previous] = comparablePair(row.evidence,policy);
+      const assessment = assessEvidence(latest,previous,policy,Date.now(),{plantingDate:row.planting_date as string|null,harvestDate:row.harvest_date as string|null});
       if (!latest && (row.processing as Array<{processing_status:string}>).some(scene=>scene.processing_status==='rejected')) {
         assessment.state='not_enough_data'; assessment.title='Not enough usable data';
         assessment.explanation='The available images did not meet field-level quality requirements.';
         assessment.nextAction='Try another image';
       }
       // Legacy stored scores/dates remain in the database, but cannot masquerade as verified evidence.
-      return {...row, boundary_geom:undefined, health_delta:latest&&previous&&latest.calculation_version===previous.calculation_version?Number(latest.ndvi_value)-Number(previous.ndvi_value):null, health_score:latest ? vegetationScore(Number(latest.ndvi_value),latest.ndmi_value==null?null:Number(latest.ndmi_value)) : null,
+      return {...row, evidence:undefined, boundary_geom:undefined, health_delta:latest&&previous?Number(latest.ndvi_value)-Number(previous.ndvi_value):null, health_score:latest ? vegetationScore(Number(latest.ndvi_value),latest.ndmi_value==null?null:Number(latest.ndmi_value)) : null,
         ndvi_average:latest?.ndvi_value??null, last_observation:latest?.observed_on??null,
         latestObservation:latest??null,previousObservation:previous??null,assessment,policy};
     }));
@@ -240,7 +242,8 @@ export async function ingestEarthEngineScenes(request: Request, response: Respon
     for (const scene of catalog.scenes ?? []) {
       if (!scene.id || !scene.image_id || !Number.isFinite(Date.parse(scene.observed_at))) continue;
       const sceneId = `gee-${scene.id}`;
-      await pool.query('insert into public.satellite_scenes (field_id, scene_id, collection, observed_at, cloud_cover, source, catalog_url, assets) values ($1, $2, $3, $4, $5, $6, $7, $8) on conflict (field_id, scene_id) do update set cloud_cover = excluded.cloud_cover, assets = excluded.assets, source=excluded.source, catalog_url=excluded.catalog_url', [request.params.fieldId, sceneId, 'COPERNICUS/S2_SR_HARMONIZED', scene.observed_at, scene.cloud_cover, EARTH_ENGINE_SOURCE, catalogUrl, JSON.stringify({earth_engine:{image_id:scene.image_id}})]);
+      const tile = /_T(\d{2}[C-X][A-Z]{2})$/.exec(scene.id)?.[1] ?? null;
+      await pool.query('insert into public.satellite_scenes (field_id, scene_id, collection, observed_at, cloud_cover, source, catalog_url, assets, tile_id) values ($1, $2, $3, $4, $5, $6, $7, $8, $9) on conflict (field_id, scene_id) do update set cloud_cover = excluded.cloud_cover, assets = excluded.assets, source=excluded.source, catalog_url=excluded.catalog_url, tile_id=excluded.tile_id', [request.params.fieldId, sceneId, 'COPERNICUS/S2_SR_HARMONIZED', scene.observed_at, scene.cloud_cover, EARTH_ENGINE_SOURCE, catalogUrl, JSON.stringify({earth_engine:{image_id:scene.image_id}}), tile]);
       imported += 1;
     }
     response.json({ source: EARTH_ENGINE_SOURCE, catalogUrl, imported });
@@ -250,7 +253,21 @@ export async function ingestEarthEngineScenes(request: Request, response: Respon
   }
 }
 
-export const ingestSentinelScenes = ingestEarthEngineScenes;
+/** Open Sentinel-2 L2A search (Earth Search / AWS Open Data). Needs no Google account. */
+export async function ingestOpenSentinelScenes(request: Request, response: Response) {
+  const policy = evidencePolicy();
+  const days = Number(request.query.days ?? policy.searchDays);
+  if (!Number.isInteger(days) || days<1 || days>365) { response.status(400).json({error:'Choose a search range of 1–365 days'}); return; }
+  const end = new Date(); end.setUTCDate(end.getUTCDate() + 1);
+  const start = new Date(Date.now() - days * 86400000);
+  try {
+    response.json(await ingestOpenSentinel(String(request.params.fieldId), { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) }));
+  } catch (error) {
+    console.error('POST open Sentinel-2 ingestion failed:');
+    response.status(error instanceof ProcessingError ? error.status : 503).json({ error: error instanceof ProcessingError ? error.message : 'Open Sentinel-2 search failed. Retry shortly.' });
+  }
+}
+export const ingestSentinelScenes = ingestOpenSentinelScenes;
 
 export async function ingestWeather(request: Request, response: Response) {
   const { start, end } = (request.body ?? {}) as { start?: string; end?: string };
@@ -526,7 +543,8 @@ export async function getFieldTile(request: Request, response: Response) {
     
     const buffer = await engineResponse.arrayBuffer();
     response.setHeader('Content-Type', 'image/png');
-    response.setHeader('Cache-Control', 'no-store');
+    // A dated scene never changes; the client adds the boundary version to the URL.
+    response.setHeader('Cache-Control', 'private, max-age=3600');
     response.send(Buffer.from(buffer));
   } catch {
     console.error('GET tile failed:');
@@ -539,7 +557,7 @@ export async function updateBoundary(request:Request,response:Response){
  if(!isValidFieldBoundary(boundary)){response.status(400).json({error:'Import or draw a closed Polygon with longitude/latitude coordinates. MultiPolygon is not supported; create one field per parcel.'});return;}
  try{
   const result=await pool.query(`with boundary as(select ST_SetSRID(ST_GeomFromGeoJSON($2::text),4326) geom)
-   update fields set boundary_geom=geom,location=ST_PointOnSurface(geom),area_hectares=round((ST_Area(geom::geography)/10000)::numeric,2)
+   update fields set boundary_geom=geom,location=ST_PointOnSurface(geom),sentinel_tile=null,area_hectares=round((ST_Area(geom::geography)/10000)::numeric,2)
    from boundary where fields.id=$1 and ST_IsValid(geom) and ST_Area(geom::geography)>0 and ST_Area(geom::geography)<=100000000 returning fields.id,boundary_version`,[request.params.fieldId,JSON.stringify(boundary)]);
   if(!result.rowCount){response.status(400).json({error:'Invalid boundary: check intersections, coordinate order and area (maximum 10,000 hectares)'});return;}
   await pool.query(`update ingestion_jobs set status='failed',error='Boundary changed. Start analysis for the new boundary.',lease_token=null,finished_at=now() where field_id=$1 and boundary_version<>$2 and status in ('queued','running')`,[request.params.fieldId,result.rows[0].boundary_version]);
