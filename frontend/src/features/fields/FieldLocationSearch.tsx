@@ -37,6 +37,7 @@ export function FieldLocationSearch({onSelect}:{onSelect:(location:{latitude:num
    finally{setBusy(false);}
   };
   configureMaps(apiKey);
+  const hostElement=host.current;
   void importLibrary('places').then(places=>{
    if(cancelled||!host.current)return;
    autocomplete=new places.PlaceAutocompleteElement({placeholder:t('Search village, town or nearby landmark','गाँव, कस्बा या पास की जगह खोजें'),description:t('Choose a nearby location, then mark the exact field boundary','पास की जगह चुनें, फिर खेत की सही सीमा बनाएँ')});
@@ -44,7 +45,7 @@ export function FieldLocationSearch({onSelect}:{onSelect:(location:{latitude:num
    autocomplete.addEventListener('gmp-select',handleSelect);
    host.current.replaceChildren(autocomplete);
   }).catch(()=>{if(!cancelled)setError(t('Google Places could not load. You can still mark the field manually.','Google Places नहीं खुला। आप नक्शे पर हाथ से खेत बना सकते हैं।'));});
-  return()=>{cancelled=true;autocomplete?.removeEventListener('gmp-select',handleSelect);host.current?.replaceChildren();};
+  return()=>{cancelled=true;autocomplete?.removeEventListener('gmp-select',handleSelect);hostElement?.replaceChildren();};
  },[apiKey,t]);
  if(!apiKey)return <p className="field-location-search-note">{t('Add a Google Maps browser key to enable place search; manual boundary drawing remains available.','जगह खोजने के लिए Google Maps browser key जोड़ें। हाथ से खेत की सीमा बनाना उपलब्ध है।')}</p>;
  return <div className="field-location-search"><label>{t('Find the farm area','खेत का इलाका खोजें')}</label><div ref={host}/>{busy&&<small role="status">{t('Looking up location…','जगह की जानकारी ला रहे हैं…')}</small>}{message&&!busy&&<small role="status">{message}</small>}{error&&<small role="alert">{error}</small>}</div>;

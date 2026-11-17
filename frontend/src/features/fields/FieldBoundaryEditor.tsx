@@ -73,7 +73,7 @@ export function FieldBoundaryEditor({boundary,onChange,boundaryFinished=false,fo
           });
         }
       });
-      const observer=new ResizeObserver(()=>{googleMap.current?google.maps.event.trigger(googleMap.current,'resize'):map.current?.invalidateSize();});
+      const observer=new ResizeObserver(()=>{if(googleMap.current)google.maps.event.trigger(googleMap.current,'resize');else map.current?.invalidateSize();});
       observer.observe(element.current);
       return()=>{cancelled=true;observer.disconnect();clickListener?.remove();googlePolygon.current?.setMap(null);googleMarkers.current.forEach(marker=>marker.setMap(null));googleMap.current=null;if(map.current){map.current.off();map.current.remove();map.current=null;layer.current=null;}};
     }
@@ -94,7 +94,7 @@ export function FieldBoundaryEditor({boundary,onChange,boundaryFinished=false,fo
 
   useEffect(()=>{
     if(!focusLocation)return;
-    if(googleMap.current)googleMap.current.setCenter({lat:focusLocation.latitude,lng:focusLocation.longitude}),googleMap.current.setZoom(16);
+    if(googleMap.current){googleMap.current.setCenter({lat:focusLocation.latitude,lng:focusLocation.longitude});googleMap.current.setZoom(16);}
     else map.current?.setView([focusLocation.latitude,focusLocation.longitude],16,{animate:false});
   },[focusLocation,mapReady]);
 

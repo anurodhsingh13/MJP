@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import {loadEnvironment} from './environment.mjs';
+loadEnvironment();
 import { mkdirSync, writeFileSync } from 'node:fs';
 // Same rule as the API: Earth Engine only for a real project id, otherwise open Sentinel-2 from Earth Search.
 const satelliteRoute=()=>{const choice=(process.env.SATELLITE_PROVIDER||'auto').trim().toLowerCase();const project=(process.env.EARTH_ENGINE_PROJECT_ID||'').trim();

@@ -6,7 +6,7 @@ test('Gemini is the only provider, sends requests and preserves failed drafts',a
  await page.route('**/api/assistant/status',route=>route.fulfill({json:{configured:true,provider:'gemini'}}));
  let failure=false;const bodies:any[]=[];
  await page.route('**/api/assistant',route=>{bodies.push(route.request().postDataJSON());return route.fulfill({status:failure?503:200,json:failure?{error:'Gemini temporarily unavailable.'}:{answer:'Gemini fixture answer',historySaved:false}});});
- await page.goto('/');await page.getByRole('button',{name:'Ask crop assistant'}).click();
+ await page.goto('/help');await page.getByRole('button',{name:'Ask crop assistant'}).click();
  const panel=page.getByRole('region',{name:'Crop assistant chat'});
  await expect(panel).toContainText('Gemini AI');await expect(page.getByLabel('AI Provider')).toHaveCount(0);
  await expect(panel.getByLabel('Save conversation history')).toBeVisible();

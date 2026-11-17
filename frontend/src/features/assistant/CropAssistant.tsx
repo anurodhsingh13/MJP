@@ -26,7 +26,8 @@ export function CropAssistant() {
   const contextKey=(account.email||'local')+':'+(selectedField||'general');
   const question=drafts[contextKey]||'';
   const setQuestion=(text:string)=>setDrafts(current=>({...current,[contextKey]:text}));
-  const activeContext=useRef(contextKey);activeContext.current=contextKey;
+  const activeContext=useRef(contextKey);
+  useEffect(()=>{activeContext.current=contextKey;},[contextKey]);
   const [busyContext,setBusyContext]=useState<string|null>(null);const busy=busyContext===contextKey;
   const [errorValue,setErrorValue]=useState({key:'',text:''});const error=errorValue.key===contextKey?errorValue.text:'';
   const setError=(text:string)=>setErrorValue({key:contextKey,text});
@@ -48,7 +49,7 @@ export function CropAssistant() {
   useEffect(() => {
     const onQuestion=(event:Event)=>{
       const detail=(event as CustomEvent<{question?:string}>).detail;
-      if(typeof detail?.question === 'string')setQuestion(detail.question);
+      if(typeof detail?.question === 'string'){const text=detail.question;setDrafts(current=>({...current,[contextKey]:text}));}
       setOpen(true);
     };
     window.addEventListener('terrascope:assistant-question',onQuestion);

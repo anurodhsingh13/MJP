@@ -29,7 +29,7 @@ function LeafletFieldsMap({ fields, selectedId, onSelect, target }: MapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const shapes = useRef(new globalThis.Map<string, L.GeoJSON>());
   const selected = useRef(selectedId);
-  selected.current = selectedId;
+  useEffect(() => { selected.current = selectedId; }, [selectedId]);
   const style = (field: DatabaseField, on: boolean): L.PathOptions => { const color = toneColor[tone(fieldAssessment(field).state)]; return on ? { color: '#fff', weight: 4, dashArray: undefined, fillColor: color, fillOpacity: .55 } : { color, weight: 3, dashArray: '6 3', fillColor: color, fillOpacity: .3 }; };
   useEffect(() => {
     if (!element.current) return;
@@ -80,7 +80,7 @@ function GoogleFieldsMap({ fields, selectedId, onSelect, target, onFail }: MapPr
   const mapRef = useRef<google.maps.Map | null>(null);
   const boundsById = useRef(new globalThis.Map<string, google.maps.LatLngBounds>());
   const selected = useRef(selectedId);
-  selected.current = selectedId;
+  useEffect(() => { selected.current = selectedId; }, [selectedId]);
   useEffect(() => {
     if (!element.current) return;
     let cancelled = false;
