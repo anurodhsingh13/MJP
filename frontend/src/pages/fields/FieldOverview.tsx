@@ -7,6 +7,7 @@ import { fieldActionHref, fieldCopy } from '../../lib/fieldCopy';
 import { usePreferences } from '../../lib/preferencesContext';
 import { ImageCheckPanel } from '../../features/fields/ImageCheckPanel';
 import { FieldNextSteps } from '../../features/fields/FieldNextSteps';
+import { CropAdvice } from '../../features/fields/CropAdvice';
 import { FieldJourney } from '../../features/fields/FieldJourney';
 import { NdviZones } from '../../features/fields/NdviZones';
 import { cropPhoto } from '../../lib/cropPhotos';
@@ -50,7 +51,7 @@ export function FieldOverview() {
   }
   const taskLabel = (status: TaskState) => ({ open: t('Planned', 'तय की गई'), acknowledged: t('Seen', 'देख लिया'), action_taken: t('Visit / action done', 'जाँच / काम किया'), resolved: t('Closed', 'बंद') })[status];
   return <div className="field-overview">
-    <section className="field-overview-photo"><img src={cropPhoto(field.crop).src} alt={cropPhoto(field.crop).alt} loading="lazy" onError={event => {event.currentTarget.style.display='none';}}/><div><span>{t('Illustration only · not a photo of this field','केवल उदाहरण · इस खेत की फ़ोटो नहीं')}</span><a href={cropPhoto(field.crop).source} target="_blank" rel="noreferrer">{t('Image source ↗','तस्वीर का स्रोत ↗')}</a></div></section>
+    <section className="field-overview-photo"><img src={cropPhoto(field.crop).src} alt={cropPhoto(field.crop).alt} loading="lazy" onError={event => {event.currentTarget.style.display='none';}}/><div><span>{t('Illustration only · not a photo of this field','केवल उदाहरण · इस खेत की फ़ोटो नहीं')}</span></div></section>
     <section className={`condition-card condition-${copy.assessment.state}`} aria-label={t('Field summary', 'खेत की स्थिति')}>
       <span className="eyebrow">{t('WHAT WE KNOW', 'अभी क्या जानकारी है')}</span>
       <h2><Sprout aria-hidden="true" size={28}/>{copy.title}</h2><p className="condition-explanation">{copy.explanation}</p>
@@ -62,6 +63,7 @@ export function FieldOverview() {
     </section>
     {field.latestObservation?.ndvi_classes && <NdviZones classes={field.latestObservation.ndvi_classes} date={field.latestObservation.observed_on} tile={field.latestObservation.tile_id}/>}
     <FieldJourney field={field}/>
+    <CropAdvice field={field}/>
     <FieldNextSteps field={field}/>
     {copy.action === 'images' && <ImageCheckPanel field={field} onComplete={refreshField}/>}
     <section className="quick-actions field-shortcuts no-print" aria-label={t('Field shortcuts', 'खेत के काम')}>

@@ -3,7 +3,7 @@ import { usePreferences } from '../../lib/preferencesContext';
 import './ndvi-zones.css';
 
 /** NDVI greenness zones of one clear image. Ranges describe greenness, not crop health. */
-export function NdviZones({ classes, date, tile, compact = false }: { classes: NdviClasses | null | undefined; date?: string; tile?: string | null; compact?: boolean }) {
+export function NdviZones({ classes, date, compact = false }: { classes: NdviClasses | null | undefined; date?: string; tile?: string | null; compact?: boolean }) {
   const { t, date: formatDate } = usePreferences();
   if (!classes) return null;
   const zones = [
@@ -15,7 +15,7 @@ export function NdviZones({ classes, date, tile, compact = false }: { classes: N
   return <section className={`ndvi-zones${compact ? ' compact' : ''}`} aria-label={t('Field greenness zones', 'खेत में हरियाली के हिस्से')}>
     <div className="ndvi-zones-head">
       <h3>{t('Greenness across the field', 'खेत में हरियाली कैसी फैली है')}</h3>
-      {(date || tile) && <small>{date ? formatDate(date) : ''}{date && tile ? ' · ' : ''}{tile ? t(`Sentinel-2 tile ${tile}`, `Sentinel-2 टाइल ${tile}`) : ''}</small>}
+      {date && <small>{formatDate(date)}</small>}
     </div>
     <div className="ndvi-zones-bar" role="img" aria-label={zones.map(zone => `${zone.label}: ${zone.value}%`).join(', ')}>
       {zones.filter(zone => zone.value > 0).map(zone => <span key={zone.key} className={`zone-${zone.key}`} style={{ width: `${zone.value}%` }} title={`${zone.label}: ${zone.value}%`} />)}
@@ -23,6 +23,6 @@ export function NdviZones({ classes, date, tile, compact = false }: { classes: N
     <ul className="ndvi-zones-legend">
       {zones.map(zone => <li key={zone.key}><i className={`zone-${zone.key}`} aria-hidden="true" /><span>{compact ? zone.short : zone.label}</span><b>{zone.value === 0 ? 0 : zone.value.toFixed(zone.value < 10 ? 1 : 0)}%</b></li>)}
     </ul>
-    {!compact && <p className="quiet">{t('Share of clearly visible field pixels in each NDVI range. Low greenness is normal after sowing and near harvest; it is not a disease diagnosis.', 'साफ़ दिखे खेत के हिस्सों का NDVI के हिसाब से बँटवारा। बुवाई के बाद और कटाई के पास कम हरियाली सामान्य है; यह बीमारी की पहचान नहीं है।')}</p>}
+    {!compact && <p className="quiet">{t('How much of the field falls in each greenness level.', 'खेत का कितना हिस्सा किस हरियाली स्तर में है।')}</p>}
   </section>;
 }

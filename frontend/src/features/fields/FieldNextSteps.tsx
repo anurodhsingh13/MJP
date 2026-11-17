@@ -30,7 +30,7 @@ export function FieldNextSteps({ field }: { field: DatabaseField }) {
     <div className="field-next-guidance-heading">
       <ClipboardCheck size={23} aria-hidden="true"/>
       <div><h2>{t('What should I check next?', 'अब खेत में क्या जाँचें?')}</h2>
-        <p>{t('Practical checks based on the available imagery, not a crop-disease diagnosis.', 'उपलब्ध तस्वीरों के आधार पर सामान्य जाँच के सुझाव, बीमारी की पुष्टि नहीं।')}</p></div>
+      </div>
     </div>
     <ol>{steps.map(step=><li key={step}>{step}</li>)}</ol>
     <div className="field-next-guidance-actions">

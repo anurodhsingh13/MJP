@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CalendarCheck, Camera, ChartNoAxesCombined, ClipboardCheck, Info, Satellite } from 'lucide-react';
+import { CalendarCheck, Camera, ChartNoAxesCombined, ClipboardCheck, Satellite } from 'lucide-react';
 import { fieldAssessment } from '../../lib/fieldCopy';
 import { usePreferences } from '../../lib/preferencesContext';
 import type { DatabaseField } from '../../lib/api';
@@ -32,6 +32,6 @@ export function MapInspectionGuide({field, imageDate, accepted}:{field:DatabaseF
         <Link to={`/fields/${field.id}/analysis`}><ChartNoAxesCombined size={19} aria-hidden="true"/>{t('View changes','बदलाव देखें')}</Link>
       </div>
     </div>
-    <p className="map-inspection-guide-note"><Info size={16} aria-hidden="true"/>{t('Map colours show vegetation patterns, not a confirmed disease or prescribed treatment. Verify findings in the field.', 'नक्शे के रंग हरियाली का संकेत हैं, बीमारी या इलाज की पुष्टि नहीं। खेत में जाँच कर पुष्टि करें।')}</p>
+
   </section>;
 }

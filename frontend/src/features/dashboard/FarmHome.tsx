@@ -6,7 +6,8 @@ import {
   AlertTriangle, ArrowRight, Calendar, CheckCircle2, CloudSun, Compass, FileText, Info, Layers, MapPin, Plus, RefreshCw, Search, Send, Sprout, Zap,
 } from 'lucide-react';
 import { importLibrary } from '@googlemaps/js-api-loader';
-import { configureMaps } from '../../lib/maps';
+import { configureMaps, googleFailed, markGoogleFailed } from '../../lib/maps';
+import { searchPlaces } from '../../lib/placeSearch';
 import { askFieldAssistant, loadFieldTasks, loadForecast, type DatabaseField, type FieldForecast } from '../../lib/api';
 import { cropPhoto } from '../../lib/cropPhotos';
 import { fieldActionHref, fieldAssessment, fieldCopy } from '../../lib/fieldCopy';
@@ -88,7 +89,7 @@ function GoogleFieldsMap({ fields, selectedId, onSelect, target, onFail }: MapPr
     configureMaps(mapsKey);
     // Key/referrer/billing rejections are reported through this global, and a stuck script load gets a time limit.
     (window as unknown as { gm_authFailure?: () => void }).gm_authFailure = () => { if (!cancelled) onFail(); };
-    const timer = window.setTimeout(() => { if (!cancelled && !ready) onFail(); }, 10000);
+    const timer = window.setTimeout(() => { if (!cancelled && !ready) onFail(); }, 12000);
     importLibrary('maps').then(({ Map }) => {
       if (cancelled || !element.current) return;
       const map = new Map(element.current, { center: { lat: 28.6, lng: 77.4 }, zoom: 11, mapTypeId: 'hybrid', disableDefaultUI: true, gestureHandling: 'cooperative', clickableIcons: false });
@@ -127,31 +128,16 @@ function GoogleFieldsMap({ fields, selectedId, onSelect, target, onFail }: MapPr
   return <><div ref={element} className="fh-map" /><div className="fh-zoom"><button aria-label="Zoom in" onClick={() => mapRef.current?.setZoom((mapRef.current.getZoom() ?? 11) + 1)}>+</button><button aria-label="Zoom out" onClick={() => mapRef.current?.setZoom((mapRef.current.getZoom() ?? 11) - 1)}>−</button></div></>;
 }
 
-/** Finds a village/place by name: Google Geocoding when the key works, OpenStreetMap Nominatim otherwise. */
-async function findPlace(query: string, useGoogle: boolean): Promise<Omit<Target, 'n'> | null> {
-  if (useGoogle) {
-    try {
-      configureMaps(mapsKey);
-      const { Geocoder } = await importLibrary('geocoding');
-      const { results } = await new Geocoder().geocode({ address: query, region: 'IN' });
-      const hit = results[0];
-      if (hit) { const view = hit.geometry.viewport?.toJSON(); return { lat: hit.geometry.location.lat(), lng: hit.geometry.location.lng(), box: view }; }
-      return null;
-    } catch { /* fall through to OpenStreetMap */ }
-  }
-  const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=in&q=${encodeURIComponent(query)}`);
-  if (!response.ok) throw new Error('Search unavailable');
-  const rows = await response.json() as Array<{ lat: string; lon: string; boundingbox?: string[] }>;
-  const row = rows[0];
-  if (!row) return null;
-  const [south, north, west, east] = (row.boundingbox ?? []).map(Number);
-  return { lat: Number(row.lat), lng: Number(row.lon), box: Number.isFinite(south) ? { south, north, west, east } : undefined };
+/** Finds a village/place by name: Google Geocoding (through our server) first, then OpenStreetMap matches. */
+async function findPlace(query: string): Promise<Omit<Target, 'n'> | null> {
+  const [hit] = await searchPlaces(query);
+  return hit ? { lat: hit.latitude, lng: hit.longitude, box: hit.box } : null;
 }
 
 function FieldsMap(props: MapProps) {
-  const [googleFailed, setGoogleFailed] = useState(false);
-  const fail = useCallback(() => setGoogleFailed(true), []);
-  return mapsKey && !googleFailed ? <GoogleFieldsMap {...props} onFail={fail} /> : <LeafletFieldsMap {...props} />;
+  const [mapFailed, setMapFailed] = useState(() => googleFailed('map'));
+  const fail = useCallback(() => { markGoogleFailed('map'); setMapFailed(true); }, []);
+  return mapsKey && !mapFailed ? <GoogleFieldsMap {...props} onFail={fail} /> : <LeafletFieldsMap {...props} />;
 }
 
 export function FarmHome({ fields, onAddField }: { fields: DatabaseField[]; onAddField: () => void }) {
@@ -172,7 +158,7 @@ export function FarmHome({ fields, onAddField }: { fields: DatabaseField[]; onAd
     if (query.length < 2 || placeBusy) return;
     setPlaceBusy(true); setPlaceNote('');
     try {
-      const hit = await findPlace(query, Boolean(mapsKey));
+      const hit = await findPlace(query);
       if (hit) setTarget({ ...hit, n: Date.now() });
       else setPlaceNote(t('No place found. Try the village name with district or state.', 'जगह नहीं मिली। गाँव के साथ ज़िला या राज्य लिखकर देखें।'));
     } catch { setPlaceNote(t('Search is unavailable right now.', 'अभी खोज उपलब्ध नहीं।')); }
@@ -321,7 +307,7 @@ export function FarmHome({ fields, onAddField }: { fields: DatabaseField[]; onAd
       <aside className="fh-side">
         {/* Gemini */}
         <section className="fh-card fh-gemini">
-          <header className="fh-head"><div className="fh-title-row"><i className="fh-spark">✨</i><h3>{t('Ask Gemini AI', 'Gemini AI से पूछें')}</h3></div><span className="fh-tag">Agri-LLM</span></header>
+          <header className="fh-head"><div className="fh-title-row"><i className="fh-spark">✨</i><h3>{t('Ask Gemini AI', 'Gemini AI से पूछें')}</h3></div></header>
           <p className="fh-muted">{t('Get direct explanations of crop greenness, satellite index changes, or weather impacts.', 'फ़सल की हरियाली, सैटेलाइट बदलाव या मौसम का असर समझें।')}</p>
           <div className="fh-prompts">{prompts.map(prompt => <button key={prompt} disabled={busy} onClick={() => void send(prompt)}><span>{prompt}</span><ArrowRight size={12} /></button>)}</div>
           <div className="fh-chat" ref={log} aria-live="polite">

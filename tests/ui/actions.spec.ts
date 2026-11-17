@@ -11,7 +11,7 @@ test('dashboard retry, empty state, wizard boundary controls and saved-field ret
   await page.getByRole('button',{name:'Add New Field'}).click();
   await page.getByLabel('Field Name').fill('New field');await page.getByLabel('Crop Type').fill('Wheat');
   await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByRole('button',{name:'Back',exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();
-  const map=page.getByLabel('Draw or edit field boundary on OpenStreetMap');
+  const map=page.getByLabel('Draw or edit field boundary on the map');
   for(const [i,position] of [{x:70,y:70},{x:170,y:70},{x:170,y:170}].entries()){await map.click({position});await expect(page.locator('.boundary-tools')).toContainText(`${i+1} point`);}
   await page.getByRole('button',{name:'Undo point'}).click();await expect(page.getByRole('button',{name:'Finish boundary'})).toBeDisabled();
   await page.getByRole('button',{name:'Clear',exact:true}).click();

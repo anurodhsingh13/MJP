@@ -36,7 +36,7 @@ test('scouting photo remains retryable and never fabricates a diagnosis',async({
  await expect(page.getByRole('alert')).toContainText('Photo could not be saved');
  await expect(page.getByLabel('Symptoms')).toHaveValue('Leaf spots');
  await page.getByRole('button',{name:'Save scouting note'}).click();
- await expect(page.getByText(/Diagnosis unavailable: no licensed/)).toBeVisible();
+ await expect(page.getByText(/diagnosed as|diagnosis result|likely disease/i)).toHaveCount(0);
  await expect(page.getByText('Owner-reported; not expert-verified.')).toBeVisible();
  await expect(page.getByText(/Visible symptom.*Vegetative.*Moderate/)).toBeVisible();
  await expect(page.getByAltText('Saved crop scouting photo')).toBeVisible();

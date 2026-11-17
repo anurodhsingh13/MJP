@@ -48,7 +48,7 @@ export function OfflineDiaryDrafts({fieldId,onSynced}:{fieldId:string;onSynced:(
  const edit=(draft:DiaryDraft)=>{setEditing(draft.id);setEventType(draft.eventType);setEventDate(draft.eventDate);setNotes(draft.notes);setMessage('');};
  return <section className="offline-diary-drafts" aria-label={t('Offline field-note drafts','ऑफ़लाइन खेत नोट ड्राफ्ट')}>
   <h3>{online?<Wifi size={19}/>:<CloudOff size={19}/>} {t('Field note drafts · device only','खेत के ड्राफ्ट · इसी डिवाइस पर')}</h3>
-  <p>{t('Save an observation even when offline, then review and send it manually when connected. The original online diary form is unchanged.','बिना इंटरनेट के भी नोट सेव करें। इंटरनेट आने पर जाँचकर खुद भेजें। पुराना ऑनलाइन फॉर्म नहीं बदला गया है।')}</p>
+  <p>{t('Save a note even without internet, then send it when you are back online.','बिना इंटरनेट के भी नोट सेव करें। इंटरनेट आने पर भेजें।')}</p>
   <p className="draft-connection" role="status">{online?t('Connected — ready to send saved drafts','कनेक्टेड — सेव ड्राफ्ट भेज सकते हैं'):t('Offline — drafts remain on this device','ऑफ़लाइन — ड्राफ्ट इसी डिवाइस में रहेंगे')}</p>
   <form onSubmit={save}><label>{t('Event type','काम का प्रकार')}<select value={eventType} onChange={e=>setEventType(e.target.value)}>{eventKinds.map(kind=><option value={kind} key={kind}>{kind}</option>)}</select></label>
    <label>{t('Observation date','जाँच की तारीख़')}<input type="date" required max={new Date().toLocaleDateString('en-CA')} value={eventDate} onChange={e=>setEventDate(e.target.value)}/></label>
@@ -58,6 +58,6 @@ export function OfflineDiaryDrafts({fieldId,onSynced}:{fieldId:string;onSynced:(
   <h4>{t('Saved drafts','सेव ड्राफ्ट')} ({drafts.length})</h4>
   {drafts.length?<ul>{drafts.map(draft=><li key={draft.id}><div><strong>{draft.eventType}</strong><small>{date(draft.eventDate)} · {t('Saved','सेव')} {date(draft.savedAt)}</small><p>{draft.notes||t('No note text','कोई नोट नहीं')}</p></div><div className="draft-actions"><button type="button" disabled={Boolean(busy)} onClick={()=>edit(draft)}>{t('Edit','एडिट')}</button><button type="button" disabled={Boolean(busy)||!online} onClick={()=>void submit(draft)}><CloudUpload size={15}/>{busy===draft.id?t('Sending…','भेज रहे हैं…'):t('Send to diary','डायरी में भेजें')}</button><button type="button" disabled={Boolean(busy)} onClick={()=>{if(window.confirm(t('Delete this local draft?','यह ड्राफ्ट हटाएँ?')))persist(drafts.filter(item=>item.id!==draft.id));}} aria-label={t('Delete draft','ड्राफ्ट हटाएँ')}><Trash2 size={15}/></button></div></li>)}</ul>:<p>{t('No offline drafts saved.','कोई ऑफ़लाइन ड्राफ्ट नहीं है।')}</p>}
   {message&&<p role="status" className="draft-feedback">{message}</p>}
-  <small>{t('Privacy: drafts remain in browser storage on this device until you delete or send them. Avoid sensitive notes on shared devices. There is no background auto-sync or photo storage.','गोपनीयता: ड्राफ्ट इसी डिवाइस के ब्राउज़र स्टोरेज में रहते हैं। साझा डिवाइस पर निजी जानकारी न लिखें। अपने आप सिंक या फ़ोटो स्टोर नहीं होती।')}</small>
+  <small>{t('Drafts stay on this device until you send or delete them.','ड्राफ्ट इसी डिवाइस पर रहते हैं, जब तक आप भेजें या हटाएँ नहीं।')}</small>
  </section>;
 }

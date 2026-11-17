@@ -7,7 +7,8 @@ test('forecast, processed layers and report keep their source labels',async({pag
  await page.route(`**/api/fields/${id}/forecast`,route=>route.fulfill({json:forecastFixture()}));
  await page.goto(`/fields/${id}/overview`);
  const forecast=page.getByRole('region',{name:'Seven-day forecast',exact:true}).first();await expect(forecast.locator('.forecast-days article')).toHaveCount(7);
- await expect(forecast).toContainText('Open-Meteo');
+ await expect(forecast.getByRole('button',{name:'Refresh forecast'})).toBeVisible();
+ await expect(forecast).not.toContainText('Open-Meteo');
  await page.getByRole('link',{name:'Field map',exact:true}).click();
  const comparison=page.getByRole('region',{name:'Processed satellite image comparison',exact:true});
  await expect(comparison.locator('.open-field-map')).toHaveCount(2);
