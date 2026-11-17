@@ -105,3 +105,17 @@ test('NDVI chart shows the change between pictures, picture reliability on hover
   await expect(page.locator('.vc-tip')).toContainText('Field clearly visible: 92%');
   await expect(page.locator('.vc-tip')).toContainText('Weak-looking part of the field: 18%');
 });
+
+test('rain strip says so when weather data covers only a few days instead of claiming "no rain"', async ({ page }) => {
+  await setup(page);
+  const observations = [[40, .2], [30, .34], [20, .52], [10, .41]].map(([ago, value], position) => reading(ago, value, position));
+  // Weather is saved for only the last 4 days of a 31-day picture range, all dry.
+  const rain = [13, 12, 11, 10].map((ago, position) => ({ id: `p${position}`, observed_on: day(ago), precipitation_mm: 0, temperature_c: 27, source: 'NASA POWER' }));
+  await page.route(`**/api/fields/${id}/ndvi`, route => route.fulfill({ json: observations }));
+  await page.route(`**/api/fields/${id}/weather`, route => route.fulfill({ json: rain }));
+  await page.goto(`/fields/${id}/analysis`);
+  const strip = page.locator('.vc-rain');
+  await expect(strip).toContainText('Rain data is available for only 4 of 31 days');
+  await expect(strip).toContainText('no rain on those days');
+  await expect(strip).not.toContainText('No rain was recorded between');
+});

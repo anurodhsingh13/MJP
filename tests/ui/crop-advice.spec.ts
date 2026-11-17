@@ -41,3 +41,14 @@ test('crop advice failure is shown and can be retried', async ({ page }) => {
   await panel.getByRole('button', { name: 'Get advice' }).click();
   await expect(panel).toContainText('No urgent visit needed');
 });
+
+test('with no photo the visit reasons never claim a photo showed symptoms', async ({ page }) => {
+  await setup(page);
+  await page.route(`**/api/fields/${id}/advice`, route => route.fulfill({ json: { ...advice, photoUsed: false, photoDate: null, advice: { ...advice.advice, photoSeen: [] }, visit: { visit: 'yes', when: 'this_week', reasons: ['low_ndvi_growing', 'advice_urgent'] } } }));
+  await page.goto(`/fields/${id}/overview`);
+  const panel = page.getByRole('region', { name: 'Crop health advice' });
+  await panel.getByRole('button', { name: 'Get advice' }).click();
+  await expect(panel.locator('.crop-advice-visit')).toContainText('worth a closer look');
+  await expect(panel.locator('.crop-advice-visit')).not.toContainText('photo shows');
+  await expect(panel).toContainText('No field photo was available');
+});

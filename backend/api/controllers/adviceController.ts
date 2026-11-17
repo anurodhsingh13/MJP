@@ -66,7 +66,7 @@ export async function getCropAdvice(request: Request, response: Response) {
         crop: field.crop || 'unknown', plantingDate: field.planting_date, harvestDate: field.harvest_date, cropStage: assessment.stage,
         ...evidence, recentWeather: weather, farmerScoutingNotes: scouting, photoDate: image ? photoRow.observed_on : null,
       }, image, language);
-      const visit = decideVisit({ assessment, latestNdvi, photoUrgency: advice.urgency, highLikelihoodIssue: advice.possibleIssues.some(item => item.likelihood === 'high') });
+      const visit = decideVisit({ assessment, latestNdvi, photoUrgency: advice.urgency, photoUsed: Boolean(image), highLikelihoodIssue: advice.possibleIssues.some(item => item.likelihood === 'high') });
       response.json({ evidence, visit, advice, photoUsed: Boolean(image), photoDate: image ? photoRow.observed_on : null, model, languageCode: language });
     } finally { grant.release(); }
   } catch (error) {
