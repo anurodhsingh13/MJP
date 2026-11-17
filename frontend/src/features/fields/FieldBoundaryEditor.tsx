@@ -2,7 +2,7 @@ import {useEffect,useLayoutEffect,useRef,useState} from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {importLibrary} from '@googlemaps/js-api-loader';
-import {configureMaps} from '../../lib/maps';
+import {configureMaps,googleFailed as googleServiceFailed,markGoogleFailed} from '../../lib/maps';
 import type {PolygonBoundary} from './boundary';
 import {usePreferences} from '../../lib/preferencesContext';
 
@@ -20,12 +20,15 @@ export function FieldBoundaryEditor({boundary,onChange,boundaryFinished=false,fo
   const googlePolygon=useRef<google.maps.Polygon|null>(null);
   const googleMarkers=useRef<google.maps.Marker[]>([]);
   const [mapReady,setMapReady]=useState(false);
+  const [googleFailed,setGoogleFailed]=useState(()=>googleServiceFailed('map'));
   const boundaryRef=useRef(boundary);
   const onChangeRef=useRef(onChange);
   const finishedRef=useRef(boundaryFinished);
   const editingRef=useRef(false);
   const configuredKey=import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const apiKey=configuredKey&&!configuredKey.startsWith('your-')?configuredKey:'';
+  // Google can load yet never draw tiles (billing off, blocked key). Then the farmer gets the OpenStreetMap map instead of a blank grey box.
+  const useGoogle=Boolean(apiKey)&&!googleFailed;
   useLayoutEffect(()=>{boundaryRef.current=boundary;onChangeRef.current=onChange;finishedRef.current=boundaryFinished;},[boundary,onChange,boundaryFinished]);
   const addPoint=(latitude:number,longitude:number)=>{
     if(finishedRef.current)return;
@@ -45,37 +48,30 @@ export function FieldBoundaryEditor({boundary,onChange,boundaryFinished=false,fo
 
   useEffect(()=>{
     if(!element.current)return;
-    if(apiKey){
+    const host=element.current;
+    if(useGoogle){
       let cancelled=false;
+      let ready=false;
       let clickListener:google.maps.MapsEventListener|undefined;
       configureMaps(apiKey);
+      const fail=()=>{if(cancelled)return;markGoogleFailed('map');setGoogleFailed(true);};
+      (window as unknown as {gm_authFailure?:()=>void}).gm_authFailure=fail;
+      const timer=window.setTimeout(()=>{if(!ready)fail();},12000);
       void importLibrary('maps').then(({Map})=>{
         if(cancelled||!element.current)return;
         const instance=new Map(element.current,{center:{lat:28.6139,lng:77.2090},zoom:5,mapTypeId:'hybrid',mapTypeControl:true,streetViewControl:false,fullscreenControl:true,zoomControl:true});
         googleMap.current=instance;
+        google.maps.event.addListenerOnce(instance,'tilesloaded',()=>{ready=true;window.clearTimeout(timer);});
         setMapReady(true);
         clickListener=instance.addListener('click',(event:google.maps.MapMouseEvent)=>{
           if(finishedRef.current||!event.latLng)return;
           if(!boundaryRef.current&&(instance.getZoom()??5)<12)instance.setZoom(14);
           addPoint(event.latLng.lat(),event.latLng.lng());
         });
-      }).catch(()=>{
-        if(!cancelled&&element.current){
-          const instance=L.map(element.current,{scrollWheelZoom:true,zoomAnimation:false}).setView([28.6139,77.2090],5);
-          map.current=instance;
-          L.tileLayer(import.meta.env.VITE_OSM_TILE_URL||'https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxNativeZoom:19,maxZoom:20,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(instance);
-          layer.current=L.layerGroup().addTo(instance);
-          setMapReady(true);
-          instance.on('click',(event:L.LeafletMouseEvent)=>{
-            if(finishedRef.current)return;
-            if(!boundaryRef.current&&instance.getZoom()<12)instance.setView(event.latlng,14,{animate:false});
-            addPoint(event.latlng.lat,event.latlng.lng);
-          });
-        }
-      });
-      const observer=new ResizeObserver(()=>{googleMap.current?google.maps.event.trigger(googleMap.current,'resize'):map.current?.invalidateSize();});
+      }).catch(fail);
+      const observer=new ResizeObserver(()=>{if(googleMap.current)google.maps.event.trigger(googleMap.current,'resize');else map.current?.invalidateSize();});
       observer.observe(element.current);
-      return()=>{cancelled=true;observer.disconnect();clickListener?.remove();googlePolygon.current?.setMap(null);googleMarkers.current.forEach(marker=>marker.setMap(null));googleMap.current=null;if(map.current){map.current.off();map.current.remove();map.current=null;layer.current=null;}};
+      return()=>{cancelled=true;window.clearTimeout(timer);observer.disconnect();clickListener?.remove();googlePolygon.current?.setMap(null);googleMarkers.current.forEach(marker=>marker.setMap(null));googleMap.current=null;if(map.current){map.current.off();map.current.remove();map.current=null;layer.current=null;}host.replaceChildren();};
     }
     const instance=L.map(element.current,{scrollWheelZoom:true,zoomAnimation:false}).setView([28.6139,77.2090],5);
     map.current=instance;
@@ -90,13 +86,13 @@ export function FieldBoundaryEditor({boundary,onChange,boundaryFinished=false,fo
     });
     const observer=new ResizeObserver(()=>instance.invalidateSize());observer.observe(element.current);
     return()=>{observer.disconnect();instance.off();instance.remove();map.current=null;layer.current=null;};
-  },[apiKey]);
+  },[apiKey,useGoogle]);
 
   useEffect(()=>{
     if(!focusLocation)return;
-    if(googleMap.current)googleMap.current.setCenter({lat:focusLocation.latitude,lng:focusLocation.longitude}),googleMap.current.setZoom(16);
+    if(googleMap.current){googleMap.current.setCenter({lat:focusLocation.latitude,lng:focusLocation.longitude});googleMap.current.setZoom(16);}
     else map.current?.setView([focusLocation.latitude,focusLocation.longitude],16,{animate:false});
-  },[focusLocation,mapReady]);
+  },[focusLocation,mapReady,googleFailed]);
 
   useEffect(()=>{
     const gmap=googleMap.current;
@@ -144,10 +140,10 @@ export function FieldBoundaryEditor({boundary,onChange,boundaryFinished=false,fo
     });
     if(positions.length>=3&&(!editingRef.current||boundaryFinished)){const bounds=L.latLngBounds(positions);if(bounds.isValid())instance.fitBounds(bounds.pad(.25),{maxZoom:18,animate:false});}
     else if(positions.length)instance.setView(positions[0],14,{animate:false});
-  },[boundary,boundaryFinished,t,mapReady]);
+  },[boundary,boundaryFinished,t,mapReady,googleFailed]);
 
   return <div className="boundary-map-wrap">
-    <div ref={element} className="boundary-map" aria-label={apiKey ? t('Draw or edit field boundary on satellite map', 'उपग्रह नक्शे पर खेत की सीमा बनाएँ या बदलें') : t('Draw or edit field boundary on OpenStreetMap', 'OpenStreetMap नक्शे पर खेत की सीमा बनाएँ या बदलें')}/>
+    <div ref={element} className="boundary-map" aria-label={t('Draw or edit field boundary on the map', 'नक्शे पर खेत की सीमा बनाएँ या बदलें')}/>
     <span className="boundary-map-crosshair" aria-hidden="true">+</span>
     <button className="boundary-map-add-center" type="button" onClick={addCenterPoint} disabled={boundaryFinished}>{t('Add corner at crosshair','बीच के निशान पर कोना जोड़ें')}</button>
   </div>;

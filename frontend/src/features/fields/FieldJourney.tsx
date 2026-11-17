@@ -20,13 +20,13 @@ export function FieldJourney({ field }: { field: DatabaseField }) {
   return <section className="field-journey" aria-labelledby="field-journey-heading">
     <div className="field-journey-heading"><AlertCircle size={21} aria-hidden="true"/><div>
       <h2 id="field-journey-heading">{t('From satellite finding to field action','सैटेलाइट संकेत से खेत की जाँच तक')}</h2>
-      <p>{t('Follow these four steps. Your existing field tools remain available below.','ये चार कदम अपनाएँ। नीचे सभी पुराने टूल पहले जैसे उपलब्ध हैं।')}</p>
+
     </div></div>
     <div className="field-journey-grid">{steps.map(({title,hint,href,Icon})=>
       <Link className="field-journey-step" key={href} to={href}>
         <Icon size={23} aria-hidden="true"/><strong>{title}</strong><span>{hint}</span><ArrowRight className="field-journey-arrow" size={17} aria-hidden="true"/>
       </Link>
     )}</div>
-    <p className="field-journey-notice">{t('NDVI detects vegetation change, not a confirmed disease or treatment. Verify causes on the ground.','NDVI हरियाली में बदलाव बताता है, बीमारी या इलाज की पुष्टि नहीं। खेत में जाँच करें।')}</p>
+
   </section>;
 }

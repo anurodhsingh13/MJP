@@ -5,7 +5,8 @@
  * Without --apply, this is a read-only dry run.
  * Requires DATABASE_URL and a running PostgreSQL server; does not touch farmer crop dates.
  */
-import 'dotenv/config';
+import {loadEnvironment} from './environment.mjs';
+loadEnvironment();
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';

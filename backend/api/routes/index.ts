@@ -10,6 +10,8 @@ import express, { Router } from 'express';
 import {session,sameOrigin,authRouter,requireAccount,requireField} from '../services/auth.ts';
 import { getHealth } from '../controllers/healthController.ts';
 import { askAssistant } from '../controllers/assistantController.ts';
+import { getCropAdvice } from '../controllers/adviceController.ts';
+import { searchPlaces } from '../controllers/placesController.ts';
 import { 
   getFields, getFieldAlerts, resolveFieldAlert, updateFieldAlert, getFieldNdvi, getFieldNdviAnalysis,
   getFieldWeather, calculateNdviFromScene, processNdviSentinelHub, processLatestScene,
@@ -44,7 +46,9 @@ router.patch('/notifications/preferences',saveNotificationPreferences);
 router.use('/fields/:fieldId',requireField);
 router.use('/assistant',requireField);
 router.post('/assistant', rateLimit('assistant',20),askAssistant);
+router.post('/fields/:fieldId/advice', rateLimit('advice',10),getCropAdvice);
 
+router.get('/places/search', rateLimit('places',40), searchPlaces);
 router.get('/fields', getFields);
 router.post('/fields', createField);
 router.patch('/fields/:fieldId', updateField);

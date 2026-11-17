@@ -49,5 +49,5 @@ test('reports export exactly the chosen date range and retain quality, provenanc
 });
 
 test('photo shortcut opens the photo form, and no crop diagnosis is advertised',async({page})=>{
-  const state=await setup(page);await page.goto(`/fields/${id}/overview`);await page.getByRole('link',{name:/Add photo & note/}).click();await expect(page.locator('#scouting-photo')).toBeFocused();await expect(page.getByText(/automatic disease diagnosis is not available/)).toBeVisible();expect(state.errors).toEqual([]);
+  const state=await setup(page);await page.goto(`/fields/${id}/overview`);await page.getByRole('link',{name:/Add photo & note/}).click();await expect(page.locator('#scouting-photo')).toBeFocused();await expect(page.getByText(/automatic disease/i)).toHaveCount(0);expect(state.errors).toEqual([]);
 });

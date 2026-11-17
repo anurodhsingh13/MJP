@@ -1,6 +1,7 @@
 import type {Request,Response} from 'express';
 import {pool} from '../db/pool.ts';
 import {providerJson} from './provider.ts';
+import {googleCurrentToCurrent,googleCurrentUrl} from './googleWeather.ts';
 import {parseForecast,type Forecast} from '../../../shared/forecast.ts';
 const cache=new Map<string,{value:Forecast;latitude:number;longitude:number}>();
 const pending=new Map<string,Promise<Forecast>>();
@@ -25,7 +26,9 @@ export async function forecastFor(fieldId:string):Promise<Forecast>{
    if(googleKey){
     const url=new URL('https://weather.googleapis.com/v1/forecast/days:lookup');
     url.search=new URLSearchParams({key:googleKey,'location.latitude':String(latitude),'location.longitude':String(longitude),days:'7',pageSize:'7',unitsSystem:'METRIC'}).toString();
-    raw=googleDailyToForecast(await providerJson(url.href));
+    // "Right now" comes from Google's current-conditions call; if only that call fails, the 7-day forecast is still shown.
+    const [daily,current]=await Promise.all([providerJson(url.href),providerJson(googleCurrentUrl(googleKey,latitude,longitude),{},8000).then(googleCurrentToCurrent).catch(()=>null)]);
+    raw={...(googleDailyToForecast(daily) as Record<string,unknown>),current};
    }else{
     const url=new URL('https://api.open-meteo.com/v1/forecast');
     url.search=new URLSearchParams({latitude:String(latitude),longitude:String(longitude),daily:'temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,relative_humidity_2m_mean,wind_speed_10m_max',current:'temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m',forecast_days:'7',timezone:'auto'}).toString();
