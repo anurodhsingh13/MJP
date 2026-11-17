@@ -4,7 +4,9 @@ export class ProviderError extends Error {
  constructor(code:string,message:string,status=502,retryAfterSeconds?:number){super(message);this.code=code;this.status=status;this.retryAfterSeconds=retryAfterSeconds;}
 }
 type Message={role:'user'|'assistant';content:string};
-type GeminiOptions={fetcher?:typeof fetch;timeoutMs?:number};
+type GeminiOptions={fetcher?:typeof fetch;timeoutMs?:number;retryDelaysMs?:number[]};
+/** Google answers 500/503/504 during demand spikes ("high demand, try again later"); those are worth a short retry. */
+const TRANSIENT_STATUSES=[500,503,504];
 export async function generateGemini(system:string,messages:Message[],options:GeminiOptions={}){
  return callGemini({systemInstruction:{parts:[{text:system}]},contents:messages.map(item=>({role:item.role==='assistant'?'model':'user',parts:[{text:item.content}]})),generationConfig:{maxOutputTokens:1024,temperature:0.2}},options);
 }
@@ -15,10 +17,16 @@ async function callGemini(requestBody:Record<string,unknown>,options:GeminiOptio
  if(!/^[a-zA-Z0-9._-]+$/.test(model))throw new ProviderError('invalid_model','Gemini model setting is invalid.',503);
  const signal=AbortSignal.timeout(options.timeoutMs??30000);
  try{
-  const response=await (options.fetcher??fetch)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{
-   method:'POST',headers:{'x-goog-api-key':process.env.GEMINI_API_KEY!.trim(),'Content-Type':'application/json'},signal,
-   body:JSON.stringify(requestBody),
-  });
+  const delays=options.retryDelaysMs??[600,1500];
+  let response:Response;
+  for(let attempt=0;;attempt++){
+   response=await (options.fetcher??fetch)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{
+    method:'POST',headers:{'x-goog-api-key':process.env.GEMINI_API_KEY!.trim(),'Content-Type':'application/json'},signal,
+    body:JSON.stringify(requestBody),
+   });
+   if(response.ok||!TRANSIENT_STATUSES.includes(response.status)||attempt>=delays.length)break;
+   await new Promise(resolve=>setTimeout(resolve,delays[attempt]));
+  }
   const payload=await response.json().catch(()=>null) as {error?:{details?:Array<{reason?:string}>};modelVersion?:string;promptFeedback?:{blockReason?:string};candidates?:Array<{finishReason?:string;content?:{parts?:Array<{text?:string;thought?:boolean}>}}> }|null;
   if(!response.ok){
    const invalidKey=Array.isArray(payload?.error?.details)&&payload.error.details.some((item:{reason?:string})=>item.reason==='API_KEY_INVALID');
@@ -28,6 +36,7 @@ async function callGemini(requestBody:Record<string,unknown>,options:GeminiOptio
    if(invalidKey||response.status===401)throw new ProviderError('invalid_credentials','Gemini API key was rejected. Check the Google AI Studio key.');
    if(response.status===403)throw new ProviderError('permission_denied','Gemini API access was denied. Check key restrictions and project access.');
    if(response.status===404)throw new ProviderError('model_unavailable','The configured Gemini model is unavailable.');
+   if(TRANSIENT_STATUSES.includes(response.status))throw new ProviderError('provider_unavailable','Gemini is busy right now. Please try again in a moment.');
    throw new ProviderError(response.status===400?'invalid_request':'provider_unavailable','Gemini could not complete the request. Please check configuration or try again later.');
   }
   const candidate=payload?.candidates?.[0];
@@ -108,6 +117,8 @@ export async function generateCropAdvice(context:Record<string,unknown>,image:{b
  const parts:Record<string,unknown>[]=[{text:`Language: ${lang}.\nField data (JSON): ${JSON.stringify(context)}\n${image?'One field photo is attached.':'No photo is available.'}`}];
  if(image)parts.push({inlineData:{mimeType:`image/${image.mime}`,data:image.bytes.toString('base64')}});
  const result=await callGemini({systemInstruction:{parts:[{text:CROP_ADVICE_SYSTEM}]},contents:[{role:'user',parts}],
-  generationConfig:{maxOutputTokens:2048,temperature:0.2,responseMimeType:'application/json',responseSchema:adviceSchema}},options);
+  generationConfig:{maxOutputTokens:2048,temperature:0.2,responseMimeType:'application/json',responseSchema:adviceSchema}},
+  // Structured advice (especially with a photo) takes 7-17 s, and a busy model can answer 503 slowly before a retry: 30 s was too tight.
+  {timeoutMs:60000,...options});
  return {advice:parseCropAdvice(result.answer,Boolean(image)),model:result.model};
 }

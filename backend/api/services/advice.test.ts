@@ -42,3 +42,11 @@ test('advice parser keeps only schema fields and ignores photo symptoms without 
   assert.equal(parseCropAdvice('{"urgency":"bogus"}', false).urgency, 'ask_expert');
   assert.throws(() => parseCropAdvice('not json', false), /could not be read/);
 });
+
+test('urgency is blamed on the photo only when a photo was really analysed', () => {
+  const noPhoto = decideVisit({ assessment: base, latestNdvi: 0.62, photoUrgency: 'check_soon', photoUsed: false });
+  assert.deepEqual(noPhoto.reasons, ['advice_urgent']);
+  const withPhoto = decideVisit({ assessment: base, latestNdvi: 0.62, photoUrgency: 'check_soon', photoUsed: true });
+  assert.deepEqual(withPhoto.reasons, ['photo_urgent']);
+  assert.deepEqual(decideVisit({ assessment: base, latestNdvi: 0.62, photoUrgency: 'check_soon' }).reasons, ['advice_urgent']);
+});

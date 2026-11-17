@@ -30,6 +30,7 @@ export function CropAdvice({ field }: { field: DatabaseField }) {
     ndvi_drop: t('Greenness (NDVI) fell since the last comparable image.', 'पिछली तुलनीय तस्वीर से हरियाली (NDVI) घटी है।'),
     low_ndvi_growing: t('NDVI is low for a crop that should be growing.', 'बढ़ती फ़सल के लिए NDVI कम है।'),
     photo_urgent: t('The photo shows symptoms worth checking.', 'फ़ोटो में ऐसे लक्षण हैं जिन्हें देखना चाहिए।'),
+    advice_urgent: t('The satellite and weather readings together are worth a closer look in the field.', 'सैटेलाइट और मौसम की जानकारी मिलाकर खेत को पास से देखना ठीक रहेगा।'),
     likely_issue: t('A likely problem was found; confirm it in the field.', 'एक संभावित समस्या मिली; खेत में पुष्टि करें।'),
     no_fresh_imagery: t('There is no fresh, clear satellite image to judge the crop.', 'फ़सल परखने के लिए ताज़ा, साफ़ सैटेलाइट तस्वीर नहीं है।'),
     all_clear: t('No unusual change was found in the satellite images.', 'सैटेलाइट तस्वीरों में कोई असामान्य बदलाव नहीं मिला।'),

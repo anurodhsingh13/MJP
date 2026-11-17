@@ -106,6 +106,9 @@ export function VegetationChart({ observations, index = 'ndvi_value', events = [
     : [];
   const showRain = simple && isNdvi && chart.length > 1 && rainRows.length > 0;
   const rainTotal = rainRows.reduce((sum, item) => sum + item.value, 0);
+  const spanDays = first && last ? Math.round((last.date - first.date) / 86400000) + 1 : 0;
+  // Weather history is often saved for only a few recent days. Missing days are "no data", never "no rain".
+  const rainPartial = rainRows.length < spanDays * 0.7;
   const rainPeak = rainRows.reduce((best, item) => item.value > best.value ? item : best, { date: 0, value: 0 });
   const rainAxisMax = Math.max(5, Math.ceil(rainPeak.value * 1.2));
   const mmText = (value: number) => `${value < 10 ? value.toFixed(1).replace(/\.0$/, '') : Math.round(value)} mm`;
@@ -185,7 +188,10 @@ export function VegetationChart({ observations, index = 'ndvi_value', events = [
     </div>
     {showRain && first && last && <div className="vc-rain">
       <h4>{t('Rain between these pictures (mm per day)', 'इन तस्वीरों के बीच की बारिश (मिमी प्रति दिन)')}</h4>
-      <p>{rainTotal < 0.5
+      <p>{rainPartial
+        ? t(`Rain data is available for only ${rainRows.length} of ${spanDays} days (${shortDate(rainRows[0].date)} – ${shortDate(rainRows[rainRows.length - 1].date)}): ${rainTotal < 0.5 ? 'no rain on those days' : `${mmText(rainTotal)} of rain on those days`}. Use "Update past weather" for more days.`,
+            `${spanDays} में से सिर्फ़ ${rainRows.length} दिन की बारिश की जानकारी है (${shortDate(rainRows[0].date)} – ${shortDate(rainRows[rainRows.length - 1].date)}): उन दिनों ${rainTotal < 0.5 ? 'बारिश नहीं हुई' : `${mmText(rainTotal)} बारिश हुई`}। ज़्यादा दिनों के लिए "पिछले मौसम की जानकारी लाएँ" दबाएँ।`)
+        : rainTotal < 0.5
         ? t(`No rain was recorded between ${shortDate(first.date)} and ${shortDate(last.date)}.`, `${shortDate(first.date)} से ${shortDate(last.date)} के बीच बारिश दर्ज नहीं हुई।`)
         : t(`${mmText(rainTotal)} of rain between ${shortDate(first.date)} and ${shortDate(last.date)}; the most was ${mmText(rainPeak.value)} on ${shortDate(rainPeak.date)}. Rain can explain part of a change in greenness, but it does not prove the cause.`,
             `${shortDate(first.date)} से ${shortDate(last.date)} के बीच ${mmText(rainTotal)} बारिश; सबसे ज़्यादा ${shortDate(rainPeak.date)} को ${mmText(rainPeak.value)}। बारिश हरियाली के बदलाव का एक कारण हो सकती है, पर यह पक्का सबूत नहीं।`)}</p>
