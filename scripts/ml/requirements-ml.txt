@@ -1,0 +1,11 @@
+# torch 2.11.0 is the CUDA 12.8 build (install from https://download.pytorch.org/whl/cu128)
+torch==2.11.0
+joblib==1.6.0
+matplotlib==3.11.2
+numpy==2.4.6
+pillow==13.0.0
+rasterio==1.4.4
+scikit-learn==1.9.1
+scipy==1.17.1
+threadpoolctl==3.8.0
+torchvision==0.26.0

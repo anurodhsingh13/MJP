@@ -1,0 +1,49 @@
+# Training-data licence register
+
+Audit date: 2026-11-18. Purpose: record, before any model is trained, which datasets may legally be used, under which
+terms, and what was actually verified. **"Verified" means the licence was read on a primary page on the audit date.**
+Anything else is marked unverified and must not be used for training until a person confirms it.
+
+This register is separate from `datasets/catalog.json` (which drives the app's Datasets page): candidate datasets are not
+shown to farmers.
+
+## Rules
+
+| Licence | Use for training? | Obligation |
+|---|---|---|
+| CC0, CC BY 4.0, Apache-2.0 | Yes | Attribute (not needed for CC0); keep the DOI/licence text with the data and the model card |
+| CC BY-SA (any version) | Only with a recorded decision | Share-alike may extend to derivative data and possibly to models trained on it. Decide before use |
+| Not stated, conflicting, or only seen on a mirror | **No** | Confirm on the primary record first |
+| NC (non-commercial) | No (this app is intended for real farmers) | — |
+
+A permissive licence is not a privacy or deployment clearance: no personal data, GPS of private fields or faces may be
+published or redistributed with a model.
+
+## Register
+
+| Dataset | Content | Licence | Status | Evidence |
+|---|---|---|---|---|
+| PLDD-UP | Potato leaf field photos, Uttar Pradesh, Rabi 2025-26; Healthy 4,600 / Early Blight 4,803 / Late Blight 6,116 | CC BY 4.0 | **Allowed.** Licence is recorded in the local source manifest (retrieved 2026-10-30, SHA-256 verified). Could not be re-fetched on the audit date (Mendeley API returned 404) | `.local/datasets/up/pldd-up/manifest.json`, DOI 10.17632/3j4nfkvp2n.1 |
+| AgriFieldNet India Competition | Sentinel-2 composites + ground-surveyed crop type for 7,081 fields in Uttar Pradesh, Rajasthan, Odisha, Bihar (2022) | CC-BY-4.0 | **Allowed (verified 2026-11-18).** Cite: Radiant Earth Foundation & IDinsight (2022), AgriFieldNet Competition Dataset v1.0, DOI 10.34911/rdnt.wu92p1 | https://source.coop/radiantearth/agrifieldnet-competition |
+| Paddy Doctor | Paddy leaf photos, Tamil Nadu (Tirunelveli); 16,225 images (480x640), 13 classes (12 diseases/pests + normal), labelled by an agricultural officer | CC BY 4.0 | **Allowed (verified 2026-11-19 on the primary IEEE DataPort record, which links the CC BY 4.0 licence).** The arXiv metadata mirror says CC BY-SA 4.0 and the GitHub LICENSE (Apache-2.0) covers code; use only the IEEE DataPort copy and attribute: Petchiammal A, Briskline Kiruba S, Murugan D, Pandarasamy Arjunan, "Paddy Doctor", DOI 10.21227/hz4v-af08. **Download needs a free IEEE DataPort login: a person must fetch it** (not yet downloaded) | https://ieee-dataport.org/node/10108 , https://arxiv.org/abs/2205.11108 |
+| PlantDoc | ~2,600 mostly web-collected photos, many species | CC BY 4.0 (GitHub, Meta-Album) | **Not allowed for training yet.** Images were largely scraped from the web, so the copyright of the underlying photos is unclear. Small; evaluation only if cleared | https://github.com/pratikkayal/PlantDoc-Dataset |
+| PlantVillage | Lab photos, many crops | **Conflicting**: CC BY-SA 3.0 (paper, reviews) vs CC0 (mirrors) | **Not used.** Share-alike may extend to trained models, and lab images transfer poorly to field photos | https://github.com/spMohanty/PlantVillage-Dataset |
+| CropHarvest | Global labelled crop / non-crop points | CC BY-SA 4.0 | **Needs a decision** (share-alike) before any use | https://pypi.org/project/cropharvest/ |
+| Wheat nitrogen deficiency and leaf rust (IARI) | Wheat field photos, Delhi; 368 diseased / 491 control | Not seen | **Unverified** | https://data.mendeley.com/datasets/th422bg4yd |
+| Maize leaf blight severity (MDSD) | Maize field photos, India; 1,760 images | Paper is CC BY; dataset licence not seen | **Unverified** | https://www.frontiersin.org/articles/10.3389/fpls.2022.1077568/full |
+| UCI Rice Leaf Diseases | 120 lab-style photos, 3 classes | CC BY 4.0 | Allowed but too small / not field conditions: sanity checks only | https://archive.ics.uci.edu/dataset/486/rice+leaf+diseases |
+| Bangladesh rice leaf datasets (Mendeley) | Field photos, Bangladesh | Not seen | **Unverified**, and a different country | — |
+
+## Weights
+
+Models are trained from random initialisation unless a pretrained checkpoint's licence is confirmed. ImageNet-pretrained
+weights are not downloaded by default because the ImageNet terms are research-oriented and their use in a product is a
+separate decision for the owner.
+
+## Honest limits
+
+* Public datasets are from other seasons, regions and cameras. A score on their held-out test split is **not** the
+  accuracy farmers will see. The only meaningful number is accuracy on photos from the app's own fields, labelled by an
+  agronomist (the consent + reviewer workflow already exists in the database).
+* Disease cannot be read from satellite NDVI. Satellite datasets (AgriFieldNet) can support crop type and growth-stage
+  checks, not diagnosis.

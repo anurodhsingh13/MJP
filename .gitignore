@@ -40,3 +40,5 @@ __pycache__/
 /data/models/
 /data/raw/
 /data/reports/
+
+.venv-ml/
