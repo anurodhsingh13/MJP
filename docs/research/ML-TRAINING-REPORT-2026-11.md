@@ -31,7 +31,7 @@ Healthy / Early Blight / Late Blight from field photos taken in Uttar Pradesh (1
 | rotated 40 degrees | 89.7% / 2.4% | 90.5% / 2.1% |
 | low colour (x0.3) | 70.0% / 13.4% | 89.3% / 3.7% |
 
-Accuracy on clean photos overstates real-world use: under common problems (blur, dim light, washed-out colour) the earlier models lost 10-27 points and called up to ~13% of diseased leaves Healthy.
+Accuracy on clean photos overstates real-world use: for pldd-up-run2, dim light, blur and washed-out colour cost 18 to 27 accuracy points, and up to 13.4% of diseased leaves were called Healthy.
 
 ### "Not sure" rule (temperature scaling + confidence threshold chosen on validation photos, clean and degraded)
 
@@ -51,7 +51,7 @@ Accuracy on clean photos overstates real-world use: under common problems (blur,
 | rotated 40 degrees | 95.7% | 54.2% / 0.6% | 67.9% / 1.5% |
 | low colour (x0.3) | 95.4% | 39.4% / 1.56% | 63.0% / 1.49% |
 
-### Selection rule (declared before run 3 was trained)
+### Selection rule (stated in the working session before run 3 was trained; not committed beforehand)
 
 Run 3 replaces run 2 only if its mean accuracy over the degraded conditions is higher **and** diseased-called-Healthy on clean photos is at most 1.0%. Run 2: mean degraded accuracy 79.7%, clean miss 0.5%. Run 3: 88.2%, clean miss 2.1%. **Result: run 3 is not chosen.**
 

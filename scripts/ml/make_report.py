@@ -71,7 +71,12 @@ def main() -> int:
         for n in names:
             w(f"| {n} | " + " | ".join(f"{pct(r['robustness'][n]['accuracy'])} / {r['robustness'][n]['diseased_called_healthy_percent']:.1f}%" for r in robust_runs) + " |")
         w("")
-        w("Accuracy on clean photos overstates real-world use: under common problems (blur, dim light, washed-out colour) the earlier models lost 10-27 points and called up to ~13% of diseased leaves Healthy.\n")
+        ref = robust_runs[0]["robustness"]
+        named = ["dim light (x0.5)", "blur (radius 3)", "low colour (x0.3)"]
+        drops = [ref["none (as trained)"]["accuracy"] - ref[n]["accuracy"] for n in named]
+        worst_miss = max(v["diseased_called_healthy_percent"] for v in ref.values())
+        w(f"Accuracy on clean photos overstates real-world use: for {robust_runs[0]['name']}, dim light, blur and washed-out colour cost "
+          f"{min(drops) * 100:.0f} to {max(drops) * 100:.0f} accuracy points, and up to {worst_miss:.1f}% of diseased leaves were called Healthy.\n")
 
     cal_runs = [r for r in runs if r["calibration"]]
     if cal_runs:
@@ -97,7 +102,7 @@ def main() -> int:
         a, b = runs[1], runs[2]
         mean = lambda r: sum(v["accuracy"] for k, v in r["robustness"].items() if k != "none (as trained)") / (len(r["robustness"]) - 1)
         accepted = mean(b) > mean(a) and b["missed_percent"] <= 1.0
-        w("### Selection rule (declared before run 3 was trained)\n")
+        w("### Selection rule (stated in the working session before run 3 was trained; not committed beforehand)\n")
         w(f"Run 3 replaces run 2 only if its mean accuracy over the degraded conditions is higher **and** diseased-called-Healthy on clean photos is at most 1.0%. "
           f"Run 2: mean degraded accuracy {pct(mean(a))}, clean miss {a['missed_percent']:.1f}%. Run 3: {pct(mean(b))}, clean miss {b['missed_percent']:.1f}%. "
           f"**Result: run 3 is {'chosen' if accepted else 'not chosen'}.**\n")
