@@ -2,6 +2,7 @@
 """Train and evaluate the isolated experimental PLDD-UP image classifier."""
 
 import argparse
+import gc
 import hashlib
 import io
 import json
@@ -307,6 +308,11 @@ def train(
 
     if best_state is None:
         raise RuntimeError("Training did not produce a validation checkpoint")
+    # Release the data-loader worker processes (each held ~1.4 GB; with 8 of them run 3 ran out of memory right here).
+    test_dataset = test_loader.dataset
+    del train_loader, validation_loader, test_loader
+    gc.collect()
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
     model.load_state_dict(best_state)
     model.eval()
     actual_labels, predictions = [], []

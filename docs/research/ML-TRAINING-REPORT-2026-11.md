@@ -57,6 +57,10 @@ Run 3 replaces run 2 only if its mean accuracy over the degraded conditions is h
 
 The rule was applied as declared and not changed after seeing results. The trade-off is real: with the quality gate and the "not sure" rule, run 2 answers 71.2% of clean photos with 0.0% diseased-called-Healthy, but its worst degraded condition is 9.09%; run 3 answers 70.2% with 1.3%, and its worst degraded condition is 2.35%. Run 3 was still under-fitted (final train accuracy 89.9%); a longer run with the same augmentation is the next experiment. Note that run 3's training finished all epochs but its final step ran out of memory, so its test evaluation was re-run from the saved best checkpoint (`finalize_pldd_up.py`; recorded in its model metadata).
 
+### Run 4 criteria (declared and committed before run 4 was trained)
+
+Run 4 = the run 3 augmentation, 80 epochs, cosine schedule. It replaces run 2 as the candidate only if **all** hold on the test split, scored once: (1) diseased leaf called Healthy on clean photos is at most 1.0%; (2) mean accuracy over the seven degraded conditions is above run 2's; (3) the worst degraded-condition miss rate without the "not sure" rule is at most 6%. If it fails any, run 2 stays the reference and the failure is reported.
+
 ## 2. Crop type from Sentinel-2 (AgriFieldNet India, CC-BY-4.0)
 
 5551 fields, split by image chip so neighbouring fields never straddle splits (train 3967, validation 725, test 859). Gradient-boosted trees on band and index statistics of each field.

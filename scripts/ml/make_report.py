@@ -40,7 +40,7 @@ def pct(value: float, digits: int = 1) -> str:
 
 
 def main() -> int:
-    runs = [r for r in (run_summary(n) for n in ("pldd-up-run1", "pldd-up-run2", "pldd-up-run3")) if r]
+    runs = [r for r in (run_summary(n) for n in ("pldd-up-run1", "pldd-up-run2", "pldd-up-run3", "pldd-up-run4")) if r]
     afn = load(MODELS / "agrifieldnet-run1/evaluation.json")
     out = []
     w = out.append
@@ -113,6 +113,23 @@ def main() -> int:
               "Note that run 3's training finished all epochs but its final step ran out of memory, so its test evaluation was re-run from the saved best checkpoint "
               "(`finalize_pldd_up.py`; recorded in its model metadata).\n")
 
+    w("### Run 4 criteria (declared and committed before run 4 was trained)\n")
+    w("Run 4 = the run 3 augmentation, 80 epochs, cosine schedule. It replaces run 2 as the candidate only if **all** hold on the test split, "
+      "scored once: (1) diseased leaf called Healthy on clean photos is at most 1.0%; (2) mean accuracy over the seven degraded conditions is above run 2's; "
+      "(3) the worst degraded-condition miss rate without the \"not sure\" rule is at most 6%. If it fails any, run 2 stays the reference and the failure is reported.\n")
+    if len(runs) >= 4 and runs[3]["robustness"] and runs[1]["robustness"]:
+        a, d = runs[1], runs[3]
+        degraded = lambda r: [v for k, v in r["robustness"].items() if k != "none (as trained)"]
+        mean_d = lambda r: sum(v["accuracy"] for v in degraded(r)) / len(degraded(r))
+        worst_d = max(v["diseased_called_healthy_percent"] for v in degraded(d))
+        checks = [("clean miss <= 1.0%", d["missed_percent"] <= 1.0, f"{d['missed_percent']:.2f}%"),
+                  ("mean degraded accuracy above run 2", mean_d(d) > mean_d(a), f"{pct(mean_d(d))} vs {pct(mean_d(a))}"),
+                  ("worst degraded miss <= 6%", worst_d <= 6.0, f"{worst_d:.2f}%")]
+        w("| Criterion | Met | Value |")
+        w("|---|---|---|")
+        for name, ok, value in checks:
+            w(f"| {name} | {'yes' if ok else 'NO'} | {value} |")
+        w(f"\n**Result: run 4 {'meets all criteria' if all(c[1] for c in checks) else 'does not meet all criteria; run 2 stays the reference'}.**\n")
     w("## 2. Crop type from Sentinel-2 (AgriFieldNet India, CC-BY-4.0)\n")
     if afn:
         t = afn["test"]
