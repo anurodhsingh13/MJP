@@ -19,3 +19,11 @@ Declared 2026-11-20, before any wheat/rice model was trained. Research only; not
    and will be reported as such, whatever the point estimates look like.
 3. No result here is app-ready. App use still requires the app's own expert-labelled field photos, which we do not yet have.
    Rice photos are from Bangladesh, so rice results say nothing about Indian fields.
+
+## Addendum, declared 2026-11-20 before training on this dataset
+- Third dataset: Rice Leaf Disease and Pest Dataset (Mendeley vwv3nry3wr, CC BY 4.0 via DataCite, file SHA-256 matched), **original photos only**
+  (the augmented copies are excluded so augmented twins cannot straddle splits). The 16-photo "Rice" folder is excluded (ambiguous label, too small to test).
+  7 classes (Healthy, Insect, Leaf scald, Rice Blast, Rice Leaffolder, Rice Stripes, Rice Tungro); 2,747 usable photos; split 1,924/412/411 by duplicate group.
+- Same two models (scratch vs transfer from PLDD-UP run 4), same 80 epochs, same reading rule (>= 2.0 points accuracy and higher macro-F1), same caveats.
+- Test set is 411 photos, 95% interval about +/-2 to +/-3 points on accuracy. Per-class results for the small classes (about 35-40 test photos) are noisy.
+- Country and domain of these rice photos are not stated in the record; no claim is made about Indian fields.
