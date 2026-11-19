@@ -72,6 +72,10 @@ Run 4 = the run 3 augmentation, 80 epochs, cosine schedule. It replaces run 2 as
 
 **Result: run 4 does not meet all criteria; run 2 stays the reference.**
 
+### Run 5 criteria (declared and committed before run 5 was trained)
+
+Run 5 changes ONE thing relative to run 4: 120 epochs instead of 80 (same augmentation, schedule, seed and data). The criteria use the deployment-relevant measurements (photo-quality gate + "not sure" rule). Run 5 replaces run 4 as the deployment candidate only if **all** hold on the test split, scored once: (1) with gate + rule, diseased leaves called Healthy among answered clean photos <= 1.0%; (2) with gate + rule, the worst degraded-condition miss rate <= 3.0%; (3) with gate + rule, at least 85% of clean photos are answered; (4) raw classifier accuracy on clean test photos >= 95.0%. Run 4 meets (1)-(3) but not (4) (94.7%), so run 5 has to keep those and fix (4). A single run on one split cannot show a difference smaller than about 1-2 points; that is stated, not hidden.
+
 ## 2. Crop type from Sentinel-2 (AgriFieldNet India, CC-BY-4.0)
 
 5551 fields, split by image chip so neighbouring fields never straddle splits (train 3967, validation 725, test 859). Gradient-boosted trees on band and index statistics of each field.

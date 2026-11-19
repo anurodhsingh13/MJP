@@ -40,7 +40,7 @@ def pct(value: float, digits: int = 1) -> str:
 
 
 def main() -> int:
-    runs = [r for r in (run_summary(n) for n in ("pldd-up-run1", "pldd-up-run2", "pldd-up-run3", "pldd-up-run4")) if r]
+    runs = [r for r in (run_summary(n) for n in ("pldd-up-run1", "pldd-up-run2", "pldd-up-run3", "pldd-up-run4", "pldd-up-run5")) if r]
     afn = load(MODELS / "agrifieldnet-run1/evaluation.json")
     out = []
     w = out.append
@@ -138,6 +138,29 @@ def main() -> int:
         for name, ok, value in checks:
             w(f"| {name} | {'yes' if ok else 'NO'} | {value} |")
         w(f"\n**Result: run 4 {'meets all criteria' if all(c[1] for c in checks) else 'does not meet all criteria; run 2 stays the reference'}.**\n")
+    w("### Run 5 criteria (declared and committed before run 5 was trained)\n")
+    w("Run 5 changes ONE thing relative to run 4: 120 epochs instead of 80 (same augmentation, schedule, seed and data). "
+      "The criteria use the deployment-relevant measurements (photo-quality gate + \"not sure\" rule). Run 5 replaces run 4 as the deployment candidate only if **all** hold on the test split, scored once: "
+      "(1) with gate + rule, diseased leaves called Healthy among answered clean photos <= 1.0%; "
+      "(2) with gate + rule, the worst degraded-condition miss rate <= 3.0%; "
+      "(3) with gate + rule, at least 85% of clean photos are answered; "
+      "(4) raw classifier accuracy on clean test photos >= 95.0%. "
+      "Run 4 meets (1)-(3) but not (4) (94.7%), so run 5 has to keep those and fix (4). A single run on one split cannot show a difference smaller than about 1-2 points; that is stated, not hidden.\n")
+    run4 = next((r for r in runs if r["name"] == "pldd-up-run4"), None)
+    run5 = next((r for r in runs if r["name"] == "pldd-up-run5"), None)
+    if run4 and run5 and run5["pipeline"]:
+        pipe = run5["pipeline"]
+        clean_pipe = pipe["none (as trained)"]
+        worst_pipe = max(v["diseased_called_healthy_percent_of_answered_diseased"] for v in pipe.values())
+        checks5 = [("gate+rule clean miss <= 1.0%", clean_pipe["diseased_called_healthy_percent_of_answered_diseased"] <= 1.0, f"{clean_pipe['diseased_called_healthy_percent_of_answered_diseased']}%"),
+                   ("gate+rule worst degraded miss <= 3.0%", worst_pipe <= 3.0, f"{worst_pipe}%"),
+                   ("gate+rule answers >= 85% of clean photos", clean_pipe["answered_percent_of_all"] >= 85.0, f"{clean_pipe['answered_percent_of_all']}%"),
+                   ("raw clean test accuracy >= 95.0%", run5["accuracy"] >= 0.95, pct(run5["accuracy"]))]
+        w("| Criterion | Met | Value |")
+        w("|---|---|---|")
+        for name, ok, value in checks5:
+            w(f"| {name} | {'yes' if ok else 'NO'} | {value} |")
+        w(f"\n**Result: run 5 {'meets all criteria and replaces run 4 as the deployment candidate' if all(c[1] for c in checks5) else 'does not meet all criteria; run 4 stays the deployment candidate'}.**\n")
     w("## 2. Crop type from Sentinel-2 (AgriFieldNet India, CC-BY-4.0)\n")
     if afn:
         t = afn["test"]
