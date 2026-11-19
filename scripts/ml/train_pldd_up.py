@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Train and evaluate the isolated experimental PLDD-UP image classifier."""
+"""Train and evaluate an isolated experimental leaf-image classifier (PLDD-UP by default; any manifest from
+prepare_folder_dataset.py works: dataset id and classes are read from the manifest).
+
+--init-from starts from the weights of an earlier model of ours (e.g. the PLDD-UP run), never from ImageNet weights.
+"""
 
 import argparse
 import gc
@@ -98,10 +102,17 @@ class LeafDataset(Dataset):
             return self.transform(image), self.class_to_index[sample["label"]]
 
 
+def MODEL_VERSION() -> str:
+    return "pldd-up-mobilenet-v2-experimental-1" if DATASET_ID == "pldd-up-potato-leaf-disease" else f"{DATASET_ID}-mobilenet-v2-experimental-1"
+
+
 def load_manifest(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     manifest = json.loads(path.read_text(encoding="utf-8"))
-    if manifest.get("dataset_id") != DATASET_ID or manifest.get("classes") != CLASSES:
-        raise ValueError("Training manifest does not describe the expected PLDD-UP classes")
+    global DATASET_ID, CLASSES
+    classes = manifest.get("classes")
+    if not isinstance(manifest.get("dataset_id"), str) or not isinstance(classes, list) or len(classes) < 2 or len(set(classes)) != len(classes):
+        raise ValueError("Training manifest must name a dataset and at least two distinct classes")
+    DATASET_ID, CLASSES = manifest["dataset_id"], classes
     if manifest.get("validation", {}).get("valid") is not True:
         raise ValueError("Inventory validation did not pass; rebuild the dataset inventory before training")
     source_manifest_hash = manifest.get("source_manifest_sha256")
@@ -133,8 +144,15 @@ def load_manifest(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     return manifest, samples
 
 
-def build_model():
+def build_model(init_from: Path | None = None):
     model = models.mobilenet_v2(weights=None)
+    if init_from is not None:
+        # Feature extractor from our own earlier model; the old class head is dropped and a new one starts random.
+        checkpoint = torch.load(init_from, map_location="cpu", weights_only=False)
+        state = {k: v for k, v in checkpoint["model_state_dict"].items() if not k.startswith("classifier.1.")}
+        missing = model.load_state_dict(state, strict=False)
+        if set(missing.missing_keys) != {"classifier.1.weight", "classifier.1.bias"} or missing.unexpected_keys:
+            raise ValueError("--init-from checkpoint is not a MobileNetV2 from this project")
     model.classifier[1] = nn.Linear(model.last_channel, len(CLASSES))
     return model
 
@@ -182,6 +200,7 @@ def train(
     cache_dir: Path | None = None,
     cosine: bool = False,
     strong_augment: bool = False,
+    init_from: Path | None = None,
 ) -> dict[str, Any]:
     if epochs < 1 or batch_size < 1 or learning_rate <= 0:
         raise ValueError("Epochs and batch size must be positive, and learning rate must be greater than zero")
@@ -223,7 +242,8 @@ def train(
             "scikit_learn": sklearn.__version__,
         },
         "pretrained_weights": False,
-        "pretrained_reason": "No weights were downloaded; training starts from random initialization.",
+        "pretrained_reason": ("No external weights. Feature layers start from our own earlier model: " + str(init_from)) if init_from else "No weights were downloaded; training starts from random initialization.",
+        "init_from": str(init_from) if init_from else None,
         "image_size": [224, 224],
         "normalization_mean": MEAN,
         "normalization_std": STD,
@@ -260,7 +280,7 @@ def train(
         LeafDataset(grouped["test"], source_root, False, cache_dir, cache_index),
         batch_size=batch_size, shuffle=False, num_workers=workers, persistent_workers=workers > 0,
     )
-    model = build_model().to(device)
+    model = build_model(init_from).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs) if cosine else None
     criterion = nn.CrossEntropyLoss()
@@ -347,7 +367,7 @@ def train(
     manifest_digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
     torch.save({
         "dataset_id": DATASET_ID,
-        "model_version": "pldd-up-mobilenet-v2-experimental-1",
+        "model_version": MODEL_VERSION(),
         "architecture": "mobilenet_v2",
         "classes": CLASSES,
         "normalization_mean": MEAN,
@@ -359,7 +379,7 @@ def train(
     model_hash = hashlib.sha256((output / "model.pth").read_bytes()).hexdigest()
     metadata = {
         "dataset_id": DATASET_ID,
-        "model_version": "pldd-up-mobilenet-v2-experimental-1",
+        "model_version": MODEL_VERSION(),
         "architecture": "mobilenet_v2",
         "trained": True,
         "training_manifest_sha256": manifest_digest,
@@ -367,12 +387,12 @@ def train(
         "model_sha256": model_hash,
         "training_duration_seconds": round(duration, 2),
         "evaluation": evaluation,
-        "limitations": [
+        "limitations": ([] if DATASET_ID != "pldd-up-potato-leaf-disease" else [
             "Field-collected leaf photographs from Mainpuri, Etawah and Jaswantnagar only.",
             "Not satellite-matched field labels or live crop-health observations.",
             "Experimental classification probabilities are not diagnostic confidence.",
             "Not validated across all Uttar Pradesh districts or potato varieties.",
-        ],
+        ]) + ["Research evaluation on one publisher's photos; not accuracy on other farms, cameras or seasons."],
     }
     (output / "evaluation.json").write_text(json.dumps(evaluation, indent=2) + "\n", encoding="utf-8")
     (output / "training-history.json").write_text(json.dumps(history, indent=2) + "\n", encoding="utf-8")
@@ -412,10 +432,11 @@ def main() -> int:
     parser.add_argument("--strong-augment", action="store_true", help="Phone-photo style augmentation (blur, glare, JPEG, crop, rotation)")
     parser.add_argument("--cosine", action="store_true", help="Cosine learning-rate decay over the run")
     parser.add_argument("--cache", type=Path, default=None, help="Pre-resized image cache from cache_pldd_up.py (much faster)")
+    parser.add_argument("--init-from", type=Path, default=None, help="model.pth of an earlier model of ours to start the feature layers from (no ImageNet)")
     args = parser.parse_args()
     try:
         result = train(args.manifest, args.source, args.output, args.epochs, args.batch_size,
-                       args.learning_rate, args.seed, workers=args.workers, cache_dir=args.cache, cosine=args.cosine, strong_augment=args.strong_augment)
+                       args.learning_rate, args.seed, workers=args.workers, cache_dir=args.cache, cosine=args.cosine, strong_augment=args.strong_augment, init_from=args.init_from)
     except (OSError, ValueError, RuntimeError) as error:
         print(json.dumps({"trained": False, "error": str(error)}, indent=2), file=sys.stderr)
         return 2
