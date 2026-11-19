@@ -14,24 +14,26 @@ Healthy / Early Blight / Late Blight from field photos taken in Uttar Pradesh (1
 | run2 | 40 epochs, cosine_annealing_to_zero LR, light augmentation | 96.7% | 0.967 | 7/1394 = 0.5% | 97.6% (epoch 35) |
 | run3 | 40 epochs, cosine_annealing_to_zero LR, phone-photo augmentation | 90.9% | 0.909 | 29/1394 = 2.1% | 94.0% (epoch 39) |
 | run4 | 80 epochs, cosine_annealing_to_zero LR, phone-photo augmentation | 94.7% | 0.946 | 20/1394 = 1.4% | 96.5% (epoch 77) |
+| run5 | 120 epochs, cosine_annealing_to_zero LR, phone-photo augmentation | 95.5% | 0.953 | 18/1394 = 1.3% | 96.8% (epoch 114) |
 
 * pldd-up-run1: model SHA-256 `cad44c08db93138a…`, trained in 26 min.
 * pldd-up-run2: model SHA-256 `319ad680f01f696b…`, trained in 37 min.
 * pldd-up-run3: model SHA-256 `ced41b40c3296967…`, trained in 56 min.
 * pldd-up-run4: model SHA-256 `18fb0f6a28c153a5…`, trained in 395 min of wall-clock time, which includes a pause while the laptop was asleep (not compute time; about 1 min per epoch is typical).
+* pldd-up-run5: model SHA-256 `34969a38877ea04a…`, trained in 926 min of wall-clock time, which includes a pause while the laptop was asleep (not compute time; about 1 min per epoch is typical).
 
 ### Robustness to phone-photo problems (test photos degraded, accuracy / diseased called Healthy)
 
-| Condition | run2 | run3 | run4 |
-|---|---|---|---|
-| none (as trained) | 96.7% / 0.5% | 90.9% / 2.1% | 94.7% / 1.4% |
-| dim light (x0.5) | 78.8% / 2.3% | 89.5% / 2.6% | 94.3% / 1.7% |
-| glare (x1.7) | 76.5% / 2.9% | 86.1% / 6.1% | 90.5% / 3.6% |
-| blur (radius 3) | 72.3% / 12.3% | 87.0% / 3.7% | 90.1% / 1.9% |
-| heavy JPEG (q=15) | 88.3% / 6.0% | 86.1% / 5.0% | 91.1% / 3.4% |
-| off-centre crop | 82.0% / 5.4% | 88.7% / 3.1% | 93.0% / 2.2% |
-| rotated 40 degrees | 89.7% / 2.4% | 90.5% / 2.1% | 94.0% / 1.5% |
-| low colour (x0.3) | 70.0% / 13.4% | 89.3% / 3.7% | 93.0% / 2.0% |
+| Condition | run2 | run3 | run4 | run5 |
+|---|---|---|---|---|
+| none (as trained) | 96.7% / 0.5% | 90.9% / 2.1% | 94.7% / 1.4% | 95.5% / 1.3% |
+| dim light (x0.5) | 78.8% / 2.3% | 89.5% / 2.6% | 94.3% / 1.7% | 95.2% / 1.3% |
+| glare (x1.7) | 76.5% / 2.9% | 86.1% / 6.1% | 90.5% / 3.6% | 92.2% / 2.6% |
+| blur (radius 3) | 72.3% / 12.3% | 87.0% / 3.7% | 90.1% / 1.9% | 91.7% / 2.1% |
+| heavy JPEG (q=15) | 88.3% / 6.0% | 86.1% / 5.0% | 91.1% / 3.4% | 91.8% / 2.3% |
+| off-centre crop | 82.0% / 5.4% | 88.7% / 3.1% | 93.0% / 2.2% | 94.7% / 1.7% |
+| rotated 40 degrees | 89.7% / 2.4% | 90.5% / 2.1% | 94.0% / 1.5% | 95.2% / 1.2% |
+| low colour (x0.3) | 70.0% / 13.4% | 89.3% / 3.7% | 93.0% / 2.0% | 93.7% / 1.9% |
 
 Accuracy on clean photos overstates real-world use: for pldd-up-run2, dim light, blur and washed-out colour cost 18 to 27 accuracy points, and up to 13.4% of diseased leaves were called Healthy.
 
@@ -40,19 +42,20 @@ Accuracy on clean photos overstates real-world use: for pldd-up-run2, dim light,
 * **pldd-up-run2**: temperature 1.45, threshold 0.99, calibration error 0.0108 -> 0.006. On clean test photos it answers 74.0% of photos with 0.9973 accuracy and 0.0% of answered diseased leaves called Healthy; the rest become "retake the photo".
 * **pldd-up-run3**: temperature 0.85, threshold 0.945, calibration error 0.0194 -> 0.0102. On clean test photos it answers 73.3% of photos with 0.9798 accuracy and 1.25% of answered diseased leaves called Healthy; the rest become "retake the photo".
 * **pldd-up-run4**: temperature 0.9, threshold 0.81, calibration error 0.012 -> 0.0087. On clean test photos it answers 91.3% of photos with 0.9756 accuracy and 0.72% of answered diseased leaves called Healthy; the rest become "retake the photo".
+* **pldd-up-run5**: temperature 1.0, threshold 0.725, calibration error 0.0079 -> 0.0079. On clean test photos it answers 95.6% of photos with 0.9705 accuracy and 0.98% of answered diseased leaves called Healthy; the rest become "retake the photo".
 
 ### Existing photo-quality gate + classifier + "not sure" rule (share of ALL test photos answered / diseased called Healthy among answered)
 
-| Condition | gate passes | run2 | run3 | run4 |
-|---|---|---|---|---|
-| none (as trained) | 95.4% | 71.2% / 0.0% | 70.2% / 1.3% | 87.2% / 0.75% |
-| dim light (x0.5) | 34.4% | 13.6% / 0.0% | 23.8% / 0.7% | 31.3% / 0.25% |
-| glare (x1.7) | 91.9% | 38.2% / 0.0% | 53.5% / 2.35% | 76.6% / 2.57% |
-| blur (radius 3) | 57.5% | 14.2% / 9.09% | 32.9% / 0.99% | 50.3% / 1.02% |
-| heavy JPEG (q=15) | 96.2% | 49.9% / 0.89% | 58.0% / 1.61% | 82.9% / 2.12% |
-| off-centre crop | 96.2% | 39.6% / 2.18% | 67.3% / 0.8% | 86.7% / 0.74% |
-| rotated 40 degrees | 95.7% | 54.2% / 0.6% | 67.9% / 1.5% | 87.1% / 0.93% |
-| low colour (x0.3) | 95.4% | 39.4% / 1.56% | 63.0% / 1.49% | 83.9% / 1.05% |
+| Condition | gate passes | run2 | run3 | run4 | run5 |
+|---|---|---|---|---|---|
+| none (as trained) | 95.4% | 71.2% / 0.0% | 70.2% / 1.3% | 87.2% / 0.75% | 91.2% / 1.04% |
+| dim light (x0.5) | 34.4% | 13.6% / 0.0% | 23.8% / 0.7% | 31.3% / 0.25% | 33.2% / 0.69% |
+| glare (x1.7) | 91.9% | 38.2% / 0.0% | 53.5% / 2.35% | 76.6% / 2.57% | 84.1% / 1.64% |
+| blur (radius 3) | 57.5% | 14.2% / 9.09% | 32.9% / 0.99% | 50.3% / 1.02% | 51.4% / 1.12% |
+| heavy JPEG (q=15) | 96.2% | 49.9% / 0.89% | 58.0% / 1.61% | 82.9% / 2.12% | 88.0% / 1.33% |
+| off-centre crop | 96.2% | 39.6% / 2.18% | 67.3% / 0.8% | 86.7% / 0.74% | 90.0% / 0.94% |
+| rotated 40 degrees | 95.7% | 54.2% / 0.6% | 67.9% / 1.5% | 87.1% / 0.93% | 89.6% / 0.9% |
+| low colour (x0.3) | 95.4% | 39.4% / 1.56% | 63.0% / 1.49% | 83.9% / 1.05% | 88.9% / 1.07% |
 
 ### Selection rule (stated in the working session before run 3 was trained; not committed beforehand)
 
@@ -75,6 +78,15 @@ Run 4 = the run 3 augmentation, 80 epochs, cosine schedule. It replaces run 2 as
 ### Run 5 criteria (declared and committed before run 5 was trained)
 
 Run 5 changes ONE thing relative to run 4: 120 epochs instead of 80 (same augmentation, schedule, seed and data). The criteria use the deployment-relevant measurements (photo-quality gate + "not sure" rule). Run 5 replaces run 4 as the deployment candidate only if **all** hold on the test split, scored once: (1) with gate + rule, diseased leaves called Healthy among answered clean photos <= 1.0%; (2) with gate + rule, the worst degraded-condition miss rate <= 3.0%; (3) with gate + rule, at least 85% of clean photos are answered; (4) raw classifier accuracy on clean test photos >= 95.0%. Run 4 meets (1)-(3) but not (4) (94.7%), so run 5 has to keep those and fix (4). A single run on one split cannot show a difference smaller than about 1-2 points; that is stated, not hidden.
+
+| Criterion | Met | Value |
+|---|---|---|
+| gate+rule clean miss <= 1.0% | NO | 1.04% |
+| gate+rule worst degraded miss <= 3.0% | yes | 1.64% |
+| gate+rule answers >= 85% of clean photos | yes | 91.2% |
+| raw clean test accuracy >= 95.0% | yes | 95.5% |
+
+**Result: run 5 does not meet all criteria; run 4 stays the deployment candidate.**
 
 ## 2. Crop type from Sentinel-2 (AgriFieldNet India, CC-BY-4.0)
 
