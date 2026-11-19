@@ -1,6 +1,6 @@
 # Training-data licence register
 
-Audit date: 2026-11-18. Purpose: record, before any model is trained, which datasets may legally be used, under which
+Audit date: 2026-11-18 (Mendeley rows re-verified through DataCite on 2026-11-20). Purpose: record, before any model is trained, which datasets may legally be used, under which
 terms, and what was actually verified. **"Verified" means the licence was read on a primary page on the audit date.**
 Anything else is marked unverified and must not be used for training until a person confirms it.
 
@@ -23,16 +23,17 @@ published or redistributed with a model.
 
 | Dataset | Content | Licence | Status | Evidence |
 |---|---|---|---|---|
-| PLDD-UP | Potato leaf field photos, Uttar Pradesh, Rabi 2025-26; Healthy 4,600 / Early Blight 4,803 / Late Blight 6,116 | CC BY 4.0 | **Allowed.** Licence is recorded in the local source manifest (retrieved 2026-10-30, SHA-256 verified). Could not be re-fetched on the audit date (Mendeley API returned 404) | `.local/datasets/up/pldd-up/manifest.json`, DOI 10.17632/3j4nfkvp2n.1 |
+| PLDD-UP | Potato leaf field photos, Uttar Pradesh, Rabi 2025-26; Healthy 4,600 / Early Blight 4,803 / Late Blight 6,116 | CC BY 4.0 | **Allowed.** Licence is recorded in the local source manifest (retrieved 2026-10-30, SHA-256 verified). DataCite on 2026-11-20 also reports CC BY 4.0 | `.local/datasets/up/pldd-up/manifest.json`, DOI 10.17632/3j4nfkvp2n.1 |
 | AgriFieldNet India Competition | Sentinel-2 composites + ground-surveyed crop type for 7,081 fields in Uttar Pradesh, Rajasthan, Odisha, Bihar (2022) | CC-BY-4.0 | **Allowed (verified 2026-11-18).** Cite: Radiant Earth Foundation & IDinsight (2022), AgriFieldNet Competition Dataset v1.0, DOI 10.34911/rdnt.wu92p1 | https://source.coop/radiantearth/agrifieldnet-competition |
 | Paddy Doctor | Paddy leaf photos, Tamil Nadu (Tirunelveli); 16,225 images (480x640), 13 classes (12 diseases/pests + normal), labelled by an agricultural officer | CC BY 4.0 | **Allowed (verified 2026-11-19 on the primary IEEE DataPort record, which links the CC BY 4.0 licence).** The arXiv metadata mirror says CC BY-SA 4.0 and the GitHub LICENSE (Apache-2.0) covers code; use only the IEEE DataPort copy and attribute: Petchiammal A, Briskline Kiruba S, Murugan D, Pandarasamy Arjunan, "Paddy Doctor", DOI 10.21227/hz4v-af08. **Download needs a free IEEE DataPort login: a person must fetch it** (not yet downloaded) | https://ieee-dataport.org/node/10108 , https://arxiv.org/abs/2205.11108 |
 | PlantDoc | ~2,600 mostly web-collected photos, many species | CC BY 4.0 (GitHub, Meta-Album) | **Not allowed for training yet.** Images were largely scraped from the web, so the copyright of the underlying photos is unclear. Small; evaluation only if cleared | https://github.com/pratikkayal/PlantDoc-Dataset |
 | PlantVillage | Lab photos, many crops | **Conflicting**: CC BY-SA 3.0 (paper, reviews) vs CC0 (mirrors) | **Not used.** Share-alike may extend to trained models, and lab images transfer poorly to field photos | https://github.com/spMohanty/PlantVillage-Dataset |
 | CropHarvest | Global labelled crop / non-crop points | CC BY-SA 4.0 | **Needs a decision** (share-alike) before any use | https://pypi.org/project/cropharvest/ |
-| Wheat nitrogen deficiency and leaf rust (IARI) | Wheat field photos, Delhi; 368 diseased / 491 control | Not seen | **Unverified** | https://data.mendeley.com/datasets/th422bg4yd |
+| Wheat nitrogen deficiency and leaf rust (IARI) | Wheat photos, IARI Delhi; 368 leaf rust / 491 control (859 files) | CC BY 4.0 | **Allowed (verified 2026-11-20 via the DataCite record of the Mendeley DOI; file SHA-256 matched the publisher's list).** Used in small-crop experiments only | https://data.mendeley.com/datasets/th422bg4yd |
 | Maize leaf blight severity (MDSD) | Maize field photos, India; 1,760 images | Paper is CC BY; dataset licence not seen | **Unverified** | https://www.frontiersin.org/articles/10.3389/fpls.2022.1077568/full |
 | UCI Rice Leaf Diseases | 120 lab-style photos, 3 classes | CC BY 4.0 | Allowed but too small / not field conditions: sanity checks only | https://archive.ics.uci.edu/dataset/486/rice+leaf+diseases |
-| Bangladesh rice leaf datasets (Mendeley) | Field photos, Bangladesh | Not seen | **Unverified**, and a different country | — |
+| RiceLeafBD (Mendeley sjkptpgv79) | Rice leaf photos, Bangladesh; Bacterial Leaf Blight 422 / Brown Spot 356 / Healthy 252 / Tungro 530 | CC BY 4.0 | **Allowed (verified 2026-11-20 via DataCite; SHA-256 matched).** Different country, so results say nothing about Indian fields. Other Mendeley sets checked the same day and also CC BY 4.0 (not downloaded): corn hmkd6nbngr, wheat disease 5gc7hwydwg, rice vwv3nry3wr, RiceLeaf-06-2777, WheatPhenology | https://data.mendeley.com/datasets/sjkptpgv79 |
+| Winter wheat, Jaipur (Mendeley gj72pjfvb2) | Wheat | **NonCommercial** | **Not allowed** | https://data.mendeley.com/datasets/gj72pjfvb2 |
 
 ## Weights
 
