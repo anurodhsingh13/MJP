@@ -176,13 +176,13 @@ def main() -> int:
         w("Wheat, maize and fallow land are recognised reasonably; rice (the app's main crop) and every rare crop are not. "
           "One single-date 2022 rabi snapshot cannot separate crops that look alike on that date. **Not suitable for the app in this form.**\n")
 
-    small = {(d, m): load(MODELS / f"{d}-{m}/evaluation.json") for d in ("wheat-iari", "ricelbd") for m in ("scratch", "transfer")}
+    small = {(d, m): load(MODELS / f"{d}-{m}/evaluation.json") for d in ("wheat-iari", "ricelbd", "rice-overview") for m in ("scratch", "transfer")}
     if all(small.values()):
         w("## 2b. Wheat and rice leaf photos (CC BY 4.0), scratch vs transfer from our own potato model\n")
         w("Plan and reading rule were committed before training (`docs/research/SMALL-CROP-EXPERIMENT-PLAN.md`): transfer counts as better only if test accuracy is higher by >= 2.0 points and macro-F1 is higher. MobileNetV2, 80 epochs, no ImageNet weights.\n")
         w("| Dataset | Test photos | Scratch acc / macro-F1 | Transfer acc / macro-F1 | Difference | Rule |")
         w("|---|---|---|---|---|---|")
-        for d, label in (("wheat-iari", "Wheat leaf rust (IARI, India), 2 classes"), ("ricelbd", "Rice (Bangladesh), 4 classes")):
+        for d, label in (("wheat-iari", "Wheat leaf rust (IARI, India), 2 classes"), ("ricelbd", "Rice (Bangladesh), 4 classes"), ("rice-overview", "Rice leaf disease and pest overview (region not stated), 7 classes, originals only")):
             a, b = small[(d, "scratch")], small[(d, "transfer")]
             diff = (b["accuracy"] - a["accuracy"]) * 100
             ok = diff >= 2.0 and b["macro_f1"] > a["macro_f1"]
@@ -191,7 +191,9 @@ def main() -> int:
         w("Reading: on wheat both models are near the ceiling on a small, lab-like set (black background); the 1.6-point gap is 2 photos and is noise. "
           "On rice the transfer model is 4.0 points better and fixes most Tungro and Healthy errors, which meets the declared rule, but with 227 test photos "
           "(95% interval about +/-3 points on each score) it is modest evidence from one split and one seed. "
-          "Rice photos are from Bangladesh: no statement about Indian fields. Not app-ready; the app-own labelled photos are still required.\n")
+          "Rice photos are from Bangladesh: no statement about Indian fields. Not app-ready; the app-own labelled photos are still required. "
+          "On the harder 7-class rice set (411 test photos) transfer gains only 0.7 accuracy points (macro-F1 +0.04, mostly from the Insect class, 24% to 48% recall), which does not meet the declared 2.0-point rule: "
+          "both models are weak there (about 70%; Insect, Rice Stripes and Rice Tungro are the hardest), so the earlier rice gain does not generalise to a harder dataset and the transfer benefit should not be assumed.\n")
     w("## 3. What is NOT shown by these numbers\n")
     w("* Accuracy on photos from other farms, cameras, seasons or states. PLDD-UP is one region and season; near-identical photos from the same plant may sit on both sides of a split even though exact/near duplicates are grouped.")
     w("* Any result for Indian rice or maize photos (wheat is IARI India but lab-like; rice is Bangladesh). Paddy Doctor (CC BY 4.0, verified) is the next dataset but must be downloaded by a person with a free IEEE DataPort account.")
