@@ -176,9 +176,25 @@ def main() -> int:
         w("Wheat, maize and fallow land are recognised reasonably; rice (the app's main crop) and every rare crop are not. "
           "One single-date 2022 rabi snapshot cannot separate crops that look alike on that date. **Not suitable for the app in this form.**\n")
 
+    small = {(d, m): load(MODELS / f"{d}-{m}/evaluation.json") for d in ("wheat-iari", "ricelbd") for m in ("scratch", "transfer")}
+    if all(small.values()):
+        w("## 2b. Wheat and rice leaf photos (CC BY 4.0), scratch vs transfer from our own potato model\n")
+        w("Plan and reading rule were committed before training (`docs/research/SMALL-CROP-EXPERIMENT-PLAN.md`): transfer counts as better only if test accuracy is higher by >= 2.0 points and macro-F1 is higher. MobileNetV2, 80 epochs, no ImageNet weights.\n")
+        w("| Dataset | Test photos | Scratch acc / macro-F1 | Transfer acc / macro-F1 | Difference | Rule |")
+        w("|---|---|---|---|---|---|")
+        for d, label in (("wheat-iari", "Wheat leaf rust (IARI, India), 2 classes"), ("ricelbd", "Rice (Bangladesh), 4 classes")):
+            a, b = small[(d, "scratch")], small[(d, "transfer")]
+            diff = (b["accuracy"] - a["accuracy"]) * 100
+            ok = diff >= 2.0 and b["macro_f1"] > a["macro_f1"]
+            w(f"| {label} | {a['test_samples']} | {pct(a['accuracy'])} / {a['macro_f1']:.3f} | {pct(b['accuracy'])} / {b['macro_f1']:.3f} | {diff:+.1f} points | {'transfer better' if ok else 'transfer not shown to help'} |")
+        w("")
+        w("Reading: on wheat both models are near the ceiling on a small, lab-like set (black background); the 1.6-point gap is 2 photos and is noise. "
+          "On rice the transfer model is 4.0 points better and fixes most Tungro and Healthy errors, which meets the declared rule, but with 227 test photos "
+          "(95% interval about +/-3 points on each score) it is modest evidence from one split and one seed. "
+          "Rice photos are from Bangladesh: no statement about Indian fields. Not app-ready; the app-own labelled photos are still required.\n")
     w("## 3. What is NOT shown by these numbers\n")
     w("* Accuracy on photos from other farms, cameras, seasons or states. PLDD-UP is one region and season; near-identical photos from the same plant may sit on both sides of a split even though exact/near duplicates are grouped.")
-    w("* Any result for rice, wheat or maize photos. Paddy Doctor (CC BY 4.0, verified) is the next dataset but must be downloaded by a person with a free IEEE DataPort account.")
+    w("* Any result for Indian rice or maize photos (wheat is IARI India but lab-like; rice is Bangladesh). Paddy Doctor (CC BY 4.0, verified) is the next dataset but must be downloaded by a person with a free IEEE DataPort account.")
     w("* Disease detection from satellite NDVI. It is not possible, and these models do not claim it.")
     w("* The 41 duplicate groups in PLDD-UP that appear under more than one class are label noise and cap the attainable accuracy.")
     w("* Percentages for degraded photos where the \"not sure\" rule answered few photos rest on small numbers of diseased leaves; a single case can move them by several points.\n")
