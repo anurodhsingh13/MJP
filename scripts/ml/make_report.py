@@ -59,7 +59,10 @@ def main() -> int:
         w(f"| {r['name'].replace('pldd-up-', '')} | {setup} | {pct(r['accuracy'])} | {r['macro_f1']:.3f} | {r['missed']}/{r['sick']} = {r['missed_percent']:.1f}% | {pct(r['best_validation'])} (epoch {r['best_epoch']}) |")
     w("")
     for r in runs:
-        w(f"* {r['name']}: model SHA-256 `{r['meta']['model_sha256'][:16]}…`, trained in {r['meta']['training_duration_seconds'] / 60:.0f} min.")
+        minutes = r["meta"]["training_duration_seconds"] / 60
+        per_epoch = r["meta"]["training_duration_seconds"] / r["config"]["epochs"]
+        duration = f"{minutes:.0f} min" if per_epoch <= 150 else f"{minutes:.0f} min of wall-clock time, which includes a pause while the laptop was asleep (not compute time; about 1 min per epoch is typical)"
+        w(f"* {r['name']}: model SHA-256 `{r['meta']['model_sha256'][:16]}…`, trained in {duration}.")
     w("")
 
     robust_runs = [r for r in runs if r["robustness"]]
