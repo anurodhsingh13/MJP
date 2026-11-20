@@ -27,3 +27,9 @@ Declared 2026-11-20, before any wheat/rice model was trained. Research only; not
 - Same two models (scratch vs transfer from PLDD-UP run 4), same 80 epochs, same reading rule (>= 2.0 points accuracy and higher macro-F1), same caveats.
 - Test set is 411 photos, 95% interval about +/-2 to +/-3 points on accuracy. Per-class results for the small classes (about 35-40 test photos) are noisy.
 - Country and domain of these rice photos are not stated in the record; no claim is made about Indian fields.
+
+## Addendum 2, declared 2026-11-20 before training: wheat nitrogen deficiency (India)
+- Dataset: Wheat nitrogen deficiency (Mendeley th422bg4yd, file Ndeficient.zip, IARI Delhi, CC BY 4.0 via DataCite, file SHA-256 matched). 600 photos:
+  Nitrogen sufficient 300 / Nitrogen deficient 300; split 420/90/90 by duplicate group (65 near-duplicate groups, all kept inside one split).
+- This is a nutrient-stress task, not a disease. Same two models (scratch vs transfer from PLDD-UP run 4), 80 epochs, same reading rule (>= 2.0 points and higher macro-F1).
+- Test set is 90 photos: 95% interval about +/-5 to +/-7 points; any difference below that is noise. One experimental plot setup (Sony IMX363, one field season): no claim about other farms.
