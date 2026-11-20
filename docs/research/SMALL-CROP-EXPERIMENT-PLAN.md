@@ -40,3 +40,12 @@ Declared 2026-11-20, before any wheat/rice model was trained. Research only; not
 - **Provisional.** The duplicate hash does not catch flipped or rotated copies, so copies of one photo may sit in both train and test and inflate the test score.
   The split will be rebuilt with a flip/rotation-proof duplicate check later; until then every number from this dataset is labelled provisional and must not be quoted as accuracy.
 - Same two models (scratch vs transfer from PLDD-UP run 4), 80 epochs, same reading rule (>= 2.0 points and higher macro-F1).
+
+## Addendum 4, declared 2026-11-20 before the second Indian-rice training: leak-free split
+- The first (provisional) run scored 100% (scratch) and 99.9% (transfer) because 97% of its test photos had a near copy in the training set.
+  Those numbers are void and are kept in the report only as the demonstration of the leak.
+- New split: duplicate check over all 8 flips/rotations of every photo, near-duplicate distance <= 12% of 1,024 hash bits (`--dihedral --near-duplicate-fraction 0.12`).
+  Measured afterwards: no test photo has a training photo within 10% (0.5% within 15%); before, 97% were within 5%.
+- Finding: the 5,932 photos fall into only 400 duplicate groups (about 15 per group, largest 60): the set is roughly 400 original photos augmented about 15 times.
+  The honest sample size is therefore about 400 independent photos, about 60 independent test groups; 95% intervals on accuracy are wide (several points) and per-class numbers are noisier still.
+- Same two models, 80 epochs, same reading rule (>= 2.0 points and higher macro-F1). Split 4,1xx / ~890 / ~890 by group.

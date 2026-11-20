@@ -35,6 +35,14 @@ def dhash(image: Image.Image) -> np.ndarray:
     return np.packbits((small[:, 1:] > small[:, :-1]).flatten())
 
 
+def dihedral_hashes(image: Image.Image) -> np.ndarray:
+    """Hashes of the 8 orientations (4 rotations x mirror), so a flipped or rotated copy of a photo matches the original."""
+    T = Image.Transpose
+    variants = [image, image.transpose(T.ROTATE_90), image.transpose(T.ROTATE_180), image.transpose(T.ROTATE_270),
+                image.transpose(T.FLIP_LEFT_RIGHT), image.transpose(T.FLIP_TOP_BOTTOM), image.transpose(T.TRANSPOSE), image.transpose(T.TRANSVERSE)]
+    return np.stack([dhash(v) for v in variants])
+
+
 _POPCOUNT = np.array([bin(i).count("1") for i in range(256)], dtype=np.uint16)
 
 
@@ -43,6 +51,15 @@ def hamming_matrix(hashes: np.ndarray) -> np.ndarray:
     matrix = np.zeros((n, n), dtype=np.uint16)
     for i in range(n):
         matrix[i] = _POPCOUNT[np.bitwise_xor(hashes, hashes[i])].sum(axis=1)
+    return matrix
+
+
+def hamming_matrix_dihedral(hashes: np.ndarray) -> np.ndarray:
+    """hashes: (n, 8, bytes). Distance between photo i and j = the smallest distance over j's 8 orientations."""
+    n = len(hashes)
+    matrix = np.zeros((n, n), dtype=np.uint16)
+    for i in range(n):
+        matrix[i] = _POPCOUNT[np.bitwise_xor(hashes, hashes[i, 0])].sum(axis=2).min(axis=1)
     return matrix
 
 
@@ -69,6 +86,7 @@ def main() -> int:
     parser.add_argument("--licence", default="")
     parser.add_argument("--attribution", default="")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--dihedral", action="store_true", help="also treat flipped / rotated copies of a photo as near duplicates (slower)")
     parser.add_argument("--near-duplicate-fraction", type=float, default=NEAR_DUPLICATE_FRACTION,
                         help="fraction of the 1,024 hash bits that may differ for two photos to count as near duplicates (negative = exact duplicates only)")
     args = parser.parse_args()
@@ -90,7 +108,7 @@ def main() -> int:
                 image = ImageOps.exif_transpose(image)
                 width, height = image.size
                 records.append({"relative_path": path.relative_to(source).as_posix(), "label": label, "sha256": hashlib.sha256(data).hexdigest(),
-                                "width": width, "height": height, "hash": dhash(image),
+                                "width": width, "height": height, "hash": dihedral_hashes(image) if args.dihedral else dhash(image),
                                 "publisher_split": next((p for p in path.relative_to(source).parts if p in ("train", "val", "validation", "test")), None)})
         except Exception as error:  # noqa: BLE001
             unreadable.append({"file": path.name, "error": str(error)[:80]})
@@ -104,7 +122,8 @@ def main() -> int:
             by_sha[r["sha256"]] = i
     exact_groups = len({union.find(i) for i in range(len(records))})
     if args.near_duplicate_fraction >= 0:
-        distances = hamming_matrix(np.stack([r["hash"] for r in records]))
+        stacked = np.stack([r["hash"] for r in records])
+        distances = hamming_matrix_dihedral(stacked) if args.dihedral else hamming_matrix(stacked)
         limit = int(args.near_duplicate_fraction * HASH_BITS)
         for i, j in np.argwhere(np.triu(distances <= limit, k=1)):
             union.join(int(i), int(j))
@@ -155,7 +174,7 @@ def main() -> int:
         "duplicate_groups_with_more_than_one_image": sum(1 for g in groups.values() if len(g) > 1),
         "label_conflict_groups_dropped": len(dropped), "images_dropped_for_label_conflict": sum(len(g) for g in dropped),
         "publisher_split_groups_crossing_splits": publisher_cross, "split_counts": counts,
-        "near_duplicate_fraction": args.near_duplicate_fraction,
+        "near_duplicate_fraction": args.near_duplicate_fraction, "flip_rotation_proof": bool(args.dihedral),
         "limits": ["Near-duplicate detection is a 1,024-bit difference hash; other photos of the same leaf can still straddle splits.",
                    "Scores on this split are not accuracy on other farms, cameras or seasons."],
     }
