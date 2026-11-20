@@ -51,3 +51,12 @@ separate decision for the owner.
   agronomist (the consent + reviewer workflow already exists in the database).
 * Disease cannot be read from satellite NDVI. Satellite datasets (AgriFieldNet) can support crop type and growth-stage
   checks, not diagnosis.
+
+## Crop calendars (reference data, not for model training), checked 2026-11-20
+| Dataset | India? | Licence | Status |
+|---|---|---|---|
+| GGCMI Phase 3 crop calendar (Jaegermeyr et al. 2021, Zenodo 5062513, DOI 10.5281/zenodo.5062513) | Yes, 0.5 degree grid, 18 crops, rainfed and irrigated | CC BY 4.0 | **Allowed; downloaded, 40 files, Zenodo checksums matched.** Wheat and maize in India come from IndiaAgStat and rice from RiceAtlas; **potato has no source in India (gap-filled), do not use it** (it puts UP potato planting in June, which is wrong). Cite: Jaegermeyr J. et al. (2021), Nature Food 2, 873-885 |
+| GEOGLAM Crop Monitor sub-national calendars v1.3 (Zenodo 15850408) | **No** (86 countries, India not among them) | CC BY 4.0 | Downloaded, md5 matched; not useful for India |
+| JRC ASAP crop calendars GAUL0/GAUL1 (GEO Knowledge Hub 9qpxr-52p90, based on FAO data) | Probably | CC BY 4.0 | **Not downloaded:** the JRC download host timed out from this network; can be fetched from a browser |
+| FAO Crop Calendar web tool | Yes | Per-record permission | Not used (no permitted bulk download) |
+| SAGE Crop Calendar Dataset (Sacks et al. 2010) | Probably | No licence stated | Not used |
