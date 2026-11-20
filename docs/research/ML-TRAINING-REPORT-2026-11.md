@@ -1,6 +1,6 @@
 # Model-training report, November 2026
 
-Generated 2026-11-20 by `scripts/ml/make_report.py` from the saved evaluation files. Nothing here is hand-copied.
+Generated 2026-11-21 by `scripts/ml/make_report.py` from the saved evaluation files. Nothing here is hand-copied.
 
 **Status: research only. No model is connected to the app.** Scores below are on the public datasets' own held-out splits and are *not* the accuracy a farmer would see.
 
@@ -125,6 +125,19 @@ Plan and reading rule were committed before training (`docs/research/SMALL-CROP-
 | Indian rice, 4 diseases (Sethy et al., Odisha authors), leak-free split, about 400 independent photos | 887 | 94.8% / 0.949 | 93.6% / 0.936 | -1.2 points | transfer not shown to help |
 
 Reading: on wheat both models are near the ceiling on a small, lab-like set (black background); the 1.6-point gap is 2 photos and is noise. On rice the transfer model is 4.0 points better and fixes most Tungro and Healthy errors, which meets the declared rule, but with 227 test photos (95% interval about +/-3 points on each score) it is modest evidence from one split and one seed. Rice photos are from Bangladesh: no statement about Indian fields. Not app-ready; the app-own labelled photos are still required. On the harder 7-class rice set (411 test photos) transfer gains only 0.7 accuracy points (macro-F1 +0.04, mostly from the Insect class, 24% to 48% recall), which does not meet the declared 2.0-point rule: both models are weak there (about 70%; Insect, Rice Stripes and Rice Tungro are the hardest), so the earlier rice gain does not generalise to a harder dataset and the transfer benefit should not be assumed. On wheat nitrogen deficiency (India, 90 test photos) both models reach 92.2%, so transfer gives no accuracy gain there either; its lower validation loss (0.22 vs 0.30) is not part of the declared rule. Across the five datasets transfer met the rule once (Bangladesh rice). Indian rice (Sethy et al., 5,932 photos in only 400 duplicate groups, i.e. about 400 original photos augmented about 15 times): scratch 94.8% vs transfer 93.6% on the leak-free split, so transfer did not help; Bacterial blight is the weakest class (88% / 92% recall). These are upper-end figures: the test set is about 60 independent groups, so the interval is several points wide, and strongly cropped copies may remain. A first run on a plain-hash split scored 100% (scratch) and 99.9% (transfer) because 97% of its test photos had a near copy in training; those numbers are void and are kept here only as the demonstration of the leak.
+
+## 2c. Unlabelled check on Indian field photos (IIT Kharagpur, West Bengal, CC BY 4.0)
+
+1,561 potato canopy photos (640x640 phone photos from a West Bengal field study of late blight, Zenodo 22059910). The authors publish **no per-image labels**, so this gives no accuracy; it only shows how the potato model (run 4 with the gate and "not sure" rule) behaves on Indian field photos it was not trained on.
+
+| Measure | Value |
+|---|---|
+| Photos passing the quality gate | 100% |
+| Photos answered after the "not sure" rule | 65.9% (91.3% on the PLDD-UP test photos) |
+| Predicted class, all photos | Healthy 794, Early Blight 313, Late Blight 454 |
+| Median confidence | 0.94; 55.6% of photos at or above 0.90 |
+
+Reading: the study is about late blight stages, so the 313 "Early Blight" predictions (20%) are either initial late blight or errors; the labels are needed to tell which. These are whole-plant canopy photos, unlike single-leaf training photos, and in several confident predictions the leaves look green and undamaged to a non-expert eye (visual impression only, not a diagnosis). The lower answer rate and the confident-looking calls are signs of domain shift. This does **not** measure accuracy, and it is a reason not to deploy the model before labelled Indian field photos are tested.
 
 ## 3. What is NOT shown by these numbers
 

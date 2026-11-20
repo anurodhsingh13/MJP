@@ -196,6 +196,18 @@ def main() -> int:
           "both models are weak there (about 70%; Insect, Rice Stripes and Rice Tungro are the hardest), so the earlier rice gain does not generalise to a harder dataset and the transfer benefit should not be assumed. "
           "On wheat nitrogen deficiency (India, 90 test photos) both models reach 92.2%, so transfer gives no accuracy gain there either; its lower validation loss (0.22 vs 0.30) is not part of the declared rule. Across the five datasets transfer met the rule once (Bangladesh rice). "
           "Indian rice (Sethy et al., 5,932 photos in only 400 duplicate groups, i.e. about 400 original photos augmented about 15 times): scratch 94.8% vs transfer 93.6% on the leak-free split, so transfer did not help; Bacterial blight is the weakest class (88% / 92% recall). These are upper-end figures: the test set is about 60 independent groups, so the interval is several points wide, and strongly cropped copies may remain. A first run on a plain-hash split scored 100% (scratch) and 99.9% (transfer) because 97% of its test photos had a near copy in training; those numbers are void and are kept here only as the demonstration of the leak.\n")
+    w("## 2c. Unlabelled check on Indian field photos (IIT Kharagpur, West Bengal, CC BY 4.0)\n")
+    w("1,561 potato canopy photos (640x640 phone photos from a West Bengal field study of late blight, Zenodo 22059910). The authors publish **no per-image labels**, so this gives no accuracy; it only shows how the potato model (run 4 with the gate and \"not sure\" rule) behaves on Indian field photos it was not trained on.\n")
+    w("| Measure | Value |")
+    w("|---|---|")
+    w("| Photos passing the quality gate | 100% |")
+    w("| Photos answered after the \"not sure\" rule | 65.9% (91.3% on the PLDD-UP test photos) |")
+    w("| Predicted class, all photos | Healthy 794, Early Blight 313, Late Blight 454 |")
+    w("| Median confidence | 0.94; 55.6% of photos at or above 0.90 |")
+    w("")
+    w("Reading: the study is about late blight stages, so the 313 \"Early Blight\" predictions (20%) are either initial late blight or errors; the labels are needed to tell which. "
+      "These are whole-plant canopy photos, unlike single-leaf training photos, and in several confident predictions the leaves look green and undamaged to a non-expert eye (visual impression only, not a diagnosis). "
+      "The lower answer rate and the confident-looking calls are signs of domain shift. This does **not** measure accuracy, and it is a reason not to deploy the model before labelled Indian field photos are tested.\n")
     w("## 3. What is NOT shown by these numbers\n")
     w("* Accuracy on photos from other farms, cameras, seasons or states. PLDD-UP is one region and season; near-identical photos from the same plant may sit on both sides of a split even though exact/near duplicates are grouped.")
     w("* Accuracy on Indian rice in the field: the Sethy set is India-based but about 400 original photos only. Paddy Doctor (CC BY 4.0) needs a paid IEEE DataPort subscription.")
