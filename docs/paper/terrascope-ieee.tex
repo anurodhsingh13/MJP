@@ -42,7 +42,7 @@ email@institution.edu}
 \maketitle
 
 \begin{abstract}
-Satellite crop-monitoring dashboards commonly convert vegetation indices into reassuring health scores even when the underlying image is cloudy, stale, or misaligned with the field. For smallholder farmers, such false reassurance is worse than an honest ``unknown''. This paper presents TerraScope, an open web platform for field-level crop monitoring that treats \emph{evidence quality} as a first-class output. TerraScope computes NDVI, NDRE, NDMI, SAVI and EVI from Sentinel-2 Level-2A reflectance over user-drawn field boundaries, masks invalid pixels with the scene classification layer, and accepts a measurement only if at least 70\% of the whole boundary is observed. Every observation is bound to a scene, boundary revision, calculation version and provenance class; a five-state assessment then separates ``needs inspection'' from ``image too old'' and ``not enough data''. The system combines a React/Leaflet bilingual (Hindi/English) interface, an Express/PostgreSQL--PostGIS service with a lease-based durable job queue, and a FastAPI raster engine backed by Google Earth Engine. We evaluate the platform with controlled experiments that drive the production raster endpoint: field-mean NDVI is recovered within $5\times10^{-5}$, and the coverage gate switches exactly at 30\% cloud. The experiments also expose limitations of the default rules: a field-mean decline threshold of 0.10 does not flag a stressed patch until it covers about 35\% of the field, and a within-scene $1.5\sigma$ anomaly rule marks 6.8\% of a uniform field while its detected area collapses as stress spreads. Re-analysing a public crop-stress benchmark shows its labels are reproducible at 99.94\% from the input indices, so a classifier's 98.3\% accuracy reflects label circularity rather than skill. We also report leakage-controlled baselines (source-held-out CropHarvest crop/non-crop accuracy 0.752; PlantVillage maize leaf accuracy 0.953) and argue that independently verified field labels, which TerraScope's consent-gated reviewer workflow is designed to collect, are the main missing ingredient for credible crop-health claims.
+Satellite crop-monitoring dashboards commonly convert vegetation indices into reassuring health scores even when the underlying image is cloudy, stale, or misaligned with the field. For smallholder farmers, such false reassurance is worse than an honest ``unknown''. This paper presents TerraScope, an open web platform for field-level crop monitoring that treats \emph{evidence quality} as a first-class output. TerraScope computes NDVI, NDRE, NDMI, SAVI and EVI from Sentinel-2 Level-2A reflectance over user-drawn field boundaries, masks invalid pixels with the scene classification layer, and accepts a measurement only if at least 70\% of the whole boundary is observed. Every observation is bound to a scene, boundary revision, calculation version and provenance class; a five-state assessment then separates ``needs inspection'' from ``image too old'' and ``not enough data''. The system combines a React/Leaflet bilingual (Hindi/English) interface, an Express/PostgreSQL--PostGIS service with a lease-based durable job queue, and a FastAPI raster engine backed by Google Earth Engine. We evaluate the platform with controlled experiments that drive the production raster endpoint: field-mean NDVI is recovered within $5\times10^{-5}$, and the coverage gate switches exactly at 30\% cloud. The experiments also expose limitations of the default rules: a field-mean decline threshold of 0.10 does not flag a stressed patch until it covers about 35\% of the field, and a within-scene $1.5\sigma$ anomaly rule marks 6.8\% of a uniform field while its detected area collapses as stress spreads. We report leakage-controlled baselines (source-held-out CropHarvest crop/non-crop accuracy 0.752; PlantVillage maize leaf accuracy 0.953) and argue that independently verified field labels, which TerraScope's consent-gated reviewer workflow is designed to collect, are the main missing ingredient for credible crop-health claims.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -62,7 +62,7 @@ TerraScope (Crop Health Monitor) is designed around the opposite principle: \emp
   \item A \textbf{boundary-normalized quality gate} for Sentinel-2 L2A data that uses the whole field as the coverage denominator, refuses to guess reflectance scaling, and rejects scenes below a configurable coverage and pixel threshold (Section~\ref{sec:engine}).
   \item A complete, open \textbf{system implementation} with a bilingual interface, PostGIS data model, a durable lease-based job queue, Google Earth Engine integration, and six public reference datasets attached with field-level provenance (Section~\ref{sec:arch}).
   \item A \textbf{controlled evaluation of the production raster endpoint} that quantifies measurement accuracy, quality-gate behaviour, and the sensitivity limits of the default change-detection rules (Section~\ref{sec:results}).
-  \item A \textbf{leakage and circularity audit} of public crop-health benchmarks, including a demonstration that a published spectral-proxy dataset yields near-perfect but uninformative accuracy, alongside honest leakage-controlled baselines.
+  \item A \textbf{leakage audit} of public crop-health benchmarks, with honest leakage-controlled baselines.
 \end{enumerate}
 
 %=====================================================================
@@ -196,10 +196,7 @@ We drive the production \texttt{/calculate-indices} endpoint of the FastAPI engi
 \subsection{E2: Sensitivity of the change rules}
 For two dates, a base NDVI field $\mathcal{N}(0.70,0.05^2)$ is perturbed by independent noise $\mathcal{N}(0,0.02^2)$; on the second date a randomly placed square patch covering $f\in[0,0.6]$ of the field is reduced by 0.30 NDVI, a strong localized stress. Each of 13 levels is repeated 10 times (130 scene pairs, 260 endpoint calls). We measure the field-mean change $\Delta$, the share of pairs flagged by Algorithm~\ref{alg:assess} ($\Delta\le-0.10$), and the affected area returned by the $1.5\sigma$ zone rule.
 
-\subsection{E3: Label circularity in a spectral-proxy benchmark}
-The repository includes, for research only, 1\,786 seasonal Sentinel-2 observations from 99 district-centroid locations and 19 seasons in Pakistan~\cite{agrosense2026}, labelled Healthy, Stressed or Diseased. According to its documentation, the labels are tertiles of $0.5\,\NDVI+0.3\,\mathrm{NDRE}+0.2\,\mathrm{EVI}$. We (a) attempt to reconstruct the labels from this composite, and (b) train random forests~\cite{breiman2001} (300 trees) under \emph{location-grouped} 5-fold cross-validation~\cite{roberts2017} with progressively fewer label-defining inputs.
-
-\subsection{E4: Leakage-controlled learning baselines}\label{sec:ml}
+\subsection{E3: Leakage-controlled learning baselines}\label{sec:ml}
 \textit{CropHarvest crop/non-crop.} From 87\,464 checksum-verified CropHarvest~v14 samples~\cite{tseng2021} (216 features), 3\,143 duplicate-feature samples are removed. Four entire source datasets (\texttt{china-crop}, \texttt{kenya}, \texttt{lem-brazil}, \texttt{togo-eval}) are held out for testing, giving 79\,220 training and 5\,101 test samples. Cross-split location/date overlap is excluded, and no tuning uses the test set. A class-balanced random forest (100 trees, depth 12, seed 42) is trained.
 
 \textit{Maize leaf disease.} A MobileNetV2~\cite{sandler2018} with a frozen ImageNet-pretrained backbone and a new four-class head (gray leaf spot, common rust, northern leaf blight, healthy) is trained on PlantVillage maize images~\cite{hughes2015} for 5 epochs (Adam, learning rate $10^{-3}$, batch 16, 224\,px, horizontal-flip augmentation). The split is 2\,599 training and 459 validation images, and evaluation uses the 794-image official test split.
@@ -208,7 +205,7 @@ The repository includes, for research only, 1\,786 seasonal Sentinel-2 observati
 
 \textit{Field-photo potato dataset.} The PLDD-UP dataset~\cite{plddup2026} (15\,519 field photographs from Uttar Pradesh: 4\,600 healthy, 4\,803 early blight, 6\,116 late blight) is inventoried with SHA-256 exact-duplicate and 64-bit difference-hash near-duplicate grouping, and groups are kept within one split. No trained-model result is reported for it, because training had not completed at the time of writing.
 
-\subsection{E5: Live acquisition case and software verification}
+\subsection{E4: Live acquisition case and software verification}
 We report a live public-boundary verification run and repository test results. All experiment scripts and raw outputs are in the project repository under \texttt{docs/paper/experiments}.
 
 %=====================================================================
@@ -253,19 +250,9 @@ Stressed share & Mean $\Delta\NDVI$ & Flagged pairs & $1.5\sigma$ zone area \\
 
 Table~\ref{tab:patch} and Fig.~\ref{fig:patch} show that the field-mean change scales as $\Delta\approx-0.30f$, so the default threshold $\delta=0.10$ is crossed only at $f\approx 33\%$. A severe stress on a quarter of the field therefore produces ``no unusual change''. This is consistent with the conservative wording of that state, but it shows that the field-mean rule is a coarse screen. The $1.5\sigma$ zone rule has the opposite weakness. On an unstressed Gaussian field it marks 6.75\% of the area, which matches the theoretical tail mass $\Phi(-1.5)=6.68\%$. Because $\mu_V$ and $\sigma_V$ are re-estimated from the stressed scene itself, the marked area peaks at about 16\% for a 20\% patch and then falls to 1\% as the patch grows, since a widespread drop becomes the new norm. Both rules are therefore unsuitable as stress detectors without calibration. A rule that compares each pixel with its \emph{own} history on the same boundary would avoid both failure modes; we leave this for future work.
 
-\subsection{E3: High accuracy from circular labels}
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{fig_proxy_circularity.pdf}
-\caption{E3: Location-grouped 5-fold accuracy on a spectral-proxy crop-stress benchmark. Removing the three label-defining indices barely changes accuracy, because other inputs (e.g.\ LAI, $r=0.998$ with the label composite) encode the same signal.}
-\label{fig:proxy}
-\end{figure}
-
-Global tertiles of the documented composite reproduce 99.94\% of the published labels (1\,785 of 1\,786). Per-season tertiles reproduce only 93.3\%, which indicates that the labels were assigned over the pooled data. A random forest reaches 98.3\% accuracy under location-grouped cross-validation (Fig.~\ref{fig:proxy}), against a 33.4\% majority-class baseline. Removing NDVI, NDRE and EVI still leaves 97.3\%: leaf area index correlates with the composite at $r=0.998$, NDWI at $r=-0.957$, and the NDVI range statistics are also derived from the same reflectance. Even the three weather/soil features alone reach 81.5\%. The repository notes that some of these values are imputed, which suggests they too carry season- or index-dependent structure. None of these numbers measures crop-health recognition. This is a textbook case of target leakage~\cite{kaufman2012}, and it is why TerraScope never imports such rows as ground truth or reports scores from them as field accuracy.
-
-\subsection{E4: Leakage-controlled baselines}
+\subsection{E3: Leakage-controlled baselines}
 \begin{table}[t]
-\caption{E4: Learning baselines under the stated protocols}
+\caption{E3: Learning baselines under the stated protocols}
 \label{tab:ml}
 \centering
 \resizebox{\columnwidth}{!}{%
@@ -305,7 +292,7 @@ Healthy               & 0  & 0   & 0   & 250 & 0.996 \\
 
 Table~\ref{tab:ml} summarizes the baselines. On entirely unseen source datasets, the CropHarvest crop/non-crop forest reaches 0.752 accuracy and 0.793 ROC-AUC (confusion matrix: 1\,789 TN, 794 FP, 472 FN, 2\,046 TP). This is a plausible cross-region result, well below the in-distribution figures commonly reported, and it shows how much accuracy is lost under geographic shift. The maize classifier reaches 0.953 accuracy and 0.937 macro-F1 on the official PlantVillage test split, and most errors are confusions between gray leaf spot and northern leaf blight (Table~\ref{tab:maize}). In line with prior findings~\cite{mohanty2016,barbedo2018}, this laboratory-image result does not establish field-photo performance, which is why the field-photo PLDD-UP pipeline enforces near-duplicate-aware splits. Finally, the committed tabular baseline's accuracy (0.6990) equals its majority-class rate ($148\,198/212\,019=0.6990$), and its feature importances are nearly uniform (0.068--0.075). The model learned no usable signal and should not be cited as a crop-health result.
 
-\subsection{E5: Live acquisition and software verification}
+\subsection{E4: Live acquisition and software verification}
 In a live run on a public-demonstration parcel (18~October~2026), two Sentinel-2 scenes from 3 and 5~October were accepted with 125 valid pixels and 100\% coverage (NDVI 0.3951 and 0.3355). Scenes from 17~October had only 1.38\% usable coverage and were rejected rather than averaged in. The $-0.060$ change is below $\delta$ and, because the parcel's crop identity is unverified, is reported only descriptively. Separately, an authenticated Earth Engine search of \texttt{COPERNICUS/S2\_SR\_HARMONIZED} and index calculation both succeeded, and field-level WorldCereal coverage of 99.95\% was obtained for a user field. That field's WorldCover result (78.8\% built-up, 2.5\% cropland) is inconsistent with a cropped parcel, so the interface prompts the user to verify the boundary location. This shows how reference context can expose an input problem. SoilGrids covered only 17.7\% of the same field at its 250\,m grid, and the interface states this partial coverage.
 
 The latest repository audit records 90 passing Node/API tests (5 skipped), 10 research-metric tests, 72 Python engine tests (1 skipped) and 22 focused browser workflows. In a full browser run, 82 tests passed and 15 failed on content assertions or timeouts. We report these failures here rather than omit them. A controlled frontend benchmark rendered 20 field cards with a median of 942\,ms and a 95th percentile of 1\,042\,ms over 10 navigations. This is a rendering measurement only, not backend or provider latency. Re-running the engine suite for this paper under Python~3.9 (the project targets 3.11) gave 65 passing tests and 1 skip. One test module that needs Python~3.10 syntax and one test that needs the Google authentication package could not run.
@@ -317,7 +304,7 @@ The latest repository audit records 90 passing Node/API tests (5 skipped), 10 re
 
 \textit{Default thresholds are product heuristics.} E2 shows that $\delta=0.10$ trades sensitivity for few false alarms, and that within-scene $z$-score zones are self-normalizing in an unhelpful way. Both values are configurable, but calibrating them per crop and growth stage requires labelled field visits, which motivates the consent-gated reviewer workflow.
 
-\textit{Benchmarks need provenance audits.} E3 and the tabular audit show two common ways to obtain impressive but meaningless numbers: labels computed from the inputs, and accuracy equal to the majority-class rate. Source-held-out evaluation (CropHarvest) and official test splits (PlantVillage) give more modest but interpretable figures.
+\textit{Benchmarks need provenance audits.} The tabular audit shows a common way to obtain impressive but meaningless numbers: accuracy equal to the majority-class rate. Source-held-out evaluation (CropHarvest) and official test splits (PlantVillage) give more modest but interpretable figures.
 
 \textit{Threats to validity.} E1 and E2 use synthetic rasters with independent noise and idealized clouds; real scenes have cloud-edge effects, mixed pixels at field margins, and correlation between clouds and land cover. E2 uses a single patch shape and stress magnitude. The live case involves one public parcel with unknown crop. No user study has been conducted.
 
@@ -329,14 +316,14 @@ TerraScope does not diagnose disease, predict yield or forecast NDVI, and it has
 %=====================================================================
 \section{Conclusion}
 %=====================================================================
-We presented TerraScope, an evidence-first crop-monitoring platform that ties every Sentinel-2 measurement to its scene, boundary revision, method and provenance, and reports when the evidence is missing, old or insufficient. Controlled experiments on the production engine confirm accurate masked index computation and an exact coverage gate. They also show that simple change rules are coarse screens rather than stress detectors. Our audit of public benchmarks shows that near-perfect accuracy can come entirely from circular labels, while leakage-controlled baselines give more modest results. The main obstacle to credible crop-health claims is the lack of independently verified field labels rather than missing models, and TerraScope's provenance and consent infrastructure is designed to collect them.
+We presented TerraScope, an evidence-first crop-monitoring platform that ties every Sentinel-2 measurement to its scene, boundary revision, method and provenance, and reports when the evidence is missing, old or insufficient. Controlled experiments on the production engine confirm accurate masked index computation and an exact coverage gate. They also show that simple change rules are coarse screens rather than stress detectors. Our audit of public benchmarks shows that leakage-controlled baselines give modest results. The main obstacle to credible crop-health claims is the lack of independently verified field labels rather than missing models, and TerraScope's provenance and consent infrastructure is designed to collect them.
 
 \section*{Data and Code Availability}
 The source code, migrations, experiment scripts and raw experiment outputs are available at \url{https://github.com/tusharsingh-1801/91-CHM}. Third-party datasets keep their original licences and attributions (see \texttt{datasets/ATTRIBUTION.md}).
 
 \section*{Acknowledgment}
 % TODO: acknowledge your guide, department and any funding.
-The authors thank the providers of Sentinel-2 (ESA/Copernicus), Google Earth Engine, NASA POWER, CHIRPS, ISRIC SoilGrids, ESA WorldCover and WorldCereal, NASA Harvest CropHarvest, PlantVillage, and the PLDD-UP and AgroSense dataset authors.
+The authors thank the providers of Sentinel-2 (ESA/Copernicus), Google Earth Engine, NASA POWER, CHIRPS, ISRIC SoilGrids, ESA WorldCover and WorldCereal, NASA Harvest CropHarvest, PlantVillage, and the PLDD-UP dataset authors.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
