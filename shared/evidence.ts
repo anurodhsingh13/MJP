@@ -100,11 +100,18 @@ export function daysApart(newer: Observation, older: Observation): number | null
  * comes from the same Sentinel-2 tile (when both are known) and is recent enough for the crop stage
  * not to have changed completely.
  */
+/** Sentinel-2 tile of an observation: the stored value, else the tile named at the end of its scene id (older rows have none stored). */
+export function observationTile(observation: Pick<Observation, 'tile_id' | 'scene_id'>): string | null {
+  if (observation.tile_id) return observation.tile_id;
+  const fromScene = /_T?(\d{2}[C-X][A-Z]{2})(?:_|$)/.exec(observation.scene_id ?? '');
+  return fromScene ? fromScene[1] : null;
+}
 export function isComparable(latest: Observation, previous: Observation, policy = defaultPolicy): boolean {
   if (!previous.accepted || previous.provenance !== 'measured_imagery' || qualityReason(previous, policy)) return false;
   if (previous.boundary_version !== latest.boundary_version || previous.calculation_version !== latest.calculation_version) return false;
   if (!(previous.observed_on < latest.observed_on)) return false;
-  if (latest.tile_id && previous.tile_id && latest.tile_id !== previous.tile_id) return false;
+  const latestTile = observationTile(latest), previousTile = observationTile(previous);
+  if (latestTile && previousTile && latestTile !== previousTile) return false;
   const gap = daysApart(latest, previous);
   return gap !== null && gap <= (policy.compareDays ?? defaultPolicy.compareDays);
 }

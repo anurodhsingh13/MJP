@@ -106,17 +106,23 @@ it('satellite ingestion searches the dated Sentinel-2 collection through Earth E
     assert.match(body.start, /^\d{4}-\d{2}-\d{2}$/);
     assert.match(body.end, /^\d{4}-\d{2}-\d{2}$/);
     assert.ok(body.limit <= 20);
-    return new Response(JSON.stringify({ scenes: [{ id: '20261001T000000_T43QAB', image_id: 'COPERNICUS/S2_SR_HARMONIZED/20261001T000000_T43QAB', observed_at: '2026-10-01T00:00:00Z', cloud_cover: 5 }] }));
+    // The same pass arrives in two overlapping tiles: only one tile may be kept for the field.
+    return new Response(JSON.stringify({ scenes: [
+      { id: '20261001T000000_T43QAB', image_id: 'COPERNICUS/S2_SR_HARMONIZED/20261001T000000_T43QAB', observed_at: '2026-10-01T00:00:00Z', cloud_cover: 5 },
+      { id: '20261001T000000_T43QAC', image_id: 'COPERNICUS/S2_SR_HARMONIZED/20261001T000000_T43QAC', observed_at: '2026-10-01T00:00:00Z', cloud_cover: 6 },
+    ] }));
   }) as typeof fetch;
   try {
     await ingestEarthEngineScenes({ params: { fieldId: 'test' }, query: {} } as unknown as import('express').Request, {
       json(value: unknown) { imported = value; }, status() { throw new Error('Unexpected failure'); },
     } as unknown as import('express').Response);
     assert.equal((imported as { imported: number }).imported, 1);
-    assert.equal(writes.length, 1);
-    assert.equal(writes[0][1], 'gee-20261001T000000_T43QAB');
-    assert.equal(writes[0][5], 'Copernicus Sentinel-2 via Google Earth Engine');
-    assert.equal(JSON.parse(writes[0][7] as string).earth_engine.image_id, 'COPERNICUS/S2_SR_HARMONIZED/20261001T000000_T43QAB');
+    assert.equal(writes.length, 2);
+    assert.deepEqual(writes[0], ['test', '43QAB']); // the field's primary tile is stored once
+    assert.equal(writes[1][1], 'gee-20261001T000000_T43QAB');
+    assert.equal(writes[1][5], 'Copernicus Sentinel-2 via Google Earth Engine');
+    assert.equal(writes[1][8], '43QAB');
+    assert.equal(JSON.parse(writes[1][7] as string).earth_engine.image_id, 'COPERNICUS/S2_SR_HARMONIZED/20261001T000000_T43QAB');
   } finally { pool.query = originalQuery; globalThis.fetch = originalFetch; }
 });
 

@@ -62,7 +62,9 @@ export async function backfillHistory(fieldId: string, provider: 'earth-engine' 
       exists(select 1 from public.vegetation_indices vi where vi.field_id=s.field_id and vi.scene_id=s.scene_id and vi.boundary_version=$2 and vi.accepted) as accepted
     from public.satellite_scenes s
     where s.field_id=$1 and s.source=$3 and s.observed_at >= $4::date and s.observed_at < $5::date and s.observed_at <= now()
-      and ($6::text is null or s.tile_id is null or s.tile_id=$6)`,
+      and ($6::text is null
+        or coalesce(s.tile_id, substring(s.scene_id from '_T?([0-9]{2}[C-X][A-Z]{2})(_|$)')) is null
+        or coalesce(s.tile_id, substring(s.scene_id from '_T?([0-9]{2}[C-X][A-Z]{2})(_|$)'))=$6)`,
     [fieldId, field.boundary_version, source, window.start, window.end, tile])).rows;
   const picks = pickHistoryScenes(candidates, Date.now(), setting('SATELLITE_HISTORY_BIN_DAYS', 10, 5, 30), setting('SATELLITE_HISTORY_MAX', 18, 1, 40));
   const summary = { window, tile, candidates: candidates.length, attempted: 0, accepted: 0, rejected: 0, failed: 0 };

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {chooseScenes,safeAssetUrl,sceneAssets,tileOf,type StacItem} from './openSentinel.ts';
+import {chooseScenes,primaryTile,safeAssetUrl,sceneAssets,tileOf,type StacItem} from './openSentinel.ts';
 import {historyWindow,pickHistoryScenes} from './history.ts';
 
 const band=(name:string)=>({href:`https://e84-earth-search-sentinel-data.s3.us-west-2.amazonaws.com/sentinel-2-c1-l2a/43/R/GK/2026/11/x/${name}.tif`,'raster:bands':[{scale:.0001,offset:-.1}]});
@@ -61,4 +61,13 @@ test('history picks the least cloudy image per 10-day bin and skips bins already
  ],end,10,10);
  assert.deepEqual(picks.map(entry=>entry.scene_id),['b','f']);
  assert.equal(pickHistoryScenes([scene('a','2026-11-10',1),scene('b','2026-10-30',1)],end,10,1).length,1);
+});
+
+test('primary tile keeps the stored tile, else the most frequent, ties alphabetical',()=>{
+ assert.equal(primaryTile(['44RNQ','44RNP','44RNQ'],null),'44RNQ');
+ assert.equal(primaryTile(['44RNQ','44RNP'],null),'44RNP');
+ assert.equal(primaryTile(['44RNQ','44RNP','44RNP'],'44RNQ'),'44RNQ');
+ assert.equal(primaryTile(['44RNP'],'44RNQ'),'44RNP');
+ assert.equal(primaryTile([null,null],null),null);
+ assert.equal(primaryTile([],null),null);
 });

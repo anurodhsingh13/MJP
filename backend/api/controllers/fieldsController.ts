@@ -4,7 +4,7 @@ import {actor,authRequired} from '../services/auth.ts';
 import { assessEvidence, comparablePair, vegetationScore, type Observation } from '../../../shared/evidence.ts';
 import { evidencePolicy } from '../services/policy.ts';
 import { processScene, processLatest, ProcessingError, rasterPayload, EARTH_ENGINE_SOURCE } from '../services/satellite.ts';
-import { ingestOpenSentinel } from '../services/openSentinel.ts';
+import { ingestOpenSentinel, primaryTile } from '../services/openSentinel.ts';
 
 const DEFAULT_PYTHON_ENGINE_URL = 'http://127.0.0.1:8000';
 
@@ -207,7 +207,7 @@ export async function getFieldScenes(request: Request, response: Response) {
 
 export async function ingestEarthEngineScenes(request: Request, response: Response) {
   try {
-    const fieldResult = await pool.query('select ST_Y(location) as latitude, ST_X(location) as longitude, ST_AsGeoJSON(boundary_geom)::jsonb as boundary_geojson from public.fields where id = $1', [request.params.fieldId]);
+    const fieldResult = await pool.query('select ST_Y(location) as latitude, ST_X(location) as longitude, ST_AsGeoJSON(boundary_geom)::jsonb as boundary_geojson, sentinel_tile from public.fields where id = $1', [request.params.fieldId]);
     const field = fieldResult.rows[0];
     if (field?.latitude == null || field?.longitude == null || !field.boundary_geojson) { response.status(400).json({ error: 'A field boundary is required' }); return; }
     const catalogUrl = 'https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED';
@@ -239,10 +239,15 @@ export async function ingestEarthEngineScenes(request: Request, response: Respon
     }
     const catalog = await engineResponse.json() as { scenes?: Array<{ id: string; image_id: string; observed_at: string; cloud_cover: number | null }> };
     let imported = 0;
-    for (const scene of catalog.scenes ?? []) {
-      if (!scene.id || !scene.image_id || !Number.isFinite(Date.parse(scene.observed_at))) continue;
+    // Overlap zones deliver one pass in two tiles with separately corrected reflectance: keep one tile per field.
+    const tileOfScene = (scene: { id: string }) => /_T(\d{2}[C-X][A-Z]{2})$/.exec(scene.id)?.[1] ?? null;
+    const usable = (catalog.scenes ?? []).filter(scene => scene.id && scene.image_id && Number.isFinite(Date.parse(scene.observed_at)));
+    const fieldTile = primaryTile(usable.map(tileOfScene), field.sentinel_tile ?? null);
+    if (fieldTile && !field.sentinel_tile) await pool.query('update public.fields set sentinel_tile=$2 where id=$1 and sentinel_tile is null', [request.params.fieldId, fieldTile]);
+    for (const scene of usable) {
       const sceneId = `gee-${scene.id}`;
-      const tile = /_T(\d{2}[C-X][A-Z]{2})$/.exec(scene.id)?.[1] ?? null;
+      const tile = tileOfScene(scene);
+      if (fieldTile && tile !== fieldTile) continue;
       await pool.query('insert into public.satellite_scenes (field_id, scene_id, collection, observed_at, cloud_cover, source, catalog_url, assets, tile_id) values ($1, $2, $3, $4, $5, $6, $7, $8, $9) on conflict (field_id, scene_id) do update set cloud_cover = excluded.cloud_cover, assets = excluded.assets, source=excluded.source, catalog_url=excluded.catalog_url, tile_id=excluded.tile_id', [request.params.fieldId, sceneId, 'COPERNICUS/S2_SR_HARMONIZED', scene.observed_at, scene.cloud_cover, EARTH_ENGINE_SOURCE, catalogUrl, JSON.stringify({earth_engine:{image_id:scene.image_id}}), tile]);
       imported += 1;
     }

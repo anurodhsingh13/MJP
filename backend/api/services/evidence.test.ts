@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {assessEvidence,comparablePair,cropDatesOutdated,qualityReason,seasonStage,validNdviClasses,vegetationScore, type Observation} from '../../../shared/evidence.ts';
+import {assessEvidence,comparablePair,cropDatesOutdated,observationTile,qualityReason,seasonStage,validNdviClasses,vegetationScore, type Observation} from '../../../shared/evidence.ts';
 const now=Date.parse('2026-10-15T12:00:00Z');
 const observation:Observation={scene_id:'test',observed_on:'2026-10-12',acquired_at:'2026-10-12T10:00:00Z',ndvi_value:.7,ndmi_value:.3,cloud_cover:0,valid_coverage_percent:90,valid_pixel_count:500,source:'Sentinel-2',provenance:'measured_imagery',boundary_version:1,accepted:true,calculation_version:'v2'};
 test('quality and crop score are separate even for identical measurements',()=>{
@@ -92,4 +92,18 @@ test('crop dates from an old season are flagged, so a harvest drop is not presen
  assert.equal(cropDatesOutdated({harvestDate:'2027-03-01'},'2026-10-12'),false);
  assert.equal(cropDatesOutdated({plantingDate:'2026-05-01',harvestDate:'2026-04-01'},'2026-10-12'),true);
  assert.equal(cropDatesOutdated({plantingDate:'2026-01-01'},'2026-10-12'),true);
+});
+
+test('tile comes from the scene id when it was not stored, so other tiles are still not compared',()=>{
+ const base={...observation,tile_id:null};
+ const latest={...base,scene_id:'gee-20261118T051109_20261118T052016_T44RNP',observed_on:'2026-11-18',acquired_at:'2026-11-18T05:30:00Z'};
+ const sameTile={...base,scene_id:'gee-20261024T050851_20261024T052036_T44RNP',observed_on:'2026-10-24',acquired_at:'2026-10-24T05:30:00Z'};
+ const otherTile={...base,scene_id:'gee-20261103T050951_20261103T051737_T44RNQ',observed_on:'2026-11-03',acquired_at:'2026-11-03T05:30:00Z'};
+ assert.equal(observationTile(latest),'44RNP');
+ assert.equal(observationTile({tile_id:'43RGK',scene_id:'x'}),'43RGK');
+ assert.equal(observationTile({tile_id:null,scene_id:'es-S2B_43RGK_20261111_0_L2A'}),'43RGK');
+ assert.equal(observationTile({tile_id:null,scene_id:'unknown'}),null);
+ const [,previous]=comparablePair([latest,otherTile,sameTile]);
+ assert.equal(previous?.observed_on,'2026-10-24');
+ assert.equal(comparablePair([latest,otherTile])[1],null);
 });

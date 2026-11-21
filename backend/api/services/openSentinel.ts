@@ -37,6 +37,17 @@ export function tileOf(item: Pick<StacItem, 'id' | 'properties'>): string | null
   return fromId ? normalize(fromId[1], fromId[2]) : null;
 }
 
+/**
+ * The one Sentinel-2 tile a field's time series should use: the stored tile when scenes exist for it,
+ * otherwise the most frequent tile (ties broken alphabetically so the choice is stable).
+ */
+export function primaryTile(tiles: Array<string | null>, preferred: string | null): string | null {
+  if (preferred && tiles.includes(preferred)) return preferred;
+  const counts = new Map<string, number>();
+  for (const tile of tiles) if (tile) counts.set(tile, (counts.get(tile) ?? 0) + 1);
+  return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null;
+}
+
 /** Public HTTPS object storage only: the engine must never be pointed at an arbitrary host. */
 export function safeAssetUrl(href: unknown): string | null {
   if (typeof href !== 'string') return null;
