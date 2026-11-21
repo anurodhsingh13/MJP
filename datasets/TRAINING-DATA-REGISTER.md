@@ -62,3 +62,4 @@ separate decision for the owner.
 | JRC ASAP crop calendars GAUL0/GAUL1 (GEO Knowledge Hub 9qpxr-52p90, based on FAO data) | Probably | CC BY 4.0 | **Not downloaded:** the JRC download host timed out from this network; can be fetched from a browser |
 | FAO Crop Calendar web tool | Yes | Per-record permission | Not used (no permitted bulk download) |
 | SAGE Crop Calendar Dataset (Sacks et al. 2010) | Probably | No licence stated | Not used |
+| Potato sowing/harvest windows for India (searched 2026-11-21) | Yes | No open-licence dataset found | **Gap.** Only prose/PDF guidance exists: NHB monthly potato reports (rabi sowing mid-Sep to Nov, kharif May to Jul), ICAR-CPRI (harvest 100-140 days after planting), Ministry of Agriculture season appendix (desagri.gov.in). ICAR KRISHI content is under the ICAR Data Use Licence / all rights reserved. Use as cited text for state windows only after a person confirms UP / West Bengal dates; do not import as a dataset |
