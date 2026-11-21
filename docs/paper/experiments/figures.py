@@ -1,4 +1,4 @@
-"""Render IEEE single-column figures from the experiment JSON. Usage: python -I figures.py <engine_json> <proxy_json> <outdir>"""
+"""Render IEEE single-column figures from the experiment JSON. Usage: python -I figures.py <engine_json> <outdir>"""
 import json, sys, collections
 import numpy as np
 import matplotlib
@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 plt.rcParams.update({'font.family': 'serif', 'font.size': 8, 'axes.labelsize': 8, 'legend.fontsize': 7,
                      'xtick.labelsize': 7, 'ytick.labelsize': 7, 'axes.spines.top': False, 'axes.spines.right': False,
                      'pdf.fonttype': 42})
-eng, proxy, out = json.load(open(sys.argv[1])), json.load(open(sys.argv[2])), sys.argv[3]
+eng, out = json.load(open(sys.argv[1])), sys.argv[2]
 W = 3.4  # IEEE column width in inches
 
 # Fig. 3 - cloud sweep
@@ -47,14 +47,4 @@ h1, l1 = ax.get_legend_handles_labels(); h2, l2 = ax2.get_legend_handles_labels(
 fig.legend(h1 + h2, l1 + l2, loc='upper center', ncol=2, frameon=False, bbox_to_anchor=(0.5, 1.0), fontsize=6.3)
 fig.tight_layout(rect=(0, 0, 1, 0.80)); fig.savefig(f'{out}/fig_patch_sweep.pdf'); plt.close(fig)
 
-# Fig. 5 - proxy circularity
-cv = proxy['grouped_cv']
-names = ['composite_only', 'all_features', 'without_any_ndvi_derived', 'without_ndvi_ndre_evi', 'context_only', 'majority_class']
-labels = ['Composite only', 'All 12 features', 'No NDVI-derived', 'No NDVI/NDRE/EVI', 'Weather/soil only', 'Majority class']
-vals = [cv[n]['accuracy'] * 100 for n in names]
-fig, ax = plt.subplots(figsize=(W, 1.9))
-bars = ax.barh(labels[::-1], vals[::-1], color=['#999999', '#c9a227', '#1f5fa8', '#1f5fa8', '#1f5fa8', '#b5452b'])
-for b, v in zip(bars, vals[::-1]): ax.text(v + 1, b.get_y() + b.get_height() / 2, f'{v:.1f}', va='center', fontsize=6.5)
-ax.set_xlim(0, 110); ax.set_xlabel('Location-grouped 5-fold CV accuracy (%)')
-fig.tight_layout(); fig.savefig(f'{out}/fig_proxy_circularity.pdf'); plt.close(fig)
 print('ok')

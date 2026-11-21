@@ -1,0 +1,43 @@
+state,reference_point_lat,reference_point_lon,crop,planting_months,harvest_months,data_source,note
+Punjab,30.9,75.85,"Rice (main season, irrigated)",Jun-Jul,Nov-Dec,RiceAtlas,
+Punjab,30.9,75.85,"Wheat (winter, irrigated)",Oct-Nov,Apr-May,IndiaAgStat,"planting is one national date; harvest is modelled (+/- 1 month, may be late)"
+Punjab,30.9,75.85,Maize (rainfed),May-Jun,Aug-Sep,IndiaAgStat,
+Haryana,29.7,76.98,"Rice (main season, irrigated)",May-Jun,Oct-Nov,RiceAtlas,
+Haryana,29.7,76.98,"Wheat (winter, irrigated)",Oct-Nov,Apr-May,IndiaAgStat,"planting is one national date; harvest is modelled (+/- 1 month, may be late)"
+Haryana,29.7,76.98,Maize (rainfed),Jun-Jul,Sep-Oct,IndiaAgStat,
+Uttar Pradesh,26.2,81.2,"Rice (main season, irrigated)",Jul-Aug,Nov-Dec,RiceAtlas,
+Uttar Pradesh,26.2,81.2,"Wheat (winter, irrigated)",Oct-Nov,Apr-May,IndiaAgStat,"planting is one national date; harvest is modelled (+/- 1 month, may be late)"
+Uttar Pradesh,26.2,81.2,Maize (rainfed),Jun-Jul,Sep-Oct,IndiaAgStat,
+Bihar,25.6,85.1,"Rice (main season, irrigated)",Jul-Aug,Dec-Jan,RiceAtlas,
+Bihar,25.6,85.1,"Wheat (winter, irrigated)",Oct-Nov,May-Jun,IndiaAgStat,"planting is one national date; harvest is modelled (+/- 1 month, may be late)"
+Bihar,25.6,85.1,Maize (rainfed),Jun-Jul,Oct-Nov,IndiaAgStat,
+West Bengal,23.2,87.9,"Rice (main season, irrigated)",Jun-Jul,Dec-Jan,RiceAtlas,
+West Bengal,23.2,87.9,"Wheat (winter, irrigated)",Oct-Nov,Mar-Apr,IndiaAgStat,"planting is one national date; harvest is modelled (+/- 1 month, may be late)"
+West Bengal,23.2,87.9,Maize (rainfed),May-Jun,Sep-Oct,IndiaAgStat,
+Odisha,20.5,85.9,"Rice (main season, irrigated)",Jul-Aug,Nov-Dec,RiceAtlas,
+Odisha,20.5,85.9,"Wheat (winter, irrigated)",Oct-Nov,Mar-Apr,IndiaAgStat,"planting is one national date; harvest is modelled (+/- 1 month, may be late)"
+Odisha,20.5,85.9,Maize (rainfed),Jun-Jul,Sep-Oct,IndiaAgStat,
+Tamil Nadu,10.8,79.1,"Rice (main season, irrigated)",Jun-Jul,Oct-Nov,RiceAtlas,
+Tamil Nadu,10.8,79.1,"Wheat (winter, irrigated)",Oct-Nov,Mar-Apr,IndiaAgStat,"planting is one national date; harvest is modelled (+/- 1 month, may be late)"
+Tamil Nadu,10.8,79.1,Maize (rainfed),Jun-Jul,Sep-Oct,IndiaAgStat,
+Andhra Pradesh,16.3,80.4,"Rice (main season, irrigated)",May-Jun,Nov-Dec,RiceAtlas,
+Andhra Pradesh,16.3,80.4,"Wheat (winter, irrigated)",Oct-Nov,Mar-Apr,IndiaAgStat,"planting is one national date; harvest is modelled (+/- 1 month, may be late)"
+Andhra Pradesh,16.3,80.4,Maize (rainfed),Jun-Jul,Sep-Oct,IndiaAgStat,
+Maharashtra,18.5,73.9,"Rice (main season, irrigated)",Jun-Jul,Nov-Dec,RiceAtlas,
+Maharashtra,18.5,73.9,"Wheat (winter, irrigated)",Oct-Nov,Mar-Apr,IndiaAgStat,"planting is one national date; harvest is modelled (+/- 1 month, may be late)"
+Maharashtra,18.5,73.9,Maize (rainfed),Jul-Aug,Sep-Oct,IndiaAgStat,
+Madhya Pradesh,23.3,77.4,"Rice (main season, irrigated)",Jun-Jul,Nov-Dec,RiceAtlas,
+Madhya Pradesh,23.3,77.4,"Wheat (winter, irrigated)",Oct-Nov,Mar-Apr,IndiaAgStat,"planting is one national date; harvest is modelled (+/- 1 month, may be late)"
+Madhya Pradesh,23.3,77.4,Maize (rainfed),Jun-Jul,Sep-Oct,IndiaAgStat,
+Gujarat,23.0,72.6,"Rice (main season, irrigated)",Jul-Aug,Nov-Dec,RiceAtlas,
+Gujarat,23.0,72.6,"Wheat (winter, irrigated)",Oct-Nov,Mar-Apr,IndiaAgStat,"planting is one national date; harvest is modelled (+/- 1 month, may be late)"
+Gujarat,23.0,72.6,Maize (rainfed),Jun-Jul,Sep-Oct,IndiaAgStat,
+Rajasthan,26.9,75.8,"Rice (main season, irrigated)",May-Jun,Oct-Nov,RiceAtlas,
+Rajasthan,26.9,75.8,"Wheat (winter, irrigated)",Oct-Nov,Jun-Jul,IndiaAgStat,"planting is one national date; harvest is modelled (+/- 1 month, may be late)"
+Rajasthan,26.9,75.8,Maize (rainfed),Jun-Jul,Sep-Oct,IndiaAgStat,
+Karnataka,12.3,76.6,"Rice (main season, irrigated)",Jul-Aug,Dec-Jan,RiceAtlas,
+Karnataka,12.3,76.6,"Wheat (winter, irrigated)",Oct-Nov,Mar-Apr,IndiaAgStat,"planting is one national date; harvest is modelled (+/- 1 month, may be late)"
+Karnataka,12.3,76.6,Maize (rainfed),May-Jun,Sep-Oct,IndiaAgStat,
+Assam,26.75,94.2,"Rice (main season, irrigated)",Jun-Jul,Nov-Dec,RiceAtlas,
+Assam,26.75,94.2,"Wheat (winter, irrigated)",Oct-Nov,Mar-Apr,IndiaAgStat,"planting is one national date; harvest is modelled (+/- 1 month, may be late)"
+Assam,26.75,94.2,Maize (rainfed),May-Jun,Sep-Oct,IndiaAgStat,

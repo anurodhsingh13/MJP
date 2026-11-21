@@ -1,6 +1,11 @@
 from datetime import datetime
 import os
 
+# rasterio/pyproj wheels ship their own PROJ database. A system-wide PROJ_LIB (for example
+# from a PostGIS install on Windows) points them at an incompatible proj.db and breaks CRS lookups.
+for _proj_key in ('PROJ_LIB', 'PROJ_DATA'):
+    os.environ.pop(_proj_key, None)
+
 # Remote Cloud-Optimized GeoTIFFs: avoid S3 directory listings and merge range requests.
 for _key, _value in {
     'GDAL_DISABLE_READDIR_ON_OPEN': 'EMPTY_DIR', 'CPL_VSIL_CURL_ALLOWED_EXTENSIONS': '.tif,.TIF,.tiff',

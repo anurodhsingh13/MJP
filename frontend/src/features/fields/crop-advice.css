@@ -1,0 +1,24 @@
+.crop-advice{margin:20px 0;padding:clamp(18px,3vw,24px);background:#fff;border:1px solid #d7e6d6;border-radius:18px;color:#244332}
+.crop-advice-head{display:flex;align-items:flex-start;gap:12px}.crop-advice-head>svg{color:#206645;flex:none}
+.crop-advice h2{margin:0 0 5px;font-size:clamp(1.15rem,2vw,1.45rem);color:#17442d}
+.crop-advice h3{display:flex;align-items:center;gap:6px;margin:18px 0 6px;font-size:1rem;color:#17442d}
+.crop-advice p,.crop-advice li{color:#3f5f49;font-size:.9rem;line-height:1.55}
+.crop-advice ul,.crop-advice ol{margin:0;padding-left:1.4rem;display:grid;gap:6px}
+.crop-advice-run{margin-top:14px;min-height:44px;padding:10px 18px;border:0;border-radius:11px;background:#174d31;color:#fff;font-weight:700}
+.crop-advice-run:disabled{opacity:.7}
+.crop-advice .crop-advice-privacy{margin:10px 0 0;font-size:.78rem;color:#6b806f}
+.crop-advice .crop-advice-error{margin:12px 0 0;padding:10px 12px;border-radius:10px;background:#fdeceb;color:#8a2a24}
+.crop-advice-visit{display:flex;gap:10px;align-items:flex-start;margin-top:18px;padding:14px;border-radius:12px;background:#eef7ed;border:1px solid #bad4bc}
+.crop-advice-visit.yes{background:#fff1e4;border-color:#f1c08f}.crop-advice-visit.if_concerned{background:#fff8e9;border-color:#ecd9a0}
+.crop-advice-visit strong{display:block;color:#17442d;font-size:1.02rem;margin-bottom:4px}
+.crop-advice-visit ul{margin:0;padding-left:1.1rem}
+.crop-advice-ndvi{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+.crop-advice-ndvi>div{min-width:96px;padding:8px 12px;border:1px solid #d7e6d6;border-radius:10px;background:#f7fbf6}
+.crop-advice-ndvi dt{font-size:.72rem;color:#6b806f}.crop-advice-ndvi dd{margin:2px 0 0;font-weight:700;color:#17442d}
+.crop-advice-issues{list-style:none;padding-left:0}
+.crop-advice-issues li{display:grid;gap:2px;padding:10px 12px;border:1px solid #d7e6d6;border-radius:10px}
+.crop-advice-issues small{color:#55705c;font-size:.82rem}
+.likelihood{justify-self:start;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:99px;background:#e6efe6;color:#35543f}
+.likelihood.high{background:#fde1d3;color:#8a3a14}.likelihood.medium{background:#fdf0c9;color:#6b4d0b}
+.crop-advice .crop-advice-summary{margin-top:14px;font-weight:600}
+.crop-advice .crop-advice-caution{margin-top:18px;padding:12px;border-radius:10px;background:#fff8e9;color:#684f27}

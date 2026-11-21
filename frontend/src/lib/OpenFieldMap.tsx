@@ -44,7 +44,7 @@ export function OpenFieldMap({ latitude, longitude, fieldName = '', zoom = 14, b
     : failedLayer && failedLayer === tileUrl ? t('Vegetation colours could not load for this image. Try another date or retry.', 'इस तस्वीर के हरियाली के रंग नहीं खुले। दूसरी तारीख़ चुनें या फिर कोशिश करें।') : '';
   return <div className="open-map-frame">
     <div className="open-field-map" ref={element} aria-label={t(`Field map of ${fieldName}`, `${fieldName} का नक्शा`)} />
-    <span className="map-source-label">{t('OpenStreetMap basemap', 'OpenStreetMap पृष्ठभूमि')}{tileUrl ? ' · Sentinel-2 NDVI' : ''}</span>
+
     {error && <div className="map-load-error" role="alert">{error} <button type="button" onClick={() => { setFailedLayer(null); setAttempt(value => value + 1); }}>{t('Retry map tiles', 'नक्शा फिर खोलें')}</button></div>}
   </div>;
 }

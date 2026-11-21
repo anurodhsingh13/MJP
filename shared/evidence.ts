@@ -35,6 +35,8 @@ export interface Assessment {
   stage?: SeasonStage;
   /** A large NDVI drop that the recorded crop calendar explains (maturity or harvest). */
   expectedDecline?: boolean;
+  /** The saved sowing/harvest dates do not place this image in the current season (old, or harvest not after sowing). */
+  datesOutdated?: boolean;
 }
 export const numeric = (value: unknown): number | null => {
   if (value === null || value === undefined || value === '' || (typeof value !== 'number' && typeof value !== 'string')) return null;
@@ -47,6 +49,19 @@ const dayTime = (value: unknown): number | null => {
   const time = Date.parse(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00Z` : value);
   return Number.isFinite(time) ? time : null;
 };
+/**
+ * True when saved crop dates exist but cannot belong to the season being observed: harvest was more than 45 days ago,
+ * sowing is more than 60 days ahead, sowing was over 240 days ago with no harvest date, or harvest is not after sowing.
+ * Without this, an out-of-date calendar makes ripening or harvest look like crop stress.
+ */
+export function cropDatesOutdated(season: CropSeason | null | undefined, observedOn: string): boolean {
+  const observed = dayTime(observedOn), planting = dayTime(season?.plantingDate), harvest = dayTime(season?.harvestDate);
+  if (observed === null || (planting === null && harvest === null)) return false;
+  if (planting !== null && harvest !== null && harvest <= planting) return true;
+  if (harvest !== null && observed - harvest > 45 * DAY) return true;
+  if (planting !== null && planting - observed > 60 * DAY) return true;
+  return planting !== null && harvest === null && observed - planting > 240 * DAY;
+}
 /**
  * Crop stage from the sowing and harvest dates entered for the field. Windows are deliberately simple:
  * 30 days after sowing (establishment), 30 days before harvest (maturity) and 45 days after harvest.
@@ -106,6 +121,7 @@ export function assessEvidence(latest: Observation | null, previous: Observation
   const acquired = Date.parse(latest.acquired_at || latest.observed_on);
   result.ageDays = Number.isFinite(acquired) ? Math.floor((now - acquired) / 86400000) : null;
   result.stage = seasonStage(season, latest.observed_on);
+  if (result.stage === 'unknown' && cropDatesOutdated(season, latest.observed_on)) result.datesOutdated = true;
   const reason = qualityReason(latest, policy);
   if (!latest.accepted || latest.provenance !== 'measured_imagery' || reason || result.ageDays === null || result.ageDays < 0) {
     return { ...result, state: 'not_enough_data', title: 'Not enough usable data', explanation: reason || 'The measurement has not been verified for this boundary.', nextAction: 'Try another image' };
@@ -125,7 +141,7 @@ export function assessEvidence(latest: Observation | null, previous: Observation
           : 'Greenness fell after the recorded harvest date. Bare or harvested ground explains the drop; update the crop dates for the next season.',
         nextAction: 'Continue monitoring' };
     }
-    return { ...result, state: 'needs_inspection', title: 'Needs inspection', explanation: 'Vegetation decreased since the previous comparable image. Harvest, maturity, bare soil, or crop stress may explain this.', nextAction: 'Plan a field visit' };
+    return { ...result, state: 'needs_inspection', title: 'Needs inspection', explanation: 'Vegetation decreased since the previous comparable image. Harvest, maturity, bare soil, or crop stress may explain this.' + (result.datesOutdated ? ' The saved sowing and harvest dates do not match this season, so ripening or harvest cannot be ruled out. Update the crop dates.' : ''), nextAction: 'Plan a field visit' };
   }
   if (result.change === null) return { ...result, state: 'not_enough_data', title: 'Not enough usable data',
     explanation: tooFarApart

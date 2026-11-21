@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import {loadEnvironment} from './environment.mjs';
+loadEnvironment();
 import assert from 'node:assert/strict';
 import {createHash,randomBytes,randomUUID} from 'node:crypto';
 import pg from 'pg';

@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import {loadEnvironment} from './environment.mjs';
+loadEnvironment();
 import {generateGemini,ProviderError} from '../backend/api/services/ai/geminiProvider.ts';
 try{
  const result=await generateGemini('Reply briefly.',[{role:'user',content:'Reply with READY.'}]);

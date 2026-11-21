@@ -375,3 +375,16 @@ export async function loadForecast(fieldId:string,options:{signal?:AbortSignal;t
  }
 }
 
+
+export type CropAdviceResponse = {
+  evidence: { ndvi: { latest: number | null; observedOn: string; ndmi: number | null; zoneSharePercent: { bare: number; low: number; moderate: number; high: number } | null; affectedAreaPercent: number | null; history: { date: string; ndvi: number | null }[] } | null; assessment: { state: string; change: number | null; imageAgeDays: number | null } }
+  visit: { visit: 'yes' | 'if_concerned' | 'no'; when: 'within_3_days' | 'this_week' | 'routine'; reasons: string[] }
+  advice: { summary: string; possibleIssues: { name: string; likelihood: 'low' | 'medium' | 'high'; reason: string }[]; precautions: string[]; checkInField: string[]; photoSeen: string[]; urgency: string } | null
+  photoUsed: boolean; photoDate?: string | null; reason?: string; model?: string
+}
+export async function loadCropAdvice(fieldId: string, languageCode: 'en-IN' | 'hi-IN'): Promise<CropAdviceResponse> {
+  const response = await fetch(`/api/fields/${fieldId}/advice`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ languageCode }) })
+  const payload = await response.json().catch(() => ({})) as { error?: string }
+  if (!response.ok) throw new Error(payload.error ?? 'Crop advice is unavailable')
+  return payload as CropAdviceResponse
+}

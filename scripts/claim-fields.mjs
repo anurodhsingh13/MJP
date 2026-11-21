@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import {loadEnvironment} from './environment.mjs';
+loadEnvironment();
 import pg from 'pg';
 const [email,...ids]=process.argv.slice(2);
 if(!email||!ids.length||ids.some(id=>!/^[-a-f0-9]{36}$/i.test(id)))throw new Error('Usage: node scripts/claim-fields.mjs existing-account-email explicit-field-uuid ...');

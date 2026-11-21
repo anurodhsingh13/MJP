@@ -41,9 +41,9 @@ export function SeasonHistoryPanel({ field, onComplete, onEditDates }: { field: 
     finally { setStarting(false); }
   }
   const outdated = seasonDatesOutdated(field);
-  return <section className="season-history" aria-labelledby="season-history-title">
+  return <section id="season-history" className="season-history" aria-labelledby="season-history-title">
     <div className="season-history-head"><History aria-hidden="true" size={20}/><h3 id="season-history-title">{t('Season NDVI history', 'सीज़न का NDVI इतिहास')}</h3></div>
-    <p>{t('Adds one clear Sentinel-2 image for about every 10 days of the season (from 15 days before sowing, or the last 180 days). Cloudy dates are skipped.', 'सीज़न के लगभग हर 10 दिन की एक साफ़ Sentinel-2 तस्वीर जोड़ता है (बुवाई से 15 दिन पहले से, या पिछले 180 दिन)। बादल वाली तारीख़ें छोड़ दी जाती हैं।')}</p>
+    <p>{t('Adds a clear satellite picture for about every 10 days of the season. Cloudy dates are skipped.', 'सीज़न के लगभग हर 10 दिन की एक साफ़ सैटेलाइट तस्वीर जोड़ता है। बादल वाली तारीख़ें छोड़ दी जाती हैं।')}</p>
     {outdated && <p className="season-history-warning">{t('Your sowing and harvest dates are missing or from an old season. Update them so seasonal greenness changes are interpreted correctly.', 'बुवाई और कटाई की तारीख़ें नहीं हैं या पुराने सीज़न की हैं। उन्हें अपडेट करें ताकि हरियाली के मौसमी बदलाव सही समझे जाएँ।')} {onEditDates ? <button type="button" className="text-button" onClick={onEditDates}>{t('Edit field dates', 'तारीख़ें बदलें')}</button> : <Link to={`/fields/${field.id}/overview`}>{t('Open the field', 'खेत खोलें')}</Link>}</p>}
     <div className="season-history-actions">
       <button type="button" className="primary-action" disabled={Boolean(active) || starting} onClick={() => void start()}>{active ? t('Building history…', 'इतिहास बन रहा है…') : t('Build season history', 'सीज़न का इतिहास बनाएँ')}</button>
