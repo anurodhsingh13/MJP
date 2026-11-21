@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {assessEvidence,comparablePair,qualityReason,seasonStage,validNdviClasses,vegetationScore, type Observation} from '../../../shared/evidence.ts';
+import {assessEvidence,comparablePair,cropDatesOutdated,qualityReason,seasonStage,validNdviClasses,vegetationScore, type Observation} from '../../../shared/evidence.ts';
 const now=Date.parse('2026-10-15T12:00:00Z');
 const observation:Observation={scene_id:'test',observed_on:'2026-10-12',acquired_at:'2026-10-12T10:00:00Z',ndvi_value:.7,ndmi_value:.3,cloud_cover:0,valid_coverage_percent:90,valid_pixel_count:500,source:'Sentinel-2',provenance:'measured_imagery',boundary_version:1,accepted:true,calculation_version:'v2'};
 test('quality and crop score are separate even for identical measurements',()=>{
@@ -76,4 +76,20 @@ test('NDVI zone shares must be four valid percentages',()=>{
  assert.equal(validNdviClasses({bare:10,low:20,moderate:30,high:10}),null);
  assert.equal(validNdviClasses({bare:-1,low:21,moderate:40,high:40}),null);
  assert.equal(validNdviClasses(null),null);
+});
+
+test('crop dates from an old season are flagged, so a harvest drop is not presented as plain crop stress',()=>{
+ const current={...observation,ndvi_value:.35};
+ const previous={...observation,observed_on:'2026-10-02',acquired_at:'2026-10-02T10:00:00Z'};
+ const old=assessEvidence(current,previous,undefined,now,{plantingDate:'2023-06-11',harvestDate:'2023-12-11'});
+ assert.equal(old.state,'needs_inspection');
+ assert.equal(old.datesOutdated,true);
+ assert.match(old.explanation,/Update the crop dates/);
+ const none=assessEvidence(current,previous,undefined,now,null);
+ assert.equal(none.datesOutdated,undefined);
+ const fresh=assessEvidence(current,previous,undefined,now,{plantingDate:'2026-08-01',harvestDate:'2026-12-30'});
+ assert.equal(fresh.datesOutdated,undefined);
+ assert.equal(cropDatesOutdated({harvestDate:'2027-03-01'},'2026-10-12'),false);
+ assert.equal(cropDatesOutdated({plantingDate:'2026-05-01',harvestDate:'2026-04-01'},'2026-10-12'),true);
+ assert.equal(cropDatesOutdated({plantingDate:'2026-01-01'},'2026-10-12'),true);
 });

@@ -39,7 +39,7 @@ export async function getCropAdvice(request: Request, response: Response) {
         zoneSharePercent: latest.ndvi_classes ?? null, affectedAreaPercent: round(latest.affected_coverage_percent, 1),
         history: observations.map(item => ({ date: item.observed_on, ndvi: round(item.ndvi_value) })),
       } : null,
-      assessment: { state: assessment.state, change: assessment.change, imageAgeDays: assessment.ageDays, expectedSeasonalDecline: assessment.expectedDecline ?? false },
+      assessment: { state: assessment.state, change: assessment.change, imageAgeDays: assessment.ageDays, expectedSeasonalDecline: assessment.expectedDecline ?? false, cropDatesOutdated: assessment.datesOutdated ?? false },
     };
     if (!latest) {
       response.json({ evidence, visit: decideVisit({ assessment, latestNdvi }), advice: null, photoUsed: false, reason: 'no_ndvi' });

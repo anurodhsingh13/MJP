@@ -19,3 +19,14 @@ This directory contains a blank template, not ground-truth records. Only add obs
 `consent_status` should be `granted`, `not_granted` or `withdrawn`; keep the actual consent document private and put only its internal reference in `consent_reference`. Do not use a row unless consent covers the intended research use.
 
 The project has no validated real crop-health labels yet. The Telangana challenge copy and the spectral-proxy benchmark are not silently imported as farmer-field truth. See [the Telangana source review](../external/TELANGANA-GROUND-TRUTH.md) before considering any external survey copy.
+
+## Scoring the satellite alert against visits
+
+`scripts/evaluate-ndvi-alerts.mjs` runs the app's own rules (`shared/evidence.ts`, `shared/advice.ts`) as of each visit date and reports sensitivity, specificity, precision and imagery coverage with 95% intervals. It scores the measured-evidence alert only, not Gemini or photos.
+
+1. Fill `observation-template.csv` from real visits (consent granted, `reviewed_by` set; `condition_label` = `healthy`, `stressed` or `symptomatic`). Keep the file under `.local/datasets/ground-truth/`.
+2. Export the field's satellite history (and crop dates, repeated on each row) to `ndvi.csv`:
+   `select v.field_id, v.observed_on, v.acquired_at, v.ndvi_value, v.valid_coverage_percent, v.valid_pixel_count, v.boundary_version, v.tile_id, f.planting_date, f.harvest_date from public.vegetation_indices v join public.fields f on f.id=v.field_id where v.accepted and v.provenance='measured_imagery'`
+3. Run `node --import tsx scripts/evaluate-ndvi-alerts.mjs --visits <visits.csv> --ndvi ndvi.csv`.
+
+Collect healthy fields as well as problem fields; without both, specificity or sensitivity cannot be measured. Under 30 scored visits the intervals are very wide.

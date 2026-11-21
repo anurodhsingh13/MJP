@@ -24,6 +24,11 @@ export function fieldCopy(field: DatabaseField, language: Language) {
     not_enough_data: [oneImage ? 'One more picture is needed' : 'A clear picture is needed', oneImage ? 'एक और तस्वीर चाहिए' : 'साफ़ तस्वीर चाहिए', oneImage ? 'We have one clear picture. A second date is needed to see what changed.' : 'We cannot see enough of this field clearly yet. The crop condition is unknown.', oneImage ? 'एक साफ़ तस्वीर मिली है। बदलाव देखने के लिए दूसरी तारीख़ की तस्वीर चाहिए।' : 'खेत अभी साफ़ नहीं दिखा। फ़सल का हाल बताने के लिए जानकारी पूरी नहीं है।'],
     awaiting_analysis: ['Ready for the first picture', 'पहली तस्वीर देखें', 'Your field is saved. Find a clear satellite picture to begin.', 'आपका खेत सेव है। शुरू करने के लिए उपग्रह से ली गई साफ़ तस्वीर खोजें।'],
   }[assessment.state];
+  // Old crop dates make ripening or harvest look like stress: say so next to the alert.
+  if (assessment.state === 'needs_inspection' && assessment.datesOutdated) {
+    copy[2] += ' Your saved sowing and harvest dates are not for this season, so this may just be ripening or harvest. Please update them.';
+    copy[3] += ' आपकी दर्ज बुवाई और कटाई की तारीख़ें इस मौसम की नहीं हैं, इसलिए यह पकने या कटाई की वजह से भी हो सकता है। कृपया तारीख़ें अपडेट करें।';
+  }
   // A drop the recorded crop calendar explains (ripening or harvest) is told as such, not as "no change".
   if (assessment.expectedDecline) {
     const afterHarvest = assessment.stage === 'after_harvest';
