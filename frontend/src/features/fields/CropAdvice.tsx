@@ -66,7 +66,7 @@ export function CropAdvice({ field }: { field: DatabaseField }) {
         {result.advice.checkInField.length > 0 && <><h3>{t('Check these during the visit', 'खेत जाकर यह देखें')}</h3>
           <ol>{result.advice.checkInField.map(item => <li key={item}>{item}</li>)}</ol></>}
       </>}
-      <p className="crop-advice-caution">{t('This is guidance, not a confirmed disease diagnosis. Confirm in the field and talk to your local agriculture officer or KVK before spraying any chemical.', 'यह सलाह है, पक्का रोग-निदान नहीं। कोई दवा छिड़कने से पहले खेत में पुष्टि करें और अपने कृषि अधिकारी या KVK से बात करें।')}</p>
+      <p className="crop-advice-caution">{t('This is guidance, not a confirmed disease diagnosis, and the satellite alert behind it has not yet been tested on real fields in this app. Confirm in the field and talk to your local agriculture officer or KVK before spraying any chemical.', 'यह सलाह है, पक्का रोग-निदान नहीं, और इसके पीछे के सैटेलाइट अलर्ट को इस ऐप के असली खेतों पर अभी परखा नहीं गया है। कोई दवा छिड़कने से पहले खेत में पुष्टि करें और अपने कृषि अधिकारी या KVK से बात करें।')}</p>
     </div>}
   </section>;
 }

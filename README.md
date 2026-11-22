@@ -204,3 +204,12 @@ If an older launcher first reported `ECONNREFUSED` during migration and then `co
 ### Research fixtures
 
 Fictional scenarios remain under `tests/fixtures/` for automated regression checks only; they are never loaded into the running application. The earlier demo seed scripts, public-boundary sample parcels and illustrative crop calendar have been removed.
+
+## What "crop health" means here, and what has been tested
+
+- **Satellite (what the app does):** Sentinel-2 NDVI/NDMI/NDRE measure greenness. The alert asks a farmer to look at a field when greenness drops against its own recent history. It is a prompt to inspect, not a diagnosis.
+- **Tested, and not yet good enough:** replayed on 750 labelled fields from the Telangana Crop Health Challenge (Zindi, CC-BY SA 4.0; Telangana, not Uttar Pradesh), the alert fired for 81% of problem fields and 82% of healthy fields (AUC 0.45). A gradient-boosted model on NDVI/NDRE/NDMI curves, weather and field records gave AUC 0.48-0.52 on 3,644 fields, and a same-crop-neighbours comparison gave 0.49-0.51. The same features predict crop type at 77% (baseline 30%), so the pipeline works and these labels carry no signal these inputs can find. No trained model is shipped. Scripts: `scripts/evaluate-telangana-alerts.mjs`, `scripts/ml/train_telangana_satellite.py`, `scripts/ml/peer_anomaly_telangana.py`.
+- **District yield check:** NDVI against DES district yield for 63 UP districts, 2019-24, gave r 0.01-0.20; the government yield series is almost flat year to year, so it is not a sensitive reference (`scripts/district_ndvi_vs_yield.py`).
+- **Leaf photos (research only, not in the app):** models trained on public CC BY data reached 95.5% (UP potato, 2,024 test images) and 94.8% (Odisha rice after removing near-duplicates, 887 test images). These are held-out scores on the same datasets, not accuracy on this app's fields.
+- **Next evidence needed:** 30-50 dated, consented field visits labelled healthy or problem, scored with `scripts/evaluate-ndvi-alerts.mjs`.
+- Licences and what was checked for every dataset: `datasets/TRAINING-DATA-REGISTER.md`.
