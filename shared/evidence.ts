@@ -39,6 +39,8 @@ export interface Assessment {
   expectedDecline?: boolean;
   /** The saved sowing/harvest dates do not place this image in the current season (old, or harvest not after sowing). */
   datesOutdated?: boolean;
+  /** Latest NDVI against this field's own earlier seasons (same time of year). Present only with 2+ earlier years. Context, not a diagnosis. */
+  baseline?: BaselineComparison;
 }
 export const numeric = (value: unknown): number | null => {
   if (value === null || value === undefined || value === '' || (typeof value !== 'number' && typeof value !== 'string')) return null;
@@ -125,6 +127,55 @@ export function resolveStage(season: CropSeason | null | undefined, reference: R
   const regional = referenceStage(reference, observedOn);
   return regional === 'unknown' ? { stage: 'unknown', source: 'saved_dates' } : { stage: regional, source: 'regional_reference' };
 }
+/** An earlier-season reading of the same field, used only to describe what is usual at this time of year. */
+export interface BaselinePoint { observed_on: string; ndvi_value: number | string | null }
+export interface SeasonalBaseline { expected: number; low: number; high: number; years: number }
+/** How the latest NDVI sits against the field's own earlier seasons. Context only: it never decides a visit. */
+export interface BaselineComparison {
+  expected: number; difference: number; years: number; reliable: boolean; belowUsual: boolean;
+  /** Vegetation Condition Index, 0-100: where the latest NDVI sits between the lowest (0) and highest (100) usual value for this field at this time of year. Null without 3+ earlier years, a usable range, or a reliable baseline. */
+  vci: number | null;
+}
+/** Product heuristics: ±15 days around the same calendar date, at least 2 earlier years, and earlier years must agree within 0.2. */
+export const BASELINE = { windowDays: 15, minYears: 2, maxSpread: 0.2, vciMinYears: 3, vciMinRange: 0.1 } as const;
+/** VCI = (NDVI - lowest usual) / (highest usual - lowest usual) x 100 (Kogan's Vegetation Condition Index), clamped to 0-100. Low and high are the earlier years' window medians, so the range is narrower than a long record's. */
+export function vegetationConditionIndex(ndvi: number, low: number, high: number): number | null {
+  if (![ndvi, low, high].every(Number.isFinite) || Number((high - low).toFixed(4)) < BASELINE.vciMinRange) return null;
+  return Number(Math.max(0, Math.min(100, (ndvi - low) / (high - low) * 100)).toFixed(1));
+}
+const median = (values: number[]) => {
+  const sorted = [...values].sort((a, b) => a - b), mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+};
+const round4 = (value: number) => Number(value.toFixed(4));
+/**
+ * What this field's NDVI usually is around `observedOn`, from earlier years only. Each earlier year counts once (its median in the
+ * window), so a year with many images does not outweigh the others. Returns null with fewer than 2 earlier years.
+ */
+export function seasonalBaseline(points: BaselinePoint[] | null | undefined, observedOn: string): SeasonalBaseline | null {
+  const target = dayTime(observedOn);
+  if (target === null || !points?.length) return null;
+  const year = new Date(target).getUTCFullYear();
+  const perYear = new Map<number, number[]>();
+  for (const point of points) {
+    const time = dayTime(point.observed_on), value = numeric(point.ndvi_value);
+    if (time === null || value === null) continue;
+    const date = new Date(time);
+    if (date.getUTCFullYear() >= year) continue;
+    if (Math.abs(Date.UTC(year, date.getUTCMonth(), date.getUTCDate()) - target) > BASELINE.windowDays * DAY) continue;
+    perYear.set(date.getUTCFullYear(), [...(perYear.get(date.getUTCFullYear()) ?? []), value]);
+  }
+  if (perYear.size < BASELINE.minYears) return null;
+  const yearly = [...perYear.values()].map(median);
+  return { expected: round4(median(yearly)), low: round4(Math.min(...yearly)), high: round4(Math.max(...yearly)), years: yearly.length };
+}
+export function compareToBaseline(ndvi: number | null, baseline: SeasonalBaseline | null, policy = defaultPolicy): BaselineComparison | null {
+  if (ndvi === null || !baseline) return null;
+  const difference = round4(ndvi - baseline.expected);
+  const reliable = baseline.high - baseline.low <= BASELINE.maxSpread;
+  const vci = reliable && baseline.years >= BASELINE.vciMinYears ? vegetationConditionIndex(ndvi, baseline.low, baseline.high) : null;
+  return { expected: baseline.expected, difference, years: baseline.years, reliable, belowUsual: reliable && difference <= -policy.declineThreshold, vci };
+}
 export function qualityReason(observation: Pick<Observation, 'ndvi_value' | 'valid_coverage_percent' | 'valid_pixel_count'>, policy = defaultPolicy): string | null {
   const ndvi = numeric(observation.ndvi_value), coverage = numeric(observation.valid_coverage_percent), pixels = numeric(observation.valid_pixel_count);
   if (ndvi === null || ndvi < -1 || ndvi > 1) return 'Vegetation measurement unavailable';
@@ -164,7 +215,7 @@ export function comparablePair(observations: Observation[], policy = defaultPoli
   if (!latest) return [null, null];
   return [latest, ordered.slice(1).find(item => isComparable(latest, item, policy)) ?? null];
 }
-export function assessEvidence(latest: Observation | null, previous: Observation | null, policy = defaultPolicy, now = Date.now(), season?: CropSeason | null, reference?: ReferenceWindow | null): Assessment {
+export function assessEvidence(latest: Observation | null, previous: Observation | null, policy = defaultPolicy, now = Date.now(), season?: CropSeason | null, reference?: ReferenceWindow | null, baselinePoints?: BaselinePoint[] | null): Assessment {
   const result: Assessment = { state: 'awaiting_analysis', title: 'Awaiting first analysis', explanation: 'No accepted satellite measurement for this boundary.', nextAction: 'Find a usable image', ageDays: null, change: null, comparableObservations: 0 };
   if (!latest) return result;
   const acquired = Date.parse(latest.acquired_at || latest.observed_on);
@@ -179,6 +230,8 @@ export function assessEvidence(latest: Observation | null, previous: Observation
     return { ...result, state: 'not_enough_data', title: 'Not enough usable data', explanation: reason || 'The measurement has not been verified for this boundary.', nextAction: 'Try another image' };
   }
   result.comparableObservations = 1;
+  const baseline = compareToBaseline(numeric(latest.ndvi_value), seasonalBaseline(baselinePoints, latest.observed_on), policy);
+  if (baseline) result.baseline = baseline;
   const tooFarApart = Boolean(previous && !isComparable(latest, previous, policy) && previous.observed_on < latest.observed_on && (daysApart(latest, previous) ?? 0) > (policy.compareDays ?? defaultPolicy.compareDays));
   if (previous && isComparable(latest, previous, policy)) {
     result.change = Number((numeric(latest.ndvi_value)! - numeric(previous.ndvi_value)!).toFixed(4));

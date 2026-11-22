@@ -42,6 +42,23 @@ export function fieldCopy(field: DatabaseField, language: Language) {
       copy[3] = afterHarvest ? 'इस इलाक़े में कटाई के आम समय के बाद हरियाली घटी। यह सामान्य है। बेहतर जाँच के लिए अपनी बुवाई और कटाई की तारीख़ें दर्ज करें।' : 'इस इलाक़े में कटाई के आम समय के आसपास हरियाली घटी। पकती फ़सल की हरियाली कम होती है। फ़सल कटाई के लिए तैयार न हो तभी खेत जाएँ। बेहतर जाँच के लिए अपनी बुवाई और कटाई की तारीख़ें दर्ज करें।';
     }
   }
+  // The field's own earlier seasons, when we have them: a plain-language line, never a diagnosis.
+  const baseline = assessment.baseline;
+  if (baseline?.reliable && assessment.state !== 'not_enough_data' && assessment.state !== 'awaiting_analysis') {
+    const years = baseline.years, usual = baseline.expected.toFixed(2);
+    if (baseline.belowUsual) {
+      copy[2] += ` It is also below what this field usually shows at this time of year (about ${usual} in ${years} earlier seasons). The earlier crop may have been different.`;
+      copy[3] += ` यह इस खेत में साल के इस समय आमतौर पर दिखने वाली हरियाली से भी कम है (${years} पिछले मौसमों में लगभग ${usual})। पिछली फ़सल अलग भी हो सकती है।`;
+    } else if (assessment.state === 'no_unusual_change') {
+      copy[2] += ` It is in line with what this field usually shows at this time of year (about ${usual}).`;
+      copy[3] += ` यह इस खेत में साल के इस समय आमतौर पर दिखने वाली हरियाली के अनुरूप है (लगभग ${usual})।`;
+    }
+    // VCI: 0 = lowest and 100 = highest this field showed at this time of year in earlier seasons.
+    if (baseline.vci !== null) {
+      copy[2] += ` On a 0 to 100 scale, from the lowest to the highest this field showed at this time of year, it is at ${Math.round(baseline.vci)}.`;
+      copy[3] += ` इस खेत में साल के इस समय पिछले मौसमों की सबसे कम (0) से सबसे ज़्यादा (100) हरियाली के पैमाने पर यह ${Math.round(baseline.vci)} पर है।`;
+    }
+  }
   const action = fieldNextAction(field);
   const actionCopy = {
     visit: ['Plan a field visit', 'खेत की जाँच तय करें', 'Check the crop, water and recent harvesting. Add a photo of what you find.', 'फ़सल, पानी और हाल की कटाई देखें। जो दिखे उसकी फ़ोटो जोड़ें।'],

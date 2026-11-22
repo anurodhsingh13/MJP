@@ -6,6 +6,7 @@ import { assessEvidence, numeric, type Observation } from '../../../shared/evide
 import { decideVisit } from '../../../shared/advice.ts';
 import { evidencePolicy } from '../services/policy.ts';
 import { referenceWindowsByField } from '../services/referenceCalendar.ts';
+import { baselinePointsByField } from '../services/baselineReadings.ts';
 import { assistantBudget, geminiConfigured } from '../services/assistantBudget.ts';
 import { generateCropAdvice, ProviderError } from '../services/ai/geminiProvider.ts';
 import { actor, hashToken } from '../services/auth.ts';
@@ -33,7 +34,8 @@ export async function getCropAdvice(request: Request, response: Response) {
     const latest = observations[0] ?? null;
     const previous = observations.find(item => latest && item.observed_on < latest.observed_on) ?? null;
     const reference = (await referenceWindowsByField(pool, [{ id: fieldId, crop: field.crop }])).get(fieldId) ?? null;
-    const assessment = assessEvidence(latest, previous, policy, Date.now(), { plantingDate: field.planting_date, harvestDate: field.harvest_date }, reference);
+    const baselinePoints = (await baselinePointsByField(pool, [fieldId])).get(fieldId) ?? null;
+    const assessment = assessEvidence(latest, previous, policy, Date.now(), { plantingDate: field.planting_date, harvestDate: field.harvest_date }, reference, baselinePoints);
     const latestNdvi = latest ? numeric(latest.ndvi_value) : null;
     const evidence = {
       ndvi: latest ? {
@@ -41,7 +43,7 @@ export async function getCropAdvice(request: Request, response: Response) {
         zoneSharePercent: latest.ndvi_classes ?? null, affectedAreaPercent: round(latest.affected_coverage_percent, 1),
         history: observations.map(item => ({ date: item.observed_on, ndvi: round(item.ndvi_value) })),
       } : null,
-      assessment: { state: assessment.state, change: assessment.change, imageAgeDays: assessment.ageDays, expectedSeasonalDecline: assessment.expectedDecline ?? false, cropDatesOutdated: assessment.datesOutdated ?? false, cropStage: assessment.stage ?? 'unknown', cropStageBasis: assessment.stageSource ?? 'none' },
+      assessment: { state: assessment.state, change: assessment.change, imageAgeDays: assessment.ageDays, expectedSeasonalDecline: assessment.expectedDecline ?? false, cropDatesOutdated: assessment.datesOutdated ?? false, cropStage: assessment.stage ?? 'unknown', cropStageBasis: assessment.stageSource ?? 'none', seasonalBaseline: assessment.baseline ?? null },
     };
     if (!latest) {
       response.json({ evidence, visit: decideVisit({ assessment, latestNdvi }), advice: null, photoUsed: false, reason: 'no_ndvi' });

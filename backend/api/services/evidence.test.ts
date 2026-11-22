@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {assessEvidence,comparablePair,cropDatesOutdated,observationTile,qualityReason,referenceStage,resolveStage,seasonStage,validNdviClasses,validReferenceWindow,vegetationScore, type Observation} from '../../../shared/evidence.ts';
+import {assessEvidence,compareToBaseline,vegetationConditionIndex,comparablePair,seasonalBaseline,cropDatesOutdated,observationTile,qualityReason,referenceStage,resolveStage,seasonStage,validNdviClasses,validReferenceWindow,vegetationScore, type Observation} from '../../../shared/evidence.ts';
 const now=Date.parse('2026-10-15T12:00:00Z');
 const observation:Observation={scene_id:'test',observed_on:'2026-10-12',acquired_at:'2026-10-12T10:00:00Z',ndvi_value:.7,ndmi_value:.3,cloud_cover:0,valid_coverage_percent:90,valid_pixel_count:500,source:'Sentinel-2',provenance:'measured_imagery',boundary_version:1,accepted:true,calculation_version:'v2'};
 test('quality and crop score are separate even for identical measurements',()=>{
@@ -169,4 +169,66 @@ test('a drop in the regional harvest window is explained as a regional estimate;
  const own=assessEvidence(current,previous,undefined,now,{plantingDate:'2026-08-01',harvestDate:'2026-12-30'},riceWindow);
  assert.equal(own.stageSource,'saved_dates');
  assert.equal(own.stage,'growing');
+});
+
+const pt=(observed_on:string,ndvi_value:number|string|null)=>({observed_on,ndvi_value});
+test('seasonal baseline uses earlier years only, one vote per year, within 15 days of the same date',()=>{
+ const points=[pt('2024-10-08',.6),pt('2024-10-20',.5),pt('2024-10-12',.55),pt('2025-10-10',.7),pt('2025-07-10',.9),pt('2026-10-01',.1),pt('2023-12-01',.2)];
+ const baseline=seasonalBaseline(points,'2026-10-12');
+ assert.deepEqual(baseline,{expected:.625,low:.55,high:.7,years:2});
+ assert.equal(seasonalBaseline([pt('2025-10-10',.7)],'2026-10-12'),null);
+ assert.equal(seasonalBaseline([pt('2026-09-30',.7),pt('2026-10-05',.6)],'2026-10-12'),null);
+ assert.equal(seasonalBaseline([],'2026-10-12'),null);
+ assert.equal(seasonalBaseline(null,'2026-10-12'),null);
+ assert.equal(seasonalBaseline(points,'not a date'),null);
+ assert.equal(seasonalBaseline([pt('2024-10-12',null),pt('2025-10-12','x')],'2026-10-12'),null);
+ assert.equal(seasonalBaseline([pt('2025-12-20',.5),pt('2024-12-22',.5)],'2026-01-05'),null);
+ assert.deepEqual(seasonalBaseline([pt('2024-10-12','0.6'),pt('2025-10-12','0.4')],'2026-10-12'),{expected:.5,low:.4,high:.6,years:2});
+});
+test('latest NDVI is only called below usual when the earlier seasons agree',()=>{
+ const base={expected:.6,low:.55,high:.65,years:3};
+ assert.deepEqual(compareToBaseline(.45,base),{expected:.6,difference:-.15,years:3,reliable:true,belowUsual:true,vci:0});
+ assert.equal(compareToBaseline(.55,base)?.belowUsual,false);
+ const mixed=compareToBaseline(.3,{expected:.6,low:.3,high:.7,years:2});
+ assert.equal(mixed?.reliable,false);
+ assert.equal(mixed?.belowUsual,false);
+ assert.equal(compareToBaseline(null,base),null);
+ assert.equal(compareToBaseline(.5,null),null);
+});
+test('baseline is context only: the state, change and visit decision stay as they were',()=>{
+ const history=[pt('2024-10-12',.62),pt('2025-10-12',.6)];
+ const previous={...observation,scene_id:'p',observed_on:'2026-10-02',acquired_at:'2026-10-02T10:00:00Z',ndvi_value:.45};
+ const latest={...observation,ndvi_value:.4};
+ const without=assessEvidence(latest,previous,undefined,now);
+ const withBaseline=assessEvidence(latest,previous,undefined,now,null,null,history);
+ assert.equal(without.baseline,undefined);
+ assert.equal(withBaseline.baseline?.belowUsual,true);
+ assert.deepEqual({...withBaseline,baseline:undefined},{...without,baseline:undefined});
+ const single=assessEvidence(latest,previous,undefined,now,null,null,[pt('2025-10-12',.6)]);
+ assert.equal(single.baseline,undefined);
+ assert.equal(assessEvidence({...latest,valid_coverage_percent:20},previous,undefined,now,null,null,history).baseline,undefined);
+});
+
+test('VCI places the latest NDVI between the lowest and highest usual value, and is withheld when it would mislead',()=>{
+ assert.equal(vegetationConditionIndex(.5,.3,.7),50);
+ assert.equal(vegetationConditionIndex(.3,.3,.7),0);
+ assert.equal(vegetationConditionIndex(.7,.3,.7),100);
+ assert.equal(vegetationConditionIndex(.9,.3,.7),100);
+ assert.equal(vegetationConditionIndex(.1,.3,.7),0);
+ assert.equal(vegetationConditionIndex(.4,.3,.3),null);
+ assert.equal(vegetationConditionIndex(.4,.5,.55),null);
+ assert.equal(vegetationConditionIndex(NaN,.3,.7),null);
+ assert.equal(compareToBaseline(.5,{expected:.5,low:.4,high:.6,years:3})?.vci,50);
+ assert.equal(compareToBaseline(.5,{expected:.5,low:.4,high:.6,years:2})?.vci,null);
+ assert.equal(compareToBaseline(.5,{expected:.5,low:.2,high:.7,years:4})?.vci,null);
+ assert.equal(compareToBaseline(.5,{expected:.5,low:.46,high:.54,years:5})?.vci,null);
+});
+test('VCI is shown on the assessment but never changes the state or visit decision',()=>{
+ const history=[pt('2023-10-12',.5),pt('2024-10-12',.6),pt('2025-10-12',.7)];
+ const previous={...observation,scene_id:'p',observed_on:'2026-10-02',acquired_at:'2026-10-02T10:00:00Z',ndvi_value:.62};
+ const latest={...observation,ndvi_value:.58};
+ const without=assessEvidence(latest,previous,undefined,now);
+ const withVci=assessEvidence(latest,previous,undefined,now,null,null,history);
+ assert.equal(withVci.baseline?.vci,40);
+ assert.deepEqual({...withVci,baseline:undefined},{...without,baseline:undefined});
 });
