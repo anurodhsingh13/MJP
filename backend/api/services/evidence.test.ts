@@ -175,7 +175,7 @@ const pt=(observed_on:string,ndvi_value:number|string|null)=>({observed_on,ndvi_
 test('seasonal baseline uses earlier years only, one vote per year, within 15 days of the same date',()=>{
  const points=[pt('2024-10-08',.6),pt('2024-10-20',.5),pt('2024-10-12',.55),pt('2025-10-10',.7),pt('2025-07-10',.9),pt('2026-10-01',.1),pt('2023-12-01',.2)];
  const baseline=seasonalBaseline(points,'2026-10-12');
- assert.deepEqual(baseline,{expected:.625,low:.55,high:.7,years:2});
+ assert.deepEqual(baseline,{expected:.625,low:.55,high:.7,min:.5,max:.7,years:2});
  assert.equal(seasonalBaseline([pt('2025-10-10',.7)],'2026-10-12'),null);
  assert.equal(seasonalBaseline([pt('2026-09-30',.7),pt('2026-10-05',.6)],'2026-10-12'),null);
  assert.equal(seasonalBaseline([],'2026-10-12'),null);
@@ -183,13 +183,13 @@ test('seasonal baseline uses earlier years only, one vote per year, within 15 da
  assert.equal(seasonalBaseline(points,'not a date'),null);
  assert.equal(seasonalBaseline([pt('2024-10-12',null),pt('2025-10-12','x')],'2026-10-12'),null);
  assert.equal(seasonalBaseline([pt('2025-12-20',.5),pt('2024-12-22',.5)],'2026-01-05'),null);
- assert.deepEqual(seasonalBaseline([pt('2024-10-12','0.6'),pt('2025-10-12','0.4')],'2026-10-12'),{expected:.5,low:.4,high:.6,years:2});
+ assert.deepEqual(seasonalBaseline([pt('2024-10-12','0.6'),pt('2025-10-12','0.4')],'2026-10-12'),{expected:.5,low:.4,high:.6,min:.4,max:.6,years:2});
 });
 test('latest NDVI is only called below usual when the earlier seasons agree',()=>{
- const base={expected:.6,low:.55,high:.65,years:3};
+ const base={expected:.6,low:.55,high:.65,min:.5,max:.7,years:3};
  assert.deepEqual(compareToBaseline(.45,base),{expected:.6,difference:-.15,years:3,reliable:true,belowUsual:true,vci:0});
  assert.equal(compareToBaseline(.55,base)?.belowUsual,false);
- const mixed=compareToBaseline(.3,{expected:.6,low:.3,high:.7,years:2});
+ const mixed=compareToBaseline(.3,{expected:.6,low:.3,high:.7,min:.3,max:.7,years:2});
  assert.equal(mixed?.reliable,false);
  assert.equal(mixed?.belowUsual,false);
  assert.equal(compareToBaseline(null,base),null);
@@ -218,10 +218,10 @@ test('VCI places the latest NDVI between the lowest and highest usual value, and
  assert.equal(vegetationConditionIndex(.4,.3,.3),null);
  assert.equal(vegetationConditionIndex(.4,.5,.55),null);
  assert.equal(vegetationConditionIndex(NaN,.3,.7),null);
- assert.equal(compareToBaseline(.5,{expected:.5,low:.4,high:.6,years:3})?.vci,50);
- assert.equal(compareToBaseline(.5,{expected:.5,low:.4,high:.6,years:2})?.vci,null);
- assert.equal(compareToBaseline(.5,{expected:.5,low:.2,high:.7,years:4})?.vci,null);
- assert.equal(compareToBaseline(.5,{expected:.5,low:.46,high:.54,years:5})?.vci,null);
+ assert.equal(compareToBaseline(.5,{expected:.5,low:.4,high:.6,min:.4,max:.6,years:3})?.vci,50);
+ assert.equal(compareToBaseline(.5,{expected:.5,low:.4,high:.6,min:.4,max:.6,years:2})?.vci,null);
+ assert.equal(compareToBaseline(.5,{expected:.5,low:.2,high:.7,min:.2,max:.7,years:4})?.vci,null);
+ assert.equal(compareToBaseline(.5,{expected:.5,low:.46,high:.54,min:.46,max:.54,years:5})?.vci,null);
 });
 test('VCI is shown on the assessment but never changes the state or visit decision',()=>{
  const history=[pt('2023-10-12',.5),pt('2024-10-12',.6),pt('2025-10-12',.7)];
@@ -231,4 +231,12 @@ test('VCI is shown on the assessment but never changes the state or visit decisi
  const withVci=assessEvidence(latest,previous,undefined,now,null,null,history);
  assert.equal(withVci.baseline?.vci,40);
  assert.deepEqual({...withVci,baseline:undefined},{...without,baseline:undefined});
+});
+test('VCI range comes from single earlier readings, not from yearly medians that can hide the swing within a season',()=>{
+ const points=[pt('2023-10-10',.3),pt('2023-10-14',.7),pt('2024-10-10',.35),pt('2024-10-14',.65),pt('2025-10-10',.4),pt('2025-10-14',.6)];
+ const baseline=seasonalBaseline(points,'2026-10-12');
+ assert.deepEqual(baseline,{expected:.5,low:.5,high:.5,min:.3,max:.7,years:3});
+ assert.equal(compareToBaseline(.5,baseline)?.vci,50);
+ assert.equal(compareToBaseline(.3,baseline)?.vci,0);
+ assert.equal(compareToBaseline(.7,baseline)?.vci,100);
 });
