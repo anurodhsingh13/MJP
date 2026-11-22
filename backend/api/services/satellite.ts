@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { pool } from '../db/pool.ts';
-import { qualityReason, vegetationScore, numeric, comparablePair, seasonStage, validNdviClasses, type NdviClasses, type Observation } from '../../../shared/evidence.ts';
+import { qualityReason, vegetationScore, numeric, comparablePair, resolveStage, validNdviClasses, type NdviClasses, type Observation } from '../../../shared/evidence.ts';
 import { evidencePolicy } from './policy.ts';
+import { referenceWindowsByField } from './referenceCalendar.ts';
 
 interface Asset { href?: string; image_id?: string; earth_engine?: { image_id?: string }; 'raster:bands'?: Array<{ scale?: number; offset?: number; nodata?: number }> }
 export interface SatelliteScene {
@@ -41,7 +42,7 @@ export async function processScene(fieldId: string, sceneId: string) {
   const scene = (await pool.query<SatelliteScene>('select * from public.satellite_scenes where field_id=$1 and scene_id=$2', [fieldId,sceneId])).rows[0];
   if (!scene) throw new ProcessingError('Satellite scene not found',404);
   if (!Number.isFinite(new Date(scene.observed_at).getTime()) || new Date(scene.observed_at).getTime()>Date.now()) throw new ProcessingError('Acquisition date is invalid or in the future');
-  const field = (await pool.query<{boundary_version:number; boundary_geojson:Record<string,unknown> | null; planting_date:string|null; harvest_date:string|null}>('select boundary_version, planting_date, harvest_date, ST_AsGeoJSON(boundary_geom)::jsonb as boundary_geojson from public.fields where id=$1',[fieldId])).rows[0];
+  const field = (await pool.query<{boundary_version:number; boundary_geojson:Record<string,unknown> | null; planting_date:string|null; harvest_date:string|null; crop:string|null}>('select boundary_version, crop, planting_date, harvest_date, ST_AsGeoJSON(boundary_geom)::jsonb as boundary_geojson from public.fields where id=$1',[fieldId])).rows[0];
   if (!field?.boundary_geojson) throw new ProcessingError('Save a field boundary first',400);
   const version = field.boundary_version;
   const earthEngineImageId = scene.assets.earth_engine?.image_id;
@@ -60,6 +61,8 @@ export async function processScene(fieldId: string, sceneId: string) {
     if (!engineResponse.ok) throw new ProcessingError(engineResponse.status===422 ? 'No usable pixels intersect this field. Try another date.' : 'Image processing service is unavailable',engineResponse.status===422?422:503);
     const result = validateResult(await engineResponse.json());
     const policy = evidencePolicy();
+    // Regional reference calendar (optional), read outside the transaction so a failed lookup cannot abort it.
+    const reference = (await referenceWindowsByField(pool,[{id:fieldId,crop:field.crop}])).get(fieldId) ?? null;
     const reason = qualityReason({ndvi_value:result.ndvi,valid_coverage_percent:result.validCoverage,valid_pixel_count:result.validPixels},policy);
     const client = await pool.connect();
     try {
@@ -100,7 +103,7 @@ export async function processScene(fieldId: string, sceneId: string) {
         const [latest,previous] = comparablePair(latestRows,policy) as [(Observation & {vegetation_score:number})|null,(Observation & {vegetation_score:number})|null];
         if (latest) {
           const comparable = Boolean(previous);
-          const stage = seasonStage({plantingDate:field.planting_date,harvestDate:field.harvest_date},latest.observed_on);
+          const stage = resolveStage({plantingDate:field.planting_date,harvestDate:field.harvest_date},reference,latest.observed_on).stage;
           const declined = comparable && numeric(latest.ndvi_value)!-numeric(previous!.ndvi_value)! <= -policy.declineThreshold && stage!=='maturity' && stage!=='after_harvest';
           const currentEvidenceKey=declined?`decline:${version}:${latest.scene_id}`:null;
           await client.query(`update public.alerts set action_status='superseded'

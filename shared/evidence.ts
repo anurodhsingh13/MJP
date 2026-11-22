@@ -31,8 +31,10 @@ export interface CropSeason { plantingDate?: string | null; harvestDate?: string
 export interface Assessment {
   state: AttentionState; title: string; explanation: string; nextAction: string;
   ageDays: number | null; change: number | null; comparableObservations: number;
-  /** Crop stage at the latest image, from the sowing/harvest dates the farmer entered. */
+  /** Crop stage at the latest image: from the sowing/harvest dates the farmer entered, else from a regional reference window. */
   stage?: SeasonStage;
+  /** Where `stage` came from. 'regional_reference' is a regional estimate, never the farmer's own dates. */
+  stageSource?: 'saved_dates' | 'regional_reference';
   /** A large NDVI drop that the recorded crop calendar explains (maturity or harvest). */
   expectedDecline?: boolean;
   /** The saved sowing/harvest dates do not place this image in the current season (old, or harvest not after sowing). */
@@ -83,6 +85,46 @@ export function seasonStage(season: CropSeason | null | undefined, observedOn: s
   }
   return 'unknown';
 }
+/** A regional sowing and harvest window by calendar month (1-12) from the reviewed reference calendar. Not a record of what was planted. */
+export interface ReferenceWindow { plantingStartMonth: number; plantingEndMonth: number; harvestStartMonth: number; harvestEndMonth: number }
+const validMonth = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 12;
+export function validReferenceWindow(window: Partial<Record<keyof ReferenceWindow, unknown>> | null | undefined): window is ReferenceWindow {
+  return Boolean(window) && validMonth(window!.plantingStartMonth) && validMonth(window!.plantingEndMonth)
+    && validMonth(window!.harvestStartMonth) && validMonth(window!.harvestEndMonth);
+}
+/**
+ * Crop stage from a regional window. The whole planting window counts as sowing, establishment runs 30 days past its end,
+ * "maturity" starts 30 days before the harvest window and lasts through it, and "after harvest" lasts 45 days. Outside
+ * the season (more than 60 days before sowing or 45 days after harvest) the stage is unknown.
+ */
+export function referenceStage(window: ReferenceWindow | null | undefined, observedOn: string): SeasonStage {
+  const observed = dayTime(observedOn);
+  if (observed === null || !validReferenceWindow(window)) return 'unknown';
+  const { plantingStartMonth: ps, plantingEndMonth: pe, harvestStartMonth: hs, harvestEndMonth: he } = window;
+  const year = new Date(observed).getUTCFullYear();
+  for (const seasonYear of [year - 1, year]) {
+    const start = Date.UTC(seasonYear, ps - 1, 1);
+    const plantingEndYear = pe >= ps ? seasonYear : seasonYear + 1;
+    const plantingEnd = Date.UTC(plantingEndYear, pe, 0);                  // last day of the planting-end month
+    const harvestStartYear = hs > pe ? plantingEndYear : plantingEndYear + 1;
+    const harvestStart = Date.UTC(harvestStartYear, hs - 1, 1);
+    const harvestEnd = Date.UTC(he >= hs ? harvestStartYear : harvestStartYear + 1, he, 0);
+    if (observed < start - 60 * DAY || observed > harvestEnd + 45 * DAY) continue;
+    if (observed < start) return 'before_sowing';
+    if (observed <= plantingEnd + 30 * DAY) return 'establishment';
+    if (observed < harvestStart - 30 * DAY) return 'growing';
+    if (observed <= harvestEnd) return 'maturity';
+    return 'after_harvest';
+  }
+  return 'unknown';
+}
+/** Stage from the farmer's own dates when they fit the season, otherwise from the regional reference when one is given. */
+export function resolveStage(season: CropSeason | null | undefined, reference: ReferenceWindow | null | undefined, observedOn: string): { stage: SeasonStage; source: 'saved_dates' | 'regional_reference' } {
+  const saved = seasonStage(season, observedOn);
+  if (saved !== 'unknown') return { stage: saved, source: 'saved_dates' };
+  const regional = referenceStage(reference, observedOn);
+  return regional === 'unknown' ? { stage: 'unknown', source: 'saved_dates' } : { stage: regional, source: 'regional_reference' };
+}
 export function qualityReason(observation: Pick<Observation, 'ndvi_value' | 'valid_coverage_percent' | 'valid_pixel_count'>, policy = defaultPolicy): string | null {
   const ndvi = numeric(observation.ndvi_value), coverage = numeric(observation.valid_coverage_percent), pixels = numeric(observation.valid_pixel_count);
   if (ndvi === null || ndvi < -1 || ndvi > 1) return 'Vegetation measurement unavailable';
@@ -122,13 +164,16 @@ export function comparablePair(observations: Observation[], policy = defaultPoli
   if (!latest) return [null, null];
   return [latest, ordered.slice(1).find(item => isComparable(latest, item, policy)) ?? null];
 }
-export function assessEvidence(latest: Observation | null, previous: Observation | null, policy = defaultPolicy, now = Date.now(), season?: CropSeason | null): Assessment {
+export function assessEvidence(latest: Observation | null, previous: Observation | null, policy = defaultPolicy, now = Date.now(), season?: CropSeason | null, reference?: ReferenceWindow | null): Assessment {
   const result: Assessment = { state: 'awaiting_analysis', title: 'Awaiting first analysis', explanation: 'No accepted satellite measurement for this boundary.', nextAction: 'Find a usable image', ageDays: null, change: null, comparableObservations: 0 };
   if (!latest) return result;
   const acquired = Date.parse(latest.acquired_at || latest.observed_on);
   result.ageDays = Number.isFinite(acquired) ? Math.floor((now - acquired) / 86400000) : null;
-  result.stage = seasonStage(season, latest.observed_on);
-  if (result.stage === 'unknown' && cropDatesOutdated(season, latest.observed_on)) result.datesOutdated = true;
+  const resolved = resolveStage(season, reference, latest.observed_on);
+  result.stage = resolved.stage;
+  if (resolved.stage !== 'unknown') result.stageSource = resolved.source;
+  // "Outdated" is about the farmer's own saved dates, whether or not a regional reference then supplies the stage.
+  if (seasonStage(season, latest.observed_on) === 'unknown' && cropDatesOutdated(season, latest.observed_on)) result.datesOutdated = true;
   const reason = qualityReason(latest, policy);
   if (!latest.accepted || latest.provenance !== 'measured_imagery' || reason || result.ageDays === null || result.ageDays < 0) {
     return { ...result, state: 'not_enough_data', title: 'Not enough usable data', explanation: reason || 'The measurement has not been verified for this boundary.', nextAction: 'Try another image' };
@@ -143,7 +188,11 @@ export function assessEvidence(latest: Observation | null, previous: Observation
   if (result.change !== null && result.change <= -policy.declineThreshold) {
     if (result.stage === 'maturity' || result.stage === 'after_harvest') {
       return { ...result, state: 'no_unusual_change', expectedDecline: true, title: 'Expected seasonal decline',
-        explanation: result.stage === 'maturity'
+        explanation: result.stageSource === 'regional_reference'
+          ? (result.stage === 'maturity'
+            ? 'Greenness fell around the usual harvest time for this region (a regional estimate, not your own dates). Ripening crops lose greenness; visit only if the crop is not yet ready for harvest, and add your own sowing and harvest dates for a better check.'
+            : 'Greenness fell after the usual harvest time for this region (a regional estimate, not your own dates). Bare or harvested ground can explain the drop; add your own sowing and harvest dates for a better check.')
+          : result.stage === 'maturity'
           ? 'Greenness fell within 30 days of the recorded harvest date. Ripening crops lose greenness; visit only if the crop is not yet ready for harvest.'
           : 'Greenness fell after the recorded harvest date. Bare or harvested ground explains the drop; update the crop dates for the next season.',
         nextAction: 'Continue monitoring' };

@@ -5,6 +5,7 @@ import { pool } from '../db/pool.ts';
 import { assessEvidence, numeric, type Observation } from '../../../shared/evidence.ts';
 import { decideVisit } from '../../../shared/advice.ts';
 import { evidencePolicy } from '../services/policy.ts';
+import { referenceWindowsByField } from '../services/referenceCalendar.ts';
 import { assistantBudget, geminiConfigured } from '../services/assistantBudget.ts';
 import { generateCropAdvice, ProviderError } from '../services/ai/geminiProvider.ts';
 import { actor, hashToken } from '../services/auth.ts';
@@ -31,7 +32,8 @@ export async function getCropAdvice(request: Request, response: Response) {
       order by observed_on desc,acquired_at desc limit 6`, [fieldId, field.boundary_version, policy.minCoverage, policy.minPixels])).rows;
     const latest = observations[0] ?? null;
     const previous = observations.find(item => latest && item.observed_on < latest.observed_on) ?? null;
-    const assessment = assessEvidence(latest, previous, policy, Date.now(), { plantingDate: field.planting_date, harvestDate: field.harvest_date });
+    const reference = (await referenceWindowsByField(pool, [{ id: fieldId, crop: field.crop }])).get(fieldId) ?? null;
+    const assessment = assessEvidence(latest, previous, policy, Date.now(), { plantingDate: field.planting_date, harvestDate: field.harvest_date }, reference);
     const latestNdvi = latest ? numeric(latest.ndvi_value) : null;
     const evidence = {
       ndvi: latest ? {
@@ -39,7 +41,7 @@ export async function getCropAdvice(request: Request, response: Response) {
         zoneSharePercent: latest.ndvi_classes ?? null, affectedAreaPercent: round(latest.affected_coverage_percent, 1),
         history: observations.map(item => ({ date: item.observed_on, ndvi: round(item.ndvi_value) })),
       } : null,
-      assessment: { state: assessment.state, change: assessment.change, imageAgeDays: assessment.ageDays, expectedSeasonalDecline: assessment.expectedDecline ?? false, cropDatesOutdated: assessment.datesOutdated ?? false },
+      assessment: { state: assessment.state, change: assessment.change, imageAgeDays: assessment.ageDays, expectedSeasonalDecline: assessment.expectedDecline ?? false, cropDatesOutdated: assessment.datesOutdated ?? false, cropStage: assessment.stage ?? 'unknown', cropStageBasis: assessment.stageSource ?? 'none' },
     };
     if (!latest) {
       response.json({ evidence, visit: decideVisit({ assessment, latestNdvi }), advice: null, photoUsed: false, reason: 'no_ndvi' });
@@ -63,7 +65,7 @@ export async function getCropAdvice(request: Request, response: Response) {
         try { image = { bytes: await readFile(resolve(storage, photoRow.storage_key)), mime: 'jpeg' }; } catch { image = null; }
       }
       const { advice, model } = await generateCropAdvice({
-        crop: field.crop || 'unknown', plantingDate: field.planting_date, harvestDate: field.harvest_date, cropStage: assessment.stage,
+        crop: field.crop || 'unknown', plantingDate: field.planting_date, harvestDate: field.harvest_date, cropStage: assessment.stage, regionalCalendarMonths: reference,
         ...evidence, recentWeather: weather, farmerScoutingNotes: scouting, photoDate: image ? photoRow.observed_on : null,
       }, image, language);
       const visit = decideVisit({ assessment, latestNdvi, photoUrgency: advice.urgency, photoUsed: Boolean(image), highLikelihoodIssue: advice.possibleIssues.some(item => item.likelihood === 'high') });

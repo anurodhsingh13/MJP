@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {assessEvidence,comparablePair,cropDatesOutdated,observationTile,qualityReason,seasonStage,validNdviClasses,vegetationScore, type Observation} from '../../../shared/evidence.ts';
+import {assessEvidence,comparablePair,cropDatesOutdated,observationTile,qualityReason,referenceStage,resolveStage,seasonStage,validNdviClasses,validReferenceWindow,vegetationScore, type Observation} from '../../../shared/evidence.ts';
 const now=Date.parse('2026-10-15T12:00:00Z');
 const observation:Observation={scene_id:'test',observed_on:'2026-10-12',acquired_at:'2026-10-12T10:00:00Z',ndvi_value:.7,ndmi_value:.3,cloud_cover:0,valid_coverage_percent:90,valid_pixel_count:500,source:'Sentinel-2',provenance:'measured_imagery',boundary_version:1,accepted:true,calculation_version:'v2'};
 test('quality and crop score are separate even for identical measurements',()=>{
@@ -106,4 +106,67 @@ test('tile comes from the scene id when it was not stored, so other tiles are st
  const [,previous]=comparablePair([latest,otherTile,sameTile]);
  assert.equal(previous?.observed_on,'2026-10-24');
  assert.equal(comparablePair([latest,otherTile])[1],null);
+});
+const riceWindow={plantingStartMonth:7,plantingEndMonth:8,harvestStartMonth:11,harvestEndMonth:12};
+const wheatWindow={plantingStartMonth:10,plantingEndMonth:11,harvestStartMonth:4,harvestEndMonth:5};
+test('a regional window places an image in the crop season',()=>{
+ assert.equal(referenceStage(riceWindow,'2026-04-01'),'unknown');
+ assert.equal(referenceStage(riceWindow,'2026-06-21'),'before_sowing');
+ assert.equal(referenceStage(riceWindow,'2026-07-26'),'establishment');
+ assert.equal(referenceStage(riceWindow,'2026-09-10'),'establishment');
+ assert.equal(referenceStage(riceWindow,'2026-10-20'),'maturity');
+ assert.equal(referenceStage(riceWindow,'2026-11-13'),'maturity');
+ assert.equal(referenceStage(riceWindow,'2027-01-10'),'after_harvest');
+ assert.equal(referenceStage(riceWindow,'2027-03-01'),'unknown');
+ // A window that crosses the new year: wheat sown Oct-Nov, harvested Apr-May of the next year.
+ assert.equal(referenceStage(wheatWindow,'2026-11-20'),'establishment');
+ assert.equal(referenceStage(wheatWindow,'2027-01-15'),'growing');
+ assert.equal(referenceStage(wheatWindow,'2027-03-10'),'maturity');
+ assert.equal(referenceStage(wheatWindow,'2027-06-10'),'after_harvest');
+ assert.equal(referenceStage({plantingStartMonth:12,plantingEndMonth:1,harvestStartMonth:5,harvestEndMonth:6},'2026-01-15'),'establishment');
+ assert.equal(referenceStage({plantingStartMonth:12,plantingEndMonth:1,harvestStartMonth:5,harvestEndMonth:6},'2026-05-10'),'maturity');
+});
+test('a bad or missing regional window never produces a stage',()=>{
+ assert.equal(referenceStage(null,'2026-10-12'),'unknown');
+ assert.equal(referenceStage(undefined,'2026-10-12'),'unknown');
+ assert.equal(referenceStage({...riceWindow,harvestEndMonth:13},'2026-10-12'),'unknown');
+ assert.equal(referenceStage({...riceWindow,plantingStartMonth:0},'2026-10-12'),'unknown');
+ assert.equal(referenceStage(riceWindow,'not a date'),'unknown');
+ assert.equal(validReferenceWindow({...riceWindow,plantingEndMonth:2.5}),false);
+ assert.equal(validReferenceWindow(riceWindow),true);
+});
+test("the farmer's own dates win; the regional window fills in only when they cannot place the image",()=>{
+ const own={plantingDate:'2026-08-01',harvestDate:'2026-12-30'};
+ assert.deepEqual(resolveStage(own,riceWindow,'2026-10-12'),{stage:'growing',source:'saved_dates'});
+ const old={plantingDate:'2023-06-11',harvestDate:'2023-12-11'};
+ assert.deepEqual(resolveStage(old,riceWindow,'2026-10-12'),{stage:'maturity',source:'regional_reference'});
+ assert.deepEqual(resolveStage(null,riceWindow,'2026-10-12'),{stage:'maturity',source:'regional_reference'});
+ assert.deepEqual(resolveStage(old,null,'2026-10-12'),{stage:'unknown',source:'saved_dates'});
+ assert.deepEqual(resolveStage(old,riceWindow,'2027-03-01'),{stage:'unknown',source:'saved_dates'});
+});
+test('a drop in the regional harvest window is explained as a regional estimate; a drop outside it is still flagged',()=>{
+ const current={...observation,ndvi_value:.35};
+ const previous={...observation,observed_on:'2026-10-02',acquired_at:'2026-10-02T10:00:00Z'};
+ const old={plantingDate:'2023-06-11',harvestDate:'2023-12-11'};
+ const rice=assessEvidence(current,previous,undefined,now,old,riceWindow);
+ assert.equal(rice.state,'no_unusual_change');
+ assert.equal(rice.expectedDecline,true);
+ assert.equal(rice.stage,'maturity');
+ assert.equal(rice.stageSource,'regional_reference');
+ assert.equal(rice.datesOutdated,true);
+ assert.match(rice.explanation,/regional estimate/);
+ // The same curve in a wheat calendar is not a harvest: it stays an inspection signal.
+ const wheat=assessEvidence(current,previous,undefined,now,old,wheatWindow);
+ assert.equal(wheat.state,'needs_inspection');
+ assert.equal(wheat.expectedDecline,undefined);
+ assert.equal(wheat.stageSource,'regional_reference');
+ // Without any reference nothing changes from before.
+ const none=assessEvidence(current,previous,undefined,now,old);
+ assert.equal(none.state,'needs_inspection');
+ assert.equal(none.stage,'unknown');
+ assert.equal(none.stageSource,undefined);
+ // In-season saved dates still decide and are reported as the farmer's own.
+ const own=assessEvidence(current,previous,undefined,now,{plantingDate:'2026-08-01',harvestDate:'2026-12-30'},riceWindow);
+ assert.equal(own.stageSource,'saved_dates');
+ assert.equal(own.stage,'growing');
 });

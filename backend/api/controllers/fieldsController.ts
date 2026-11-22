@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { pool } from '../db/pool.ts';
 import {actor,authRequired} from '../services/auth.ts';
 import { assessEvidence, comparablePair, vegetationScore, type Observation } from '../../../shared/evidence.ts';
+import { referenceWindowsByField } from '../services/referenceCalendar.ts';
 import { evidencePolicy } from '../services/policy.ts';
 import { processScene, processLatest, ProcessingError, rasterPayload, EARTH_ENGINE_SOURCE } from '../services/satellite.ts';
 import { ingestOpenSentinel, primaryTile } from '../services/openSentinel.ts';
@@ -64,10 +65,11 @@ export async function getFields(_request: Request, response: Response) {
       where fields.provenance not in ('demo','public_boundary')
         and (not $4::boolean or fields.owner_id=$3::uuid)
       order by fields.created_at asc`, [policy.minCoverage,policy.minPixels,actor(response)?.id??null,authRequired()]);
+    const references = await referenceWindowsByField(pool, result.rows.map((row: Record<string, unknown>) => ({ id: String(row.id), crop: row.crop })));
     response.json(result.rows.map((row: Record<string, unknown> & { evidence: Observation[] }) => {
       // The latest accepted image and the most recent earlier image that is fair to compare (same tile, method, ≤ compareDays).
       const [latest,previous] = comparablePair(row.evidence,policy);
-      const assessment = assessEvidence(latest,previous,policy,Date.now(),{plantingDate:row.planting_date as string|null,harvestDate:row.harvest_date as string|null});
+      const assessment = assessEvidence(latest,previous,policy,Date.now(),{plantingDate:row.planting_date as string|null,harvestDate:row.harvest_date as string|null},references.get(String(row.id)));
       if (!latest && (row.processing as Array<{processing_status:string}>).some(scene=>scene.processing_status==='rejected')) {
         assessment.state='not_enough_data'; assessment.title='Not enough usable data';
         assessment.explanation='The available images did not meet field-level quality requirements.';

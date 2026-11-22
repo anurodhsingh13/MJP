@@ -36,6 +36,11 @@ export function fieldCopy(field: DatabaseField, language: Language) {
     copy[1] = afterHarvest ? 'कटा हुआ या खाली खेत' : 'फ़सल पक रही है';
     copy[2] = afterHarvest ? 'Greenness fell after your recorded harvest date. That is expected. Update the crop dates when you sow again.' : 'Greenness fell close to your recorded harvest date. Ripening crops lose greenness. Visit only if the crop is not yet ready for harvest.';
     copy[3] = afterHarvest ? 'आपकी दर्ज कटाई की तारीख़ के बाद हरियाली घटी। यह सामान्य है। अगली बुवाई पर फ़सल की तारीख़ें अपडेट करें।' : 'दर्ज कटाई की तारीख़ के पास हरियाली घटी। पकती फ़सल की हरियाली कम होती है। फ़सल कटाई के लिए तैयार न हो तभी खेत जाएँ।';
+    // The stage came from the regional calendar, not the farmer's dates: say so.
+    if (assessment.stageSource === 'regional_reference') {
+      copy[2] = afterHarvest ? 'Greenness fell after the usual harvest time for this region. That is expected. Add your own sowing and harvest dates for a better check.' : 'Greenness fell around the usual harvest time for this region. Ripening crops lose greenness. Visit only if the crop is not yet ready for harvest. Add your own sowing and harvest dates for a better check.';
+      copy[3] = afterHarvest ? 'इस इलाक़े में कटाई के आम समय के बाद हरियाली घटी। यह सामान्य है। बेहतर जाँच के लिए अपनी बुवाई और कटाई की तारीख़ें दर्ज करें।' : 'इस इलाक़े में कटाई के आम समय के आसपास हरियाली घटी। पकती फ़सल की हरियाली कम होती है। फ़सल कटाई के लिए तैयार न हो तभी खेत जाएँ। बेहतर जाँच के लिए अपनी बुवाई और कटाई की तारीख़ें दर्ज करें।';
+    }
   }
   const action = fieldNextAction(field);
   const actionCopy = {

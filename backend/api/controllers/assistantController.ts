@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import {recordAssistantSuccess} from '../services/assistantHistory.ts';
 import { pool } from '../db/pool.ts';
 import { assessEvidence, type Observation } from '../../../shared/evidence.ts';
+import { referenceWindowsByField } from '../services/referenceCalendar.ts';
 import { evidencePolicy } from '../services/policy.ts';
 import {assistantBudget,geminiConfigured} from '../services/assistantBudget.ts';
 import {generateGemini,ProviderError} from '../services/ai/geminiProvider.ts';
@@ -48,7 +49,8 @@ export async function askAssistant(request: Request, response: Response) {
       const events=await pool.query('select event_type,event_date,notes from public.field_events where field_id=$1 order by event_date desc limit 10',[fieldId]);
       const scouting=await pool.query(`select observed_on,observation_category,growth_stage,severity,provenance,verification_status,symptoms
         from public.scouting_cases where field_id=$1 order by observed_on desc,created_at desc limit 5`,[fieldId]);
-      const assessment=assessEvidence(ndviResult.rows[0]??null,ndviResult.rows.find(obs=>obs.observed_on<ndviResult.rows[0]?.observed_on)??null,policy);
+      const reference=(await referenceWindowsByField(pool,[{id:fieldId,crop:field.crop}])).get(fieldId)??null;
+      const assessment=assessEvidence(ndviResult.rows[0]??null,ndviResult.rows.find(obs=>obs.observed_on<ndviResult.rows[0]?.observed_on)??null,policy,Date.now(),{plantingDate:field.planting_date,harvestDate:field.harvest_date},reference);
       evidenceDates=ndviResult.rows.map(obs=>obs.observed_on);
       const visits=await pool.query('select title,due_on,status,reason from field_tasks where field_id=$1 order by due_on nulls last limit 10',[fieldId]);
       const alerts=await pool.query("select title,action_status,observed_at from alerts where field_id=$1 and action_status not in ('resolved','superseded') order by observed_at desc limit 10",[fieldId]);
