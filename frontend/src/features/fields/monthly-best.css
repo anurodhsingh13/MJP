@@ -1,0 +1,24 @@
+.monthly-best { display:grid; gap:12px; margin-top:20px; padding:18px; border:1px solid #cfe0c9; border-radius:16px; background:linear-gradient(180deg,#eef7e9 0,#fff 220px); }
+.monthly-best h3 { margin:0; color:#17472d; font-size:1.1rem; }
+.mb-note { margin:0; font-size:.86rem; line-height:1.55; color:#3f5a47; }
+.mb-tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; }
+.mb-tile { display:grid; gap:2px; padding:12px 14px; border-radius:12px; background:#fff; border:1px solid #dce3d8; border-left:5px solid #9dbd98; }
+.mb-tile small { color:#526557; font-size:.78rem; }
+.mb-tile strong { color:#17472d; font-size:1.2rem; }
+.mb-tile span { color:#3f5a47; font-size:.84rem; }
+.mb-tile.best { border-left-color:#f2b84b; background:#fff8e6; }
+.mb-tile.up { border-left-color:#1a9850; } .mb-tile.up strong { color:#157a3e; }
+.mb-tile.down { border-left-color:#c0502e; } .mb-tile.down strong { color:#a53d1f; }
+.mb-chart { margin:0; padding:6px 4px 0; border-radius:12px; background:#fff; border:1px solid #e3ebdf; }
+.mb-tip { display:grid; gap:2px; padding:9px 12px; background:#fff; border:1px solid #b7c7b5; border-radius:10px; box-shadow:0 8px 22px #0d2a1a33; font-size:.82rem; color:#20382b; }
+.mb-tip strong { color:#17472d; }
+.mb-chips { list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:8px; }
+.mb-chips li { display:flex; align-items:center; gap:7px; padding:6px 11px; border-radius:999px; background:#f1f8ec; border:1px solid #cfe0c9; font-size:.84rem; color:#20382b; }
+.mb-chips li.is-best { background:#fff3d0; border-color:#e6b84d; }
+.mb-chips .mb-none { color:#6b7a6f; font-style:italic; }
+.mb-chips em { font-style:normal; font-weight:700; } .mb-chips em.up { color:#157a3e; } .mb-chips em.down { color:#a53d1f; } .mb-chips em.flat { color:#5b6a5f; }
+.mb-chips i { font-style:normal; font-weight:700; color:#7a4e00; }
+.mb-legend { margin:0; display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; font-size:.78rem; color:#526557; }
+.mb-legend .d { display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:-6px; }
+.mb-legend .high { background:#1a9850; } .mb-legend .mod { background:#91cf60; } .mb-legend .low { background:#fee08b; } .mb-legend .bare { background:#d9a066; }
+@media (max-width:520px) { .monthly-best { padding:14px; } .mb-chips li { font-size:.8rem; } }

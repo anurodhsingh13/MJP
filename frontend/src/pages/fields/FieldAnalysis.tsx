@@ -7,6 +7,7 @@ import { loadNdviAnalysis, loadNdvi, askFieldAssistant, loadWeather, queueFieldJ
 import { usePreferences } from '../../lib/preferencesContext';
 import { fieldCopy } from '../../lib/fieldCopy';
 const VegetationChart=lazy(()=>import('../../features/fields/VegetationChart').then(module=>({default:module.VegetationChart})));
+const MonthlyBestNdvi=lazy(()=>import('../../features/fields/MonthlyBestNdvi').then(module=>({default:module.MonthlyBestNdvi})));
 const HistoricalWeatherCharts=lazy(()=>import('../../features/weather/HistoricalWeatherCharts').then(module=>({default:module.HistoricalWeatherCharts})));
 
 export function FieldAnalysis() {
@@ -89,6 +90,7 @@ export function FieldAnalysis() {
       <div className="analysis-controls"><label>{t('Date range', 'समय अवधि')}<select value={range} onChange={event => setRange(event.target.value)}><option value="30">{t('30 days', '30 दिन')}</option><option value="90">{t('90 days', '90 दिन')}</option><option value="season">{field.planting_date ? t('Since recorded planting', 'दर्ज बुवाई से') : t('All available dates', 'सभी उपलब्ध तारीख़ें')}</option></select></label><label>{t('Show on chart', 'ग्राफ़ में क्या देखें')}<select value={index} onChange={event => setIndex(event.target.value as typeof index)}><option value="ndvi_value">{t('Greenness (NDVI)', 'हरियाली (NDVI)')}</option><option value="ndmi_value">{t('Water signal in plants (NDMI)', 'पौधों में पानी का संकेत (NDMI)')}</option><option value="ndre_value">{t('Leaf colour signal (NDRE)', 'पत्तियों के रंग का संकेत (NDRE)')}</option></select></label></div>
       {chart.length ? <Suspense fallback={<p aria-live="polite">{t('Loading chart…','ग्राफ़ लोड हो रहा है…')}</p>}><VegetationChart simple observations={chart} index={index} season={season} rain={weather} events={events.filter(item => Date.parse(item.event_date) >= cutoff)}/></Suspense> : <p>{t('No accepted observations in this range. Find a usable image on the Map tab.', 'इस अवधि की साफ़ तस्वीर नहीं है। नक्शे वाले पेज पर नई तस्वीर जाँचें।')}</p>}
           {latestStage && <p className="season-stage-line">{t('Crop stage at the latest image (from your sowing/harvest dates):','नई तस्वीर के समय फ़सल की अवस्था (आपकी बुवाई/कटाई की तारीख़ों से):')} <strong>{stageLabel(latestStage)}</strong></p>}
+      {dated.length>0&&<Suspense fallback={<p aria-live="polite">{t('Loading monthly comparison…','महीनों की तुलना लोड हो रही है…')}</p>}><MonthlyBestNdvi observations={dated.filter(item=>item.calculation_version===latestMethod)}/></Suspense>}
       <SeasonHistoryPanel field={field} onEditDates={editField} onComplete={() => setReload(value => value + 1)}/>
     </section>
     <details className="technical-observations"><summary>{t('Advanced: measurements and experimental score', 'तकनीकी जानकारी: रीडिंग और प्रयोगात्मक स्कोर')}</summary>
