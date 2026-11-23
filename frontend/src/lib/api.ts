@@ -67,6 +67,14 @@ export async function checkApiHealth() {
 }
 
 let assistantRetryAt=0;
+/** An assistant failure with the server's machine-readable code (for example provider_unavailable), so the UI can offer a retry. */
+export class AssistantError extends Error {
+  code?: string
+  constructor(message: string, code?: string) { super(message); this.name = 'AssistantError'; this.code = code }
+}
+/** Errors that a plain second attempt can fix. Content problems (blocked, too long) are not in this list. */
+export const RETRYABLE_ASSISTANT_CODES = ['provider_unavailable', 'timeout', 'network']
+
 export async function askFieldAssistant(message: string, fieldId?: string, languageCode = 'en-IN',saveHistory=false) {
   const wait=Math.ceil((assistantRetryAt-Date.now())/1000);
   if(wait>0)throw new Error(`Please wait ${wait} seconds before retrying this provider.`);
@@ -76,13 +84,13 @@ export async function askFieldAssistant(message: string, fieldId?: string, langu
     body: JSON.stringify({ message, fieldId, languageCode,saveHistory,provider:'gemini' }),
   })
   if (!response.ok) {
-    const payload = await response.json().catch(() => ({})) as { error?: string }
+    const payload = await response.json().catch(() => ({})) as { error?: string; code?: string }
     if(response.status===429){
       const header=response.headers.get('Retry-After');
       const delay=header?(/^\d+(\.\d+)?$/.test(header)?Number(header)*1000:Date.parse(header)-Date.now()):60000;
       assistantRetryAt=Date.now()+(Number.isFinite(delay)?Math.max(1000,delay):60000);
     }
-    throw new Error(payload.error ?? 'Assistant unavailable')
+    throw new AssistantError(payload.error ?? 'Assistant unavailable', payload.code)
   }
   return response.json() as Promise<{ answer: string; historySaved?:boolean; model: string; languageCode: string; evidenceDates?:string[] }>
 }

@@ -4,9 +4,23 @@ export class ProviderError extends Error {
  constructor(code:string,message:string,status=502,retryAfterSeconds?:number){super(message);this.code=code;this.status=status;this.retryAfterSeconds=retryAfterSeconds;}
 }
 type Message={role:'user'|'assistant';content:string};
-type GeminiOptions={fetcher?:typeof fetch;timeoutMs?:number;retryDelaysMs?:number[]};
+type GeminiOptions={fetcher?:typeof fetch;timeoutMs?:number;retryDelaysMs?:number[];fallbackModels?:string[];fallbackTimeoutMs?:number;attemptTimeoutMs?:number};
 /** Google answers 500/503/504 during demand spikes ("high demand, try again later"); those are worth a short retry. */
 const TRANSIENT_STATUSES=[500,503,504];
+const MODEL_NAME=/^[a-zA-Z0-9._-]+$/;
+/** When the main model stays overloaded after its retries, one more model is tried before the user sees "busy".
+ *  Real errors (bad key, quota, unknown model, blocked content) never fall back. GEMINI_FALLBACK_MODEL overrides this
+ *  (comma-separated; set it to an empty value to turn the fallback off). */
+export const DEFAULT_FALLBACK_MODEL='gemini-3.1-flash-lite';
+/** Short, secret-free description of a failed request for the server log (the user only sees a generic message). */
+function describeFailure(error:unknown){
+ const e=error as {name?:string;message?:string;cause?:{code?:string;message?:string}}|null;
+ return [e?.name,e?.cause?.code,e?.cause?.message??e?.message].filter(item=>typeof item==='string'&&item).join(' | ').slice(0,160);
+}
+function fallbackModels(options:GeminiOptions,primary:string){
+ const raw=options.fallbackModels??(process.env.GEMINI_FALLBACK_MODEL===undefined?[DEFAULT_FALLBACK_MODEL]:process.env.GEMINI_FALLBACK_MODEL.split(','));
+ return [...new Set(raw.map(item=>item.trim()).filter(item=>item&&item!==primary&&MODEL_NAME.test(item)))];
+}
 export async function generateGemini(system:string,messages:Message[],options:GeminiOptions={}){
  return callGemini({systemInstruction:{parts:[{text:system}]},contents:messages.map(item=>({role:item.role==='assistant'?'model':'user',parts:[{text:item.content}]})),generationConfig:{maxOutputTokens:1024,temperature:0.2}},options);
 }
@@ -14,19 +28,42 @@ export async function generateGemini(system:string,messages:Message[],options:Ge
 async function callGemini(requestBody:Record<string,unknown>,options:GeminiOptions){
  if(!geminiConfigured())throw new ProviderError('not_configured','Gemini AI is not configured. Add GEMINI_API_KEY to the server environment.',503);
  const model=process.env.GEMINI_MODEL?.trim()||'gemini-3.5-flash-lite';
- if(!/^[a-zA-Z0-9._-]+$/.test(model))throw new ProviderError('invalid_model','Gemini model setting is invalid.',503);
+ if(!MODEL_NAME.test(model))throw new ProviderError('invalid_model','Gemini model setting is invalid.',503);
  const signal=AbortSignal.timeout(options.timeoutMs??30000);
  try{
   const delays=options.retryDelaysMs??[600,1500];
-  let response:Response;
-  for(let attempt=0;;attempt++){
-   response=await (options.fetcher??fetch)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{
-    method:'POST',headers:{'x-goog-api-key':process.env.GEMINI_API_KEY!.trim(),'Content-Type':'application/json'},signal,
-    body:JSON.stringify(requestBody),
-   });
-   if(response.ok||!TRANSIENT_STATUSES.includes(response.status)||attempt>=delays.length)break;
-   await new Promise(resolve=>setTimeout(resolve,delays[attempt]));
+  const attemptMs=options.attemptTimeoutMs??Math.max(8000,Math.round((options.timeoutMs??30000)*0.3));   // 9 s of a 30 s chat budget, 18 s of a 60 s advice budget
+  let response:Response|undefined;let used=model;let lastError:unknown=null;
+  const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
+  for(const [position,candidate] of [model,...fallbackModels(options,model)].entries()){
+   used=candidate;
+   const attempts=position===0?delays:delays.slice(0,1);   // the fallback gets a single quick retry
+   // A hanging fallback must not eat the whole budget and turn "busy" into "timed out": it gets its own, shorter limit.
+   const callSignal=position===0?signal:AbortSignal.any([signal,AbortSignal.timeout(options.fallbackTimeoutMs??12000)]);
+   let current:Response|undefined;
+   for(let attempt=0;;attempt++){
+    try{
+     // Connections to Google sometimes hang with no error and no answer, while a fresh attempt answers in 1-2 s.
+     // Each attempt therefore has its own limit, so a hung one is cut off and retried instead of using the whole budget.
+     current=await (options.fetcher??fetch)(`https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent`,{
+      method:'POST',headers:{'x-goog-api-key':process.env.GEMINI_API_KEY!.trim(),'Content-Type':'application/json'},signal:AbortSignal.any([callSignal,AbortSignal.timeout(attemptMs)]),
+      body:JSON.stringify(requestBody),
+     });
+    }catch(error){
+     // A dropped connection is as temporary as a 503: retry it, then try the fallback. Only the overall time budget ends it.
+     if(signal.aborted)throw error;
+     lastError=error;current=undefined;
+     console.warn(`Gemini request to ${candidate} failed:`,describeFailure(error));
+     if(attempt>=attempts.length)break;
+     await sleep(attempts[attempt]);continue;
+    }
+    if(current.ok||!TRANSIENT_STATUSES.includes(current.status)||attempt>=attempts.length)break;
+    await sleep(attempts[attempt]);
+   }
+   if(current)response=current;   // keep the latest real HTTP answer: "busy" is a better report than a later network blip
+   if(current&&(current.ok||!TRANSIENT_STATUSES.includes(current.status)))break;   // success or a real error: do not fall back
   }
+  if(!response)throw lastError??new Error('No response');
   const payload=await response.json().catch(()=>null) as {error?:{details?:Array<{reason?:string}>};modelVersion?:string;promptFeedback?:{blockReason?:string};candidates?:Array<{finishReason?:string;content?:{parts?:Array<{text?:string;thought?:boolean}>}}> }|null;
   if(!response.ok){
    const invalidKey=Array.isArray(payload?.error?.details)&&payload.error.details.some((item:{reason?:string})=>item.reason==='API_KEY_INVALID');
@@ -45,7 +82,7 @@ async function callGemini(requestBody:Record<string,unknown>,options:GeminiOptio
   if(candidate?.finishReason!=='STOP')throw new ProviderError('empty_output','Gemini returned no complete answer. Please try a shorter question.');
   const answer=(Array.isArray(candidate?.content?.parts)?candidate.content.parts:[]).filter(part=>!part.thought&&typeof part.text==='string').map(part=>part.text).join('\n').trim();
   if(!answer)throw new ProviderError('empty_output','Gemini returned no answer. Please try a shorter question.');
-  return {answer,model:typeof payload?.modelVersion==='string'?payload.modelVersion:model};
+  return {answer,model:typeof payload?.modelVersion==='string'?payload.modelVersion:used};
  }catch(error){
   if(error instanceof ProviderError)throw error;
   throw new ProviderError(signal.aborted?'timeout':'network',signal.aborted?'Gemini request timed out. Please try again.':'Gemini could not be reached. Please try again.',signal.aborted?504:503);

@@ -2,7 +2,7 @@ import {useAccountSettings} from '../auth/AccountSettingsContext';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Bot, MessageCircle, Send, X } from 'lucide-react';
 import { useLocation, useParams } from 'react-router-dom';
-import { askFieldAssistant } from '../../lib/api';
+import { askFieldAssistant, AssistantError, RETRYABLE_ASSISTANT_CODES } from '../../lib/api';
 import { usePreferences } from '../../lib/preferencesContext';
 
 type Message = { id:string; role: 'user'|'assistant'; text: string };
@@ -31,6 +31,7 @@ export function CropAssistant() {
   const [busyContext,setBusyContext]=useState<string|null>(null);const busy=busyContext===contextKey;
   const [errorValue,setErrorValue]=useState({key:'',text:''});const error=errorValue.key===contextKey?errorValue.text:'';
   const setError=(text:string)=>setErrorValue({key:contextKey,text});
+  const [retryValue,setRetryValue]=useState({key:'',text:''});const retryText=retryValue.key===contextKey?retryValue.text:'';
   const [conversations,setConversations]=useState<Record<string,Message[]>>({});
   const messages=conversations[contextKey]||[];
   const setMessages=(update:(items:Message[])=>Message[])=>setConversations(current=>({...current,[contextKey]:update(current[contextKey]||[])}));
@@ -61,7 +62,7 @@ export function CropAssistant() {
     if (!value || sending.current) return;
     sending.current=true;
     const messageId=crypto.randomUUID();
-    setError('');
+    setError('');setRetryValue({key:contextKey,text:''});
     setMessages(current => [...current, { id:messageId, role:'user', text:value }]);
     setQuestion('');
     setBusyContext(contextKey);
@@ -73,6 +74,7 @@ export function CropAssistant() {
       setMessages(current=>current.filter(message=>message.id!==messageId));
       if(activeContext.current===contextKey)setQuestion(value);
       setError(reason instanceof Error ? reason.message : t('Assistant unavailable','सहायक उपलब्ध नहीं है'));
+      if(reason instanceof AssistantError&&RETRYABLE_ASSISTANT_CODES.includes(reason.code??''))setRetryValue({key:contextKey,text:value});
     } finally { sending.current=false;setBusyContext(current=>current===contextKey?null:current); }
   }
   function submit(event:FormEvent) { event.preventDefault(); void send(question); }
@@ -93,7 +95,7 @@ export function CropAssistant() {
         {messages.map(message=><p key={message.id} className={message.role === 'user' ? 'assistant-user-message' : 'assistant-answer-message'}><span>{message.role==='user' ? t('You','आप') : t('Assistant','सहायक')}</span>{message.text}{message.role==='assistant'&&<> </>}</p>)}
         {busy && <p role="status">{t('Writing reply…','जवाब तैयार हो रहा है…')}</p>}
       </div>
-      {error && <p className="crop-assistant-error" role="alert">{error}</p>}
+      {error && <p className="crop-assistant-error" role="alert">{error}{retryText&&<> <button type="button" className="crop-assistant-retry" disabled={busyContext!==null} onClick={()=>void send(retryText)}>{t('Try again','फिर कोशिश करें')}</button></>}</p>}
       <form className="crop-assistant-input" onSubmit={submit}>
         <label className="sr-only" htmlFor="crop-assistant-question">{t('Your question','आपका सवाल')}</label>
         <input id="crop-assistant-question" value={question} onChange={e=>setQuestion(e.target.value)} placeholder={t('Ask a question…','अपना सवाल लिखें…')} maxLength={2000}/>

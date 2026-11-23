@@ -42,3 +42,32 @@ test('late replies stay in their original field conversation',async({page})=>{
  await page.locator('.fh-field',{hasText:'Test field'}).first().click();await expect(page).toHaveURL(new RegExp(id));release();
  const panel=page.getByRole('region',{name:'Crop assistant chat'});await expect(panel).not.toContainText('Original general reply');await expect(panel).not.toContainText('General question');
 });
+
+test('a busy Gemini offers one-click "Try again"; content errors do not', async ({ page }) => {
+  await setup(page);
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { mode: 'required', user: { id: 'test-user', email: 'test@example.invalid' } } }));
+  await page.route('**/api/assistant/status', route => route.fulfill({ json: { configured: true, provider: 'gemini' } }));
+  const questions: string[] = []; let mode: 'busy' | 'blocked' | 'ok' = 'busy';
+  await page.route('**/api/assistant', route => {
+    questions.push(route.request().postDataJSON().message);
+    if (mode === 'busy') return route.fulfill({ status: 502, json: { error: 'Gemini is busy right now. Please try again in a moment.', code: 'provider_unavailable' } });
+    if (mode === 'blocked') return route.fulfill({ status: 502, json: { error: 'Gemini could not answer this question. Please rephrase it.', code: 'blocked' } });
+    return route.fulfill({ json: { answer: 'Second try worked', historySaved: false } });
+  });
+  await page.goto('/help'); await page.getByRole('button', { name: 'Ask crop assistant' }).click();
+  const panel = page.getByRole('region', { name: 'Crop assistant chat' });
+  await page.getByLabel('Your question').fill('Why is my crop pale?'); await page.getByRole('button', { name: 'Send question' }).click();
+  await expect(panel.getByRole('alert')).toContainText('Gemini is busy right now');
+  const retry = panel.getByRole('button', { name: 'Try again' });
+  await expect(retry).toBeVisible();
+
+  mode = 'ok'; await retry.click();
+  await expect(panel).toContainText('Second try worked');
+  await expect(panel.getByRole('button', { name: 'Try again' })).toHaveCount(0);        // gone after success
+  expect(questions).toEqual(['Why is my crop pale?', 'Why is my crop pale?']);          // the same question, not a new one
+
+  mode = 'blocked';
+  await page.getByLabel('Your question').fill('Something else'); await page.getByRole('button', { name: 'Send question' }).click();
+  await expect(panel.getByRole('alert')).toContainText('rephrase');
+  await expect(panel.getByRole('button', { name: 'Try again' })).toHaveCount(0);        // retrying a blocked question is pointless
+});
