@@ -23,7 +23,7 @@ test('onboarding leaves a saved field available while its image check runs in th
   const {setup,id,boundary}=await import('./fixtures');
   const state=await setup(page);state.fields=[];
   await page.goto('/');await page.getByRole('button',{name:'Add New Field'}).click();
-  await page.getByLabel('Field Name').fill('North block');await page.getByLabel('Crop Type').fill('Wheat');
+  await page.getByLabel('Field Name').selectOption('__other');await page.getByLabel('Other field name').fill('North block');await page.getByLabel('Crop Type').selectOption('Wheat');
   await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();
   await page.getByLabel('Import GeoJSON Polygon').setInputFiles({name:'field.geojson',mimeType:'application/geo+json',buffer:Buffer.from(JSON.stringify(boundary))});
   await page.getByRole('button',{name:'Finish boundary'}).click();await page.getByRole('button',{name:'Review',exact:true}).click();

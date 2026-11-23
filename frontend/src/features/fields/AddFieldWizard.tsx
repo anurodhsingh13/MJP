@@ -6,13 +6,22 @@ import { FieldBoundaryEditor } from './FieldBoundaryEditor';
 import { FieldLocationSearch } from './FieldLocationSearch';
 import { polygonAreaHectares, validatePolygonBoundary, type PolygonBoundary } from './boundary';
 
+// English names are stored (calendar and photo matching compare them case-insensitively); Hindi is display only.
+const cropOptions: [string, string][] = [['Wheat','गेहूँ'],['Rice','धान'],['Maize','मक्का'],['Potato','आलू'],['Mustard','सरसों'],['Sugarcane','गन्ना'],['Cotton','कपास'],['Soybean','सोयाबीन'],['Chickpea','चना']];
+
+// Name presets: the text shown in the current language is what gets saved as the field name.
+const nameOptions: [string, string][] = [['North block','उत्तर वाला खेत'],['South block','दक्षिण वाला खेत'],['East block','पूरब वाला खेत'],['West block','पश्चिम वाला खेत'],['Main field','मुख्य खेत'],['Home field','घर के पास वाला खेत']];
+const wizardSteps: string[] = ['basic', 'dates', 'boundary', 'confirm'];
+
 type Step = 'basic' | 'dates' | 'boundary' | 'confirm';
 
 export function AddFieldWizard({ onComplete, onCancel }: { onComplete: (fieldId: string) => void, onCancel: () => void }) {
   const { t, area, date } = usePreferences();
   const [step, setStep] = useState<Step>('basic');
   const [name, setName] = useState('');
+  const [nameChoice, setNameChoice] = useState('');
   const [crop, setCrop] = useState('');
+  const [otherCrop, setOtherCrop] = useState(false);
   const [plantingDate, setPlantingDate] = useState('');
   const [harvestDate, setHarvestDate] = useState('');
   
@@ -110,11 +119,22 @@ export function AddFieldWizard({ onComplete, onCancel }: { onComplete: (fieldId:
         <button type="button" onClick={closeWizard} disabled={saving} aria-label={t('Close add field', 'खेत जोड़ना बंद करें')} style={{ float: 'right' }}>{t('Close', 'बंद करें')}</button>
         <h2 id="add-field-title">{t('Add new field', 'नया खेत जोड़ें')}</h2>
         <p className="step-label">{t('Step', 'चरण')} {(['basic', 'dates', 'boundary', 'confirm'] as Step[]).indexOf(step) + 1} {t('of 4', '/ 4')}</p>
+        <div className="wizard-progress" aria-hidden="true">{wizardSteps.map((key, index) => <span key={key} className={index <= wizardSteps.indexOf(step) ? 'on' : ''} />)}</div>
         
         {step === 'basic' && (
           <form onSubmit={(e) => { e.preventDefault(); if (name.trim() && crop.trim()) setStep('dates'); else setError('Field name and crop are required.'); }}>
-            <label>{t('Field Name', 'खेत का नाम')} <input required value={name} onChange={e => setName(e.target.value)} placeholder={t('e.g. North block', 'जैसे: पूरब वाला खेत')} /></label>
-            <label>{t('Crop Type', 'फ़सल')} <input required value={crop} onChange={e => setCrop(e.target.value)} placeholder={t('e.g. Wheat', 'जैसे: गेहूँ')} /></label>
+            <label>{t('Field Name', 'खेत का नाम')} <select required value={nameChoice} onChange={e => { const v = e.target.value; setNameChoice(v); if (v === '__other') setName(''); else { const hit = nameOptions.find(([en]) => en === v); setName(hit ? t(hit[0], hit[1]) : ''); } }}>
+              <option value="" disabled>{t('Select field name', 'खेत का नाम चुनें')}</option>
+              {nameOptions.map(([en, hi]) => <option key={en} value={en}>{t(en, hi)}</option>)}
+              <option value="__other">{t('Other (type name)', 'अन्य (नाम लिखें)')}</option>
+            </select></label>
+            {nameChoice === '__other' && <label>{t('Other field name', 'खेत का दूसरा नाम')} <input required value={name} onChange={e => setName(e.target.value)} placeholder={t('e.g. Canal side plot', 'जैसे: नहर किनारे वाला खेत')} /></label>}
+            <label>{t('Crop Type', 'फ़सल')} <select required value={otherCrop ? '__other' : crop} onChange={e => { const v = e.target.value; if (v === '__other') { setOtherCrop(true); setCrop(''); } else { setOtherCrop(false); setCrop(v); } }}>
+              <option value="" disabled>{t('Select crop', 'फ़सल चुनें')}</option>
+              {cropOptions.map(([value, hindi]) => <option key={value} value={value}>{t(value, hindi)}</option>)}
+              <option value="__other">{t('Other (type name)', 'अन्य (नाम लिखें)')}</option>
+            </select></label>
+            {otherCrop && <label>{t('Other crop name', 'फ़सल का नाम')} <input required value={crop} onChange={e => setCrop(e.target.value)} placeholder={t('e.g. Barley', 'जैसे: जौ')} /></label>}
             <div className="actions">
               <button type="button" onClick={onCancel} disabled={saving}>{t('Cancel', 'रद्द करें')}</button>
               <button type="submit">{t('Next', 'आगे')}</button>

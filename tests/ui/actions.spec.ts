@@ -9,7 +9,7 @@ test('dashboard retry, empty state, wizard boundary controls and saved-field ret
   state.fail.clear();await page.getByRole('button',{name:'Retry',exact:true}).click();
   await page.getByRole('button',{name:'Add New Field'}).click();await page.getByRole('button',{name:'Cancel',exact:true}).click();
   await page.getByRole('button',{name:'Add New Field'}).click();
-  await page.getByLabel('Field Name').fill('New field');await page.getByLabel('Crop Type').fill('Wheat');
+  await page.getByLabel('Field Name').selectOption('__other');await page.getByLabel('Other field name').fill('New field');await page.getByLabel('Crop Type').selectOption('Wheat');
   await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByRole('button',{name:'Back',exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();
   const map=page.getByLabel('Draw or edit field boundary on the map');
   for(const [i,position] of [{x:70,y:70},{x:170,y:70},{x:170,y:170}].entries()){await map.click({position});await expect(page.locator('.boundary-tools')).toContainText(`${i+1} point`);}
@@ -70,7 +70,7 @@ test('image job status survives reload, keeps selected image and supports alert 
 
 test('wizard keyboard focus and saved-field exit work after queue failure',async({page})=>{
   const state=await setup(page);await page.goto('/');const add=page.getByRole('button',{name:'Add New Field'});await add.click();await page.keyboard.press('Shift+Tab');await expect(page.getByRole('button',{name:'Next',exact:true})).toBeFocused();await page.keyboard.press('Escape');await expect(add).toBeFocused();
-  await add.click();await page.getByRole('button',{name:'Close add field'}).click();await add.click();await page.getByLabel('Field Name').fill('Another field');await page.getByLabel('Crop Type').fill('Rice');await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();
+  await add.click();await page.getByRole('button',{name:'Close add field'}).click();await add.click();await page.getByLabel('Field Name').selectOption('__other');await page.getByLabel('Other field name').fill('Another field');await page.getByLabel('Crop Type').selectOption('Rice');await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByRole('button',{name:'Next',exact:true}).click();
   await page.getByLabel('Import GeoJSON Polygon').setInputFiles({name:'boundary.geojson',mimeType:'application/geo+json',buffer:Buffer.from(JSON.stringify(boundary))});await expect(page.locator('.boundary-tools')).toContainText('4 points');await page.getByRole('button',{name:'Finish boundary'}).click();await page.getByRole('button',{name:'Review',exact:true}).click();
   state.fail.add(`POST /api/fields/${id}/jobs`);await page.getByRole('button',{name:'Save & check images'}).click();await page.getByRole('button',{name:'Open saved field'}).click();await expect(page).toHaveURL(new RegExp('/overview$'));expect(state.created).toBe(1);expect(state.errors).toEqual([]);
 });

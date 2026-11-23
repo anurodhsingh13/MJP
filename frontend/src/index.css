@@ -59,7 +59,7 @@ button { font: inherit; cursor: pointer; }
 .wizard-modal { position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px; background:#050905cc; }
 .wizard-content { width:min(100%,600px); max-height:calc(100vh - 40px); overflow:auto; padding:2rem; background:#1b241b; color:#edf1df; border:1px solid #536b36; border-radius:8px; box-shadow:0 30px 90px #000a; }
 .wizard-content label { display:block; margin-bottom:1rem; color:#b8c1b1; }
-.wizard-content input { display:block; width:100%; margin-top:.3rem; padding:.75rem; color:#edf1df; background:#121812; border:1px solid #536b36; border-radius:4px; }
+.wizard-content input, .wizard-content select { display:block; width:100%; margin-top:.3rem; padding:.75rem; color:#edf1df; background:#121812; border:1px solid #536b36; border-radius:4px; }
 .wizard-content .actions { display:flex; justify-content:space-between; gap:1rem; margin-top:1.5rem; }
 .wizard-content button { min-height:44px; padding:.65rem 1rem; }
 .wizard-error { padding:.75rem; color:#ffb4a2; background:#4b2420; border-radius:4px; }
@@ -362,7 +362,7 @@ input[type=range] { padding:0; accent-color:var(--green); }
 .error-notice { margin:16px; padding:16px; background:#fff0e9; color:#813e2d; border-radius:8px; }
 .wizard-content { background:#fff; color:var(--ink); border-color:var(--line); border-radius:12px; }
 .wizard-content label { color:var(--ink); }
-.wizard-content input,.wizard-content textarea { background:#fff; color:var(--ink); border-color:#b7c7b5; }
+.wizard-content input,.wizard-content select,.wizard-content textarea { background:#fff; color:var(--ink); border-color:#b7c7b5; }
 .step-label,.wizard-status,.boundary-tools { color:#35623a; }
 .wizard-error { color:#813e2d; background:#fff0e9; }
 .boundary-tools button { background:#edf3e7; border-color:#b7c7b5; color:var(--ink); }
@@ -872,3 +872,18 @@ html { scroll-padding-top:84px; }
 .field-location-results { list-style:none; margin:0; padding:0; display:grid; gap:6px; }
 .field-location-results button { width:100%; text-align:left; padding:10px 12px; border:1px solid #cfdccf; border-radius:10px; background:#f7fbf6; color:#1d3a2a; line-height:1.4; }
 .field-location-results button:hover, .field-location-results button:focus-visible { background:#e6f1e4; border-color:#8fb596; }
+
+/* Add-field form: colour accents on the always-light wizard. Text colours keep at least WCAG AA contrast. */
+.wizard-content { background:linear-gradient(180deg,#e6f3df 0,#f7fbf3 170px,#fff 320px); border-top:6px solid var(--green); box-shadow:0 24px 70px #0d2a1a55; }
+.wizard-content h2 { color:#17472d; }
+.wizard-content .step-label { display:inline-block; margin:.1rem 0 .6rem; padding:.2rem .7rem; border-radius:999px; background:#fff0c9; color:#6b4300; font-weight:700; }
+.wizard-progress { display:flex; gap:6px; margin:0 0 1.2rem; }
+.wizard-progress span { flex:1; height:6px; border-radius:99px; background:#d5e4cf; }
+.wizard-progress span.on { background:linear-gradient(90deg,#286443,#4f9a62); }
+.wizard-content label { font-weight:600; color:#17472d; }
+.wizard-content input,.wizard-content select,.wizard-content textarea { background:#f1f8ec; border:1.5px solid #9dbd98; border-radius:10px; font-weight:400; }
+.wizard-content input:focus,.wizard-content select:focus,.wizard-content textarea:focus { outline:3px solid #f2b84b88; border-color:#286443; background:#fff; }
+.wizard-content .actions button { border-radius:10px; font-weight:700; }
+.wizard-content .actions button:last-child:not(:disabled) { background:linear-gradient(135deg,#286443,#3d8556); color:#fff; border-color:#286443; }
+.wizard-content .actions button:last-child:disabled { opacity:.55; }
+.wizard-content .actions button:first-child { background:#fff; color:#17472d; border-color:#9dbd98; }

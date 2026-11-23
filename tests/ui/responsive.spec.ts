@@ -32,8 +32,8 @@ for (const size of [
     await expect(page.getByRole('heading', { name: 'My fields' })).toBeVisible();
     await fits();
     await page.getByRole('button', { name: 'Add New Field' }).click();
-    await page.getByLabel('Field Name').fill('Phone field');
-    await page.getByLabel('Crop Type').fill('Rice');
+    await page.getByLabel('Field Name').selectOption('__other');await page.getByLabel('Other field name').fill('Phone field');
+    await page.getByLabel('Crop Type').selectOption('Rice');
     await page.getByRole('button', { name: 'Next', exact: true }).click();
     await expect(page.getByLabel('Planting Date')).toBeVisible();
     await fits();
