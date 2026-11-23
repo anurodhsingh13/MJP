@@ -1,6 +1,6 @@
 /* Farm Home: light by default, dark via html[data-ts-theme=dark]. */
 .farm-home { --bg:#faf9f5; --card:#fff; --edge:#e7e5de; --ink:#0c3a2a; --muted:#5b6f63; --soft:#f6f5f0; --accent:#1f9d63; --amber:#f5b82e; --good:#0b7a4b; --tint:#e9f5ee;
-  width:min(1280px,100%); margin:0 auto; padding:24px 24px 90px; display:grid; gap:20px; color:var(--ink); font-family:'Manrope','Noto Sans Devanagari',system-ui,sans-serif; }
+  width:min(var(--page-max,1280px),100%); margin:0 auto; padding:24px 24px 90px; display:grid; gap:20px; color:var(--ink); font-family:'Manrope','Noto Sans Devanagari',system-ui,sans-serif; }
 html[data-ts-theme=dark] .farm-home { --bg:#101714; --card:#16241d; --edge:#21382c; --ink:#e8f5ee; --muted:#9cb8a8; --soft:#10201a; --accent:#34d399; --good:#6ee7b7; --tint:#12281f; }
 html[data-ts-theme=dark] body:has(.farm-home), html[data-ts-theme=dark]:has(.farm-home) { background:#101714; }
 body:has(.farm-home) { background:#faf9f5; } body:has(.farm-home) .dashboard-shell { width:100%; max-width:none; padding:0; }
@@ -91,7 +91,7 @@ body:has(.farm-home) .crop-assistant-launch { display:none; }
   .fh-card { padding:16px; border-radius:20px; }
 }
 @media (max-width:380px) { .fh-quick { grid-template-columns:1fr; } .fh-head { gap:6px; } }
-@media (min-width:1500px) { .farm-home { width:min(1440px,100%); } }
+/* Page width on large screens comes from --page-max (index.css). */
 
 /* Field picker above/below the map */
 .fh-chips { display:flex; gap:8px; overflow-x:auto; padding:0 0 10px; scrollbar-width:thin; }

@@ -98,7 +98,7 @@ a:focus-visible,input:focus-visible,textarea:focus-visible { outline:2px solid #
 .open-field-map { background:#e5ebe0; color:#1f2937; }
 .map-source-label { position:absolute; z-index:450; top:10px; right:10px; max-width:calc(100% - 70px); background:#fffef1ed; color:#344225; padding:.45rem .6rem; font-size:.75rem; border-radius:4px; pointer-events:none; }
 .map-load-error { position:absolute; z-index:600; left:10px; right:10px; bottom:130px; padding:.65rem; background:#fff1e9; color:#9a3412; font-size:.85rem; }
-.ndvi-map-legend { position:absolute; z-index:500; bottom:35px; right:12px; background:#fff; color:#1f2937; padding:.75rem; border-radius:8px; box-shadow:0 2px 10px #0002; pointer-events:none; }
+.ndvi-map-legend { position:absolute; z-index:500; bottom:35px; left:12px; background:#fff; color:#1f2937; padding:.75rem; border-radius:8px; box-shadow:0 2px 10px #0002; pointer-events:none; }
 .leaflet-control-attribution { max-width:100%; font-size:10px; }
 @media(max-width:600px) { .field-map-canvas { height:460px; } .field-map-toolbar button { width:100%; } }
 
@@ -887,3 +887,41 @@ html { scroll-padding-top:84px; }
 .wizard-content .actions button:last-child:not(:disabled) { background:linear-gradient(135deg,#286443,#3d8556); color:#fff; border-color:#286443; }
 .wizard-content .actions button:last-child:disabled { opacity:.55; }
 .wizard-content .actions button:first-child { background:#fff; color:#17472d; border-color:#9dbd98; }
+
+/* Responsive polish -------------------------------------------------------------------------------------------------- */
+/* The trend card had a border but no padding, so its text touched the border at every width. */
+.vegetation-trends { padding:clamp(12px,2.4vw,20px); }
+/* "Structured inspection details": labels sat inline next to their selects. Stack them like the other forms. */
+.inspection-metadata { display:grid; gap:12px; }
+.inspection-metadata label { display:grid; gap:6px; font-weight:600; min-width:0; }
+.inspection-metadata select { width:100%; }
+@media (max-width:760px) {
+  /* Field sections: show all five on a phone (wrapped) instead of a sideways-scrolling strip that hides the active tab. */
+  .field-shell .field-tabs { overflow:visible; flex-wrap:wrap; }
+  .field-shell .field-tabs a { flex:1 1 auto; padding:10px 12px; font-size:.9rem; }
+}
+@media (max-width:520px) {
+  /* Cards inside cards ate ~70 px of a 360 px screen. Keep one level of padding. */
+  .field-shell { padding-left:max(12px,env(safe-area-inset-left)); padding-right:max(12px,env(safe-area-inset-right)); }
+  .analysis-layout { padding:12px; }
+  .vegetation-trends { padding:0; border:0; background:transparent; border-radius:0; }
+}
+
+/* Page width: one value for the header, dashboard, field pages and dataset pages. -------------------------------------
+   Pages used to stop at 1120-1440 px, so a 1920 px laptop screen (for example an HP Victus, or ~1536 px CSS width at 125 %
+   Windows scaling) left 260-390 px of empty space on each side. They now grow with the screen up to --page-max. */
+:root { --page-max: 1760px; --page-gutter: clamp(16px, 2.4vw, 40px); }
+@media (min-width: 2300px) { :root { --page-max: 2040px; } }
+.preferences-bar { padding-left:max(var(--page-gutter), calc((100% - var(--page-max))/2)) !important; padding-right:max(var(--page-gutter), calc((100% - var(--page-max))/2)) !important; }
+.field-shell { width:min(var(--page-max),100%); }
+.dashboard-shell { width:min(var(--page-max), calc(100% - 2*var(--page-gutter))); }
+.simple-farm { max-width:var(--page-max); }
+/* Long reading lines stay readable on wide pages. */
+.analysis-summary p, .picture-change p, .map-explanation, .vegetation-trends > p { max-width:90ch; }
+
+/* The vegetation legend sits bottom-left. Bottom-right belongs to the map's own zoom, street-view and attribution controls,
+   which the legend used to cover. On a phone it is also kept clear of the right-hand controls. */
+@media (max-width:600px) { .ndvi-map-legend { max-width:calc(100% - 96px); } }
+
+.crop-assistant-retry { margin-left:8px; padding:4px 12px; min-height:32px; border:1px solid #b84a4a; border-radius:8px; background:#fff; color:#8f2020; font-weight:700; cursor:pointer; }
+.crop-assistant-retry:disabled { opacity:.5; cursor:wait; }

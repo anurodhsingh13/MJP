@@ -89,7 +89,7 @@ export function VegetationChart({ observations, index = 'ndvi_value', events = [
   const shortDate = (time: number) => new Date(time).toLocaleDateString(locale, { day: 'numeric', month: 'short', ...(spansYears ? { year: '2-digit' } : {}), timeZone: 'UTC' });
   const everyDate = chart.length <= (compact ? 4 : 7);
   // Change between neighbouring pictures, drawn on the segment, so the reader sees WHERE the rise or fall happened.
-  const mids = chart.length > 1 && chart.length <= (compact ? 5 : 9)
+  const mids = chart.length > 1 && chart.length <= (compact ? 3 : 9)
     ? chart.slice(1).map((item, position) => ({ date: (chart[position].date + item.date) / 2, value: (chart[position].value + item.value) / 2, delta: item.value - chart[position].value }))
     : [];
   const showLabel = (position: number) => chart.length <= (compact ? 6 : 10) || position === chart.length - 1 || position === peakIndex || position === lowIndex;
