@@ -504,7 +504,17 @@ export async function getFieldOverlay(request: Request, response: Response) {
   }
 }
 
+export const TILE_INDICES = ['ndvi', 'ndre', 'ndmi'] as const;
+export type TileIndex = typeof TILE_INDICES[number];
+/** Map-layer index from the `index` query parameter: missing means NDVI, anything unsupported is rejected. */
+export function tileIndex(value: unknown): TileIndex | null {
+  if (value === undefined) return 'ndvi';
+  return typeof value === 'string' && (TILE_INDICES as readonly string[]).includes(value) ? value as TileIndex : null;
+}
+
 export async function getFieldTile(request: Request, response: Response) {
+  const index = tileIndex(request.query.index);
+  if (!index) { response.status(400).json({ error: 'Choose ndvi, ndre or ndmi.' }); return; }
   try {
     const { fieldId, sceneId, z, x, y } = request.params;
     
@@ -523,7 +533,7 @@ export async function getFieldTile(request: Request, response: Response) {
       const engineResponse = await fetch(`${getPythonEngineUrl()}/earth-engine/tiles/${z}/${x}/${y}.png`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageId: assets.earth_engine.image_id, polygonGeojson: scene.boundary_geojson }),
+        body: JSON.stringify({ imageId: assets.earth_engine.image_id, polygonGeojson: scene.boundary_geojson, index }),
         signal: AbortSignal.timeout(30000),
       });
       if (!engineResponse.ok) { response.status(502).json({ error: 'Earth Engine tile generation failed.' }); return; }
@@ -540,7 +550,8 @@ export async function getFieldTile(request: Request, response: Response) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...rasterPayload(assets),
-        polygonGeojson: scene.boundary_geojson
+        polygonGeojson: scene.boundary_geojson,
+        index
       }),
       signal: AbortSignal.timeout(30_000)
     });

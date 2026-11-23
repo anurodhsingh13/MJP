@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import type { FieldMapProps } from './mapTypes';
 import { usePreferences } from './preferencesContext';
 
-export function OpenFieldMap({ latitude, longitude, fieldName = '', zoom = 14, boundaryGeojson, stressGeojson, tileUrl, overlay, opacity = .8 }: FieldMapProps) {
+export function OpenFieldMap({ latitude, longitude, fieldName = '', zoom = 14, boundaryGeojson, stressGeojson, tileUrl, layerLabel = 'NDVI', overlay, opacity = .8 }: FieldMapProps) {
   const { t } = usePreferences();
   const element = useRef<HTMLDivElement>(null);
   const [failedLayer, setFailedLayer] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export function OpenFieldMap({ latitude, longitude, fieldName = '', zoom = 14, b
       if (boundary.getBounds().isValid()) { bounds = boundary.getBounds(); map.fitBounds(bounds.pad(0.35), { maxZoom: 18, animate: false }); }
     }
     if (tileUrl && bounds) {
-      const ndvi = L.tileLayer(tileUrl, { bounds, opacity, maxZoom: 20, keepBuffer: 0, attribution: 'NDVI: Copernicus Sentinel-2 data' }).addTo(map);
+      const ndvi = L.tileLayer(tileUrl, { bounds, opacity, maxZoom: 20, keepBuffer: 0, attribution: `${layerLabel}: Copernicus Sentinel-2 data` }).addTo(map);
       ndvi.on('tileerror', () => setFailedLayer(tileUrl));
       ndvi.on('tileload', () => setFailedLayer(current => current === tileUrl ? null : current));
     }
@@ -39,7 +39,7 @@ export function OpenFieldMap({ latitude, longitude, fieldName = '', zoom = 14, b
     if (stressGeojson) L.geoJSON(stressGeojson as unknown as GeoJsonObject, { style: { color: '#b91c1c', fillColor: '#ef4444', fillOpacity: 0.3, weight: 2 } }).addTo(map);
     const observer = new ResizeObserver(() => map.invalidateSize()); observer.observe(element.current);
     return () => { observer.disconnect(); basemap.off(); map.remove(); };
-  }, [latitude, longitude, fieldName, zoom, boundaryGeojson, stressGeojson, tileUrl, overlay, opacity, attempt, t]);
+  }, [latitude, longitude, fieldName, zoom, boundaryGeojson, stressGeojson, tileUrl, layerLabel, overlay, opacity, attempt, t]);
   const error = failedLayer === 'basemap' ? t('Street-map tiles could not load. The field boundary is still available.', 'नक्शा नहीं खुला। खेत की सीमा फिर भी उपलब्ध है।')
     : failedLayer && failedLayer === tileUrl ? t('Vegetation colours could not load for this image. Try another date or retry.', 'इस तस्वीर के हरियाली के रंग नहीं खुले। दूसरी तारीख़ चुनें या फिर कोशिश करें।') : '';
   return <div className="open-map-frame">

@@ -265,15 +265,34 @@ def summarize_worldcereal(geojson):
         raise HTTPException(502, 'Google Earth Engine could not summarize the WorldCereal map for this field.') from exc
 
 
-def _map_id(image_id, geojson):
+# Fixed range and colours per index (the same colour always means the same value on every date).
+INDEX_STYLES = {
+    'ndvi': {'min': -0.2, 'max': 1, 'palette': ['a50026', 'ffffbf', '006837']},
+    'ndre': {'min': -0.1, 'max': 0.6, 'palette': ['440154', '3b528b', '21908d', '5dc863', 'fde725']},      # purple-teal-yellow
+    'ndmi': {'min': -0.4, 'max': 0.6, 'palette': ['a6611a', 'dfc27d', '80cdc1', '2c7fb8', '08306b']},      # sand-teal-navy
+}
+
+
+def _index_image(ee, image_id, geojson, index):
+    if index not in INDEX_STYLES:
+        raise HTTPException(422, 'Index must be ndvi, ndre or ndmi.')
+    region, _, reflectance, valid, ndvi = _ndvi_image(ee, image_id, geojson)
+    if index == 'ndvi':
+        return ndvi
+    nir = reflectance.select('B8')
+    other = reflectance.select('B5' if index == 'ndre' else 'B11')   # red edge 1 / SWIR 1 (20 m, resampled)
+    denominator = nir.add(other)
+    return nir.subtract(other).divide(denominator).updateMask(valid.And(denominator.neq(0))).rename(index).clip(region)
+
+
+def _map_id(image_id, geojson, index='ndvi'):
     ee = _ee()
     now = time.monotonic()
-    key = (image_id, json.dumps(geojson, sort_keys=True, separators=(',', ':')))
+    key = (image_id, json.dumps(geojson, sort_keys=True, separators=(',', ':')), index)
     cached = _map_cache.get(key)
     if cached and cached[0] > now:
         return cached[1]
-    _, _, _, _, ndvi = _ndvi_image(ee, image_id, geojson)
-    map_id = ndvi.getMapId({'min': -0.2, 'max': 1, 'palette': ['a50026', 'ffffbf', '006837']})
+    map_id = _index_image(ee, image_id, geojson, index).getMapId(INDEX_STYLES[index])
     if len(_map_cache) >= 100:
         _map_cache.clear()
     _map_cache[key] = (now + 45 * 60, map_id)
@@ -294,12 +313,14 @@ def _tile_url(ee, map_id, x, y, z):
         raise
 
 
-def get_tile(image_id, geojson, z, x, y):
+def get_tile(image_id, geojson, z, x, y, index='ndvi'):
     if not (0 <= z <= 20 and 0 <= x < 2 ** z and 0 <= y < 2 ** z):
         raise HTTPException(422, 'Invalid map tile.')
+    if index not in INDEX_STYLES:
+        raise HTTPException(422, 'Index must be ndvi, ndre or ndmi.')
     ee = _ee()
     try:
-        url = _tile_url(ee, _map_id(image_id, geojson), x, y, z)
+        url = _tile_url(ee, _map_id(image_id, geojson, index), x, y, z)
         with urlopen(url, timeout=20) as response:
             content = response.read(MAX_TILE_BYTES + 1)
             if len(content) > MAX_TILE_BYTES or not content.startswith(b'\x89PNG\r\n\x1a\n'):

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { calculateHealthScore, getPythonEngineUrl, isValidFieldBoundary } from './fieldsController.ts';
+import { calculateHealthScore, getFieldTile, getPythonEngineUrl, isValidFieldBoundary, tileIndex } from './fieldsController.ts';
 
 describe('Fields Controller Integration Tests', () => {
   it('Should handle valid API dependencies', () => {
@@ -150,4 +150,20 @@ it('rejects unsupported rings, nonfinite/extra coordinates and oversized polygon
  assert.equal(isValidFieldBoundary({type:'Polygon',coordinates:[[[77,28,0],[77.1,28,0],[77.1,28.1,0],[77,28,0]]]}),false);
  assert.equal(isValidFieldBoundary({type:'Polygon',coordinates:[[[NaN,28],[77.1,28],[77.1,28.1],[NaN,28]]]}),false);
  assert.equal(isValidFieldBoundary({type:'Polygon',coordinates:[Array.from({length:5001},()=>[77,28])]}),false);
+});
+
+describe('Map layer index', () => {
+  it('defaults to NDVI and accepts only the three supported indices', () => {
+    assert.equal(tileIndex(undefined), 'ndvi');
+    for (const index of ['ndvi', 'ndre', 'ndmi']) assert.equal(tileIndex(index), index);
+    for (const bad of ['evi', 'NDVI', '', ['ndre', 'ndmi'], 5, null, '../ndvi']) assert.equal(tileIndex(bad), null);
+  });
+
+  it('rejects an unsupported index before touching the database or the engine', async () => {
+    let status = 200; let payload: unknown;
+    await getFieldTile({ params: { fieldId: 'f', sceneId: 's', z: '14', x: '1', y: '2' }, query: { index: 'evi' } } as never,
+      { status(code: number) { status = code; return this; }, json(value: unknown) { payload = value; } } as never);
+    assert.equal(status, 400);
+    assert.deepEqual(payload, { error: 'Choose ndvi, ndre or ndmi.' });
+  });
 });

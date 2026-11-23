@@ -36,7 +36,7 @@ from backend.engine import earth_engine
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib import colormaps
-from matplotlib.colors import Normalize
+from matplotlib.colors import Normalize, LinearSegmentedColormap
 
 app = FastAPI(title='TerraScope Engine API')
 CALCULATION_VERSION = 'sentinel-reflectance-scl-v2'
@@ -124,7 +124,7 @@ class CalculateIndicesRequest(BaseModel):
     transforms: dict[str, BandTransform] = Field(default_factory=dict)
 
 class TileRequest(CalculateIndicesRequest):
-    pass
+    index: str = 'ndvi'
 
 class GenerateOverlayRequest(CalculateIndicesRequest):
     pass
@@ -138,6 +138,7 @@ class EarthEngineScenesRequest(BaseModel):
 class EarthEngineImageRequest(BaseModel):
     imageId: str
     polygonGeojson: dict
+    index: str = 'ndvi'
 
 def field_geometry(payload):
     try:
@@ -203,12 +204,42 @@ def ndvi_grid(payload, grid):
     ndvi = normalized_difference(nir,red,valid)
     return ndvi, red, nir, inside, projected
 
-def png(ndvi):
-    rgba = colormaps['RdYlGn'](Normalize(vmin=-.2,vmax=1)(np.ma.masked_invalid(ndvi)))
-    rgba[~np.isfinite(ndvi),3] = 0
+# Fixed value ranges and colours per index, so the same colour always means the same value on every date and image.
+# Each index has its own colour family so the three maps are never mistaken for one another: NDVI red-yellow-green (original),
+# NDRE purple-teal-yellow (viridis), NDMI sand-teal-navy (dry to water-rich). Keep in step with earth_engine.INDEX_STYLES and the
+# legend gradients in frontend/src/features/fields/SatelliteDateComparison.tsx.
+NDRE_COLOURS = ['#440154', '#3b528b', '#21908d', '#5dc863', '#fde725']
+NDMI_COLOURS = ['#a6611a', '#dfc27d', '#80cdc1', '#2c7fb8', '#08306b']
+INDEX_STYLES = {
+    'ndvi': (-.2, 1., colormaps['RdYlGn']),
+    'ndre': (-.1, .6, LinearSegmentedColormap.from_list('ndre', NDRE_COLOURS)),
+    'ndmi': (-.4, .6, LinearSegmentedColormap.from_list('ndmi', NDMI_COLOURS)),
+}
+
+def index_style(index):
+    if index not in INDEX_STYLES:
+        raise HTTPException(422, 'Index must be ndvi, ndre or ndmi')
+    return INDEX_STYLES[index]
+
+def png(values, index='ndvi'):
+    vmin, vmax, cmap = index_style(index)
+    rgba = cmap(Normalize(vmin=vmin,vmax=vmax)(np.ma.masked_invalid(values)))
+    rgba[~np.isfinite(values),3] = 0
     buf=io.BytesIO()
     Image.fromarray((rgba*255).astype(np.uint8),mode='RGBA').save(buf,format='PNG')
     return buf.getvalue()
+
+def index_grid(payload, grid, index='ndvi'):
+    """Per-pixel NDVI, NDRE or NDMI on `grid`, under the same cloud mask and validity rules as NDVI."""
+    index_style(index)
+    ndvi, red, nir, inside, projected = ndvi_grid(payload, grid)
+    if index == 'ndvi':
+        return ndvi
+    url, key = (payload.redEdgeUrl, 'rededge1') if index == 'ndre' else (payload.swirUrl, 'swir16')
+    if not url:
+        raise HTTPException(422, f'This scene has no band for {index.upper()}')
+    other = read_aligned(url, key, payload, grid)
+    return normalized_difference(nir, other, np.isfinite(ndvi))
 
 @app.post('/calculate-indices')
 def calculate_indices(payload: CalculateIndicesRequest):
@@ -264,7 +295,7 @@ def earth_engine_generate_overlay(payload: EarthEngineImageRequest):
 
 @app.post('/earth-engine/tiles/{z}/{x}/{y}.png')
 def earth_engine_tile(z: int, x: int, y: int, payload: EarthEngineImageRequest):
-    return Response(content=earth_engine.get_tile(payload.imageId, payload.polygonGeojson, z, x, y),
+    return Response(content=earth_engine.get_tile(payload.imageId, payload.polygonGeojson, z, x, y, payload.index),
                     media_type='image/png', headers={'Cache-Control': 'private, max-age=300'})
 
 @app.post('/generate-overlay')
@@ -291,10 +322,10 @@ def generate_tile(z: int,x: int,y: int,payload: TileRequest):
         span=2*half/(2**z)
         west,north=-half+x*span,half-y*span
         grid=('EPSG:3857',from_bounds(west,north-span,west+span,north,256,256),256,256)
-        ndvi,*_=ndvi_grid(payload,grid)
-        return Response(content=png(ndvi),media_type='image/png',headers={'Cache-Control':'no-store'})
+        values=index_grid(payload,grid,payload.index)
+        return Response(content=png(values,payload.index),media_type='image/png',headers={'Cache-Control':'no-store'})
     except HTTPException: raise
-    except Exception as exc: raise HTTPException(502,'NDVI tile processing failed') from exc
+    except Exception as exc: raise HTTPException(502,'Index tile processing failed') from exc
 
 def photo_quality_assessment(image):
     """Visual capture checks, not crop/disease classification."""

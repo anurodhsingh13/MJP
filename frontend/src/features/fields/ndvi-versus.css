@@ -19,7 +19,7 @@
 .ndvi-scale-title b { display:inline-grid; place-items:center; width:20px; height:20px; border-radius:50%; background:#1a9850; color:#fff; font-size:.72rem; margin-right:4px; }
 .ndvi-scale-bar { height:16px; border-radius:8px; border:1px solid #20382b55; background:linear-gradient(90deg,#a50026,#d73027,#f46d43,#fdae61,#fee08b,#ffffbf,#d9ef8b,#a6d96a,#66bd63,#1a9850,#006837); }
 .ndvi-scale-ticks { position:relative; height:16px; font-size:.76rem; color:#20382b; }
-.ndvi-scale-ticks span { position:absolute; transform:translateX(-50%); }
+.ndvi-scale-ticks span { position:absolute; transform:translateX(-50%); white-space:nowrap; }
 .ndvi-scale-ticks span:first-child { transform:none; } .ndvi-scale-ticks span:last-child { transform:translateX(-100%); }
 .ndvi-scale-ends { display:flex; justify-content:space-between; gap:12px; font-size:.78rem; color:#526557; }
 
@@ -28,3 +28,13 @@
   .ndvi-vs span { width:44px; height:44px; font-size:1.05rem; }
   .ndvi-map .leaflet-container, .ndvi-map > div:not(.ndvi-badge) { min-height:280px; }
 }
+
+/* Index picker (NDVI / NDRE / NDMI) above the comparison. */
+.ndvi-index-picker { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 6px; }
+.ndvi-index-picker button { display:grid; justify-items:start; gap:1px; min-width:120px; padding:8px 14px; border-radius:12px; border:1.5px solid #9dbd98; background:#f1f8ec; color:#17472d; text-align:left; cursor:pointer; }
+.ndvi-index-picker button b { font-size:1rem; }
+.ndvi-index-picker button span { font-size:.78rem; color:#3f5a47; }
+.ndvi-index-picker button:hover { background:#e4f1dc; }
+.ndvi-index-picker button[aria-pressed="true"] { background:linear-gradient(135deg,#286443,#3d8556); border-color:#286443; color:#fff; }
+.ndvi-index-picker button[aria-pressed="true"] span { color:#e3f3e0; }
+@media (max-width:520px) { .ndvi-index-picker button { flex:1 1 30%; min-width:0; padding:8px 10px; } }
