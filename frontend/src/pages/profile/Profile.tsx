@@ -1,13 +1,19 @@
-import {useState,type FormEvent} from 'react';
+import {useState,useSyncExternalStore,type ChangeEvent,type FormEvent} from 'react';
 import {Link} from 'react-router-dom';
-import {UserRound,ShieldCheck,Save,LogOut,ArrowLeft,MapPin,Sprout} from 'lucide-react';
+import {Camera,Trash2,ShieldCheck,Save,LogOut,ArrowLeft,MapPin,Sprout} from 'lucide-react';
 import {useAccountSettings} from '../../features/auth/AccountSettingsContext';
 import {usePreferences} from '../../lib/preferencesContext';
+import {useFarmerAccount} from '../../features/auth/FarmerAccountContext';
+import {Avatar} from '../../lib/Avatar';
+import {clearAvatar,hasCustomAvatar,saveAvatarFile,subscribeAvatar} from '../../lib/avatarStore';
 import {validateProfile,type ProfileValues} from '../../../../shared/profile';
 import './profile.css';
 
 export function Profile(){
  const account=useAccountSettings();const {t,language,unit,setLanguage,setUnit}=usePreferences();
+ const farmer=useFarmerAccount();const accountId=farmer?.id??'local';
+ const custom=useSyncExternalStore(subscribeAvatar,()=>hasCustomAvatar(accountId),()=>false);const [photoError,setPhotoError]=useState('');
+ async function pickPhoto(event:ChangeEvent<HTMLInputElement>){const file=event.target.files?.[0];event.target.value='';if(!file)return;setPhotoError('');try{await saveAvatarFile(accountId,file);}catch(reason){setPhotoError(reason instanceof Error?reason.message:t('Could not save the photo.','फ़ोटो सेव नहीं हो सकी।'));}}
  const [draft,setDraft]=useState<ProfileValues>(account.profile);
  const [signingOut,setSigningOut]=useState(false);
  const [saving,setSaving]=useState(false);const [message,setMessage]=useState('');const [error,setError]=useState('');
@@ -19,7 +25,7 @@ export function Profile(){
  return <main className="dashboard-shell profile-page">
   <Link className="back-link" to="/"><ArrowLeft size={16}/>{t('Back to dashboard','डैशबोर्ड पर वापस')}</Link>
   <header className="profile-heading"><span className="eyebrow">{t('YOUR ACCOUNT','आपका खाता')}</span><h1>{t('My profile','मेरी प्रोफ़ाइल')}</h1><p>{t('Keep your personal details and farm information up to date.','अपनी और अपने खेत की जानकारी अपडेट रखें।')}</p></header>
-  <div className="profile-layout"><aside className="profile-card profile-summary"><span className="profile-large-avatar"><UserRound size={38}/></span><h2>{account.profile.name||t('Farmer','किसान')}</h2><p>{account.email||t('Local workspace','स्थानीय खाता')}</p>{account.profile.farmName&&<p><Sprout size={16}/>{account.profile.farmName}</p>}{account.profile.location&&<p><MapPin size={16}/>{account.profile.location}</p>}<span className="profile-account-status"><ShieldCheck size={15}/>{account.signedIn?t('Signed-in account','साइन इन खाता'):t('Local profile','स्थानीय प्रोफ़ाइल')}</span></aside>
+  <div className="profile-layout"><aside className="profile-card profile-summary"><div className="profile-photo"><Avatar accountId={accountId} size={96} className="profile-large-avatar" label={t('Your profile photo','आपकी प्रोफ़ाइल फ़ोटो')}/><div className="profile-photo-actions"><label className="secondary-action profile-photo-pick"><Camera size={15} aria-hidden="true"/>{custom?t('Change photo','फ़ोटो बदलें'):t('Use my own photo','अपनी फ़ोटो लगाएँ')}<input type="file" accept="image/*" onChange={pickPhoto} hidden/></label>{custom&&<button type="button" className="text-button" onClick={()=>clearAvatar(accountId)}><Trash2 size={14} aria-hidden="true"/>{t('Remove photo','फ़ोटो हटाएँ')}</button>}</div>{photoError&&<p role="alert" className="profile-error">{photoError}</p>}<small>{t('Saved on this device only.','सिर्फ़ इसी डिवाइस पर सेव होती है।')}</small></div><h2>{account.profile.name||t('Farmer','किसान')}</h2><p>{account.email||t('Local workspace','स्थानीय खाता')}</p>{account.profile.farmName&&<p><Sprout size={16}/>{account.profile.farmName}</p>}{account.profile.location&&<p><MapPin size={16}/>{account.profile.location}</p>}<span className="profile-account-status"><ShieldCheck size={15}/>{account.signedIn?t('Signed-in account','साइन इन खाता'):t('Local profile','स्थानीय प्रोफ़ाइल')}</span></aside>
   <div className="profile-sections"><form className="profile-card" onSubmit={save}><h2>{t('Personal & farm details','आपकी और खेत की जानकारी')}</h2><div className="profile-form-grid">
    <label>{t('Full name','पूरा नाम')}<input aria-label={t('Full name','पूरा नाम')} autoComplete="name" value={draft.name} onChange={event=>edit('name',event.target.value)} maxLength={60} placeholder={t('Enter your name','अपना नाम लिखें')}/><small>{t('Shown in your “Hello” greeting. Leave blank to keep the default.','स्वागत में यह नाम दिखेगा। खाली रखने पर पुराना सामान्य स्वागत रहेगा।')}</small></label>
    <label>{t('Email address','ईमेल पता')}<input aria-label={t('Email address','ईमेल पता')} type="email" value={account.email} readOnly placeholder={t('No signed-in account','साइन इन खाता नहीं है')}/><small>{t('Your sign-in email.','साइन इन करने वाला ईमेल।')}</small></label>

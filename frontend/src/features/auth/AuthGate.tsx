@@ -1,12 +1,14 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import {Avatar} from '../../lib/Avatar';
 import { usePreferences } from '../../lib/preferencesContext';
-import {UserRound,ChevronDown} from 'lucide-react';
+import {ChevronDown} from 'lucide-react';
 import {Link} from 'react-router-dom';
 import {AccountSettingsContext} from './AccountSettingsContext';
 import {emptyProfile,validateProfile,type ProfileValues} from '../../../../shared/profile';
 import {PreferencesBar} from '../../lib/preferences';
 import {Notifications} from '../notifications/Notifications';
 import { FarmerAccountContext } from './FarmerAccountContext';
+import { LandingPage } from '../marketing/LandingPage';
 
 type Account = { id: string; email: string; profile?:ProfileValues };
 type AuthSession = { mode: 'required' | 'local'; user: Account | null };
@@ -26,6 +28,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const localKey='terrascope:profile:local';
@@ -101,9 +104,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (error && !session) return <><PreferencesBar/><main className="auth-shell" role="alert"><p>{t('Sign-in service is unavailable. Please retry.', 'साइन इन सेवा उपलब्ध नहीं है। फिर कोशिश करें।')}</p><button onClick={() => window.location.reload()}>{t('Retry','फिर कोशिश करें')}</button></main></>;
   if (!session) return <><PreferencesBar/><main className="auth-shell" role="alert"><p>Sign-in status is unavailable.</p></main></>;
   if (session.mode === 'required' && !session.user) {
+    if (!showAuth) return <LandingPage onSignIn={() => { setRegistering(false); setShowAuth(true); }} onCreateAccount={() => { setRegistering(true); setShowAuth(true); }} />;
     return (
       <><PreferencesBar/><main className="auth-shell">
         <form className="auth-card" onSubmit={submit}>
+          <button type="button" className="auth-switch" onClick={() => { setShowAuth(false); setError(''); }}>{t('← Back to TerraScope','← TerraScope पर वापस')}</button>
           <p className="eyebrow">{t('TerraScope • Crop health monitoring','TerraScope • फ़सल की निगरानी')}</p>
           <h1>{registering ? t('Create your account','अपना खाता बनाएँ') : t('Sign in to your fields','अपने खेत देखने के लिए साइन इन करें')}</h1>
           <p>{t('Your field records belong to your account. Old unclaimed fields must be assigned explicitly by the local administrator.', 'आपके खेत की जानकारी आपके खाते में रहती है। पुराने बिना खाते वाले खेत स्थानीय व्यवस्थापक को अलग से जोड़ने होंगे।')}</p>
@@ -129,7 +134,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     <FarmerAccountContext.Provider value={farmerAccount}>
       <PreferencesBar>
         <Notifications key={session.user?.id||'local'} accountId={session.user?.id||'local'}/>
-        <Link to="/profile" aria-label={t('Your account','आपका खाता')} className="header-profile-button header-profile-link"><span className="header-avatar"><UserRound size={20} aria-hidden="true"/></span><span className="header-profile-copy"><strong>{farmerAccount.displayName}</strong></span><ChevronDown size={14} aria-hidden="true"/></Link>
+        <Link to="/profile" aria-label={t('Your account','आपका खाता')} className="header-profile-button header-profile-link"><span className="header-avatar"><Avatar accountId={farmerAccount.id} size={36}/></span><span className="header-profile-copy"><strong>{farmerAccount.displayName}</strong></span><ChevronDown size={14} aria-hidden="true"/></Link>
       </PreferencesBar>
       {children}
     </FarmerAccountContext.Provider>

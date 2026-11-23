@@ -43,7 +43,7 @@ export function HistoricalWeatherCharts({ weather }: { weather: WeatherObservati
   const tempLabel = (props: { x?: number | string; y?: number | string; value?: number | string; index?: number }) => {
     const position = props.index ?? -1;
     if (props.x == null || props.y == null || ![firstTempIndex, lastTempIndex, hottestIndex, coolestIndex].includes(position)) return null;
-    return <text key={position} x={Number(props.x)} y={Number(props.y) - 10} textAnchor="middle" fontSize={12} fontWeight={700} fill="#8a4b14" stroke="#fff" strokeWidth={3} paintOrder="stroke">{Number(props.value).toFixed(0)}°</text>;
+    return <text key={position} x={Number(props.x)} y={Number(props.y) - 10} textAnchor="middle" fontSize={12} fontWeight={700} fill="#7a5200" stroke="#fff" strokeWidth={3} paintOrder="stroke">{Number(props.value).toFixed(0)}°</text>;
   };
   const rainLabel = (props: { x?: number | string; y?: number | string; width?: number | string; value?: number | string }) => {
     const value = finite(props.value) ?? 0;

@@ -1,0 +1,39 @@
+/* Letter colours for every page: on light surfaces text is black + green; dark surfaces (hero, menu drawer, dark dashboard,
+   filled buttons, status chips) keep white + golden and are excluded below. Delete this file + its import to revert. */
+:root { --lc-black:#0b1f16; --lc-body:#1d3a2b; --lc-green:#157a4a; --lc-green-soft:#2f6b4a; }
+body { --ink:var(--lc-black); --muted:var(--lc-green-soft); --green:#1c6b45; }
+
+/* Anything on a dark / filled surface is left alone. */
+/* headings, numbers and names → black */
+:is(h1,h2,h3,h4,h5,h6,strong,b,th,legend):not(:is(
+  .fh-hero *,.preferences-bar *,button *,button,.primary-action,.primary-action *,.fh-btn,.fh-btn *,.fh-add *,.fh-status,.fh-tag,.fh-chip,.notification-count,
+  .fh-chat .me *,.sidebar-promo *,.landing-page *,[class*=badge],[class*=chip],[class*=pill],.eyebrow,
+  html[data-ts-theme=dark] .farm-home *)) { color:var(--lc-black) !important; }
+/* body copy → very dark green */
+:is(p,li,dd,td,figcaption,label,summary,dt):not(:is(
+  .fh-hero *,.preferences-bar *,button *,button,.primary-action *,.fh-btn *,.fh-chat .me *,.sidebar-promo *,.landing-page *,[class*=badge],[class*=chip],[class*=pill],
+  .fh-status,.fh-tag,html[data-ts-theme=dark] .farm-home *)) { color:var(--lc-body) !important; }
+/* secondary text → green */
+:is(small,dt,figcaption,.fh-muted,.eyebrow,.field-card small,.back-link):not(:is(
+  .fh-hero *,.preferences-bar *,button *,.primary-action *,.fh-btn *,.fh-chat .me *,.sidebar-promo *,.landing-page *,html[data-ts-theme=dark] .farm-home *)) { color:var(--lc-green-soft) !important; }
+/* links and text-actions → green */
+a:not(:is(.fh-btn,.primary-action,.preferences-bar *,.fh-hero *,.landing-page *,.fh-field,.fh-quick a,.farmer-mobile-nav *,.field-card h3 a,.overview-nav a,.top-nav a,.fh-wide,.fh-toolbar-profile,
+  html[data-ts-theme=dark] .farm-home *)),
+.secondary-action,.text-button,.notification-read-all,.action-link { color:var(--lc-green) !important; }
+.fh-btn,.fh-btn *,.primary-action,.primary-action * { color:#fff !important; }
+/* field tabs (Overview, Field map …): green, active one black */
+.overview-nav a { color:var(--lc-green) !important; } .overview-nav a[aria-current=page],.overview-nav a.active { color:var(--lc-black) !important; }
+.field-card h3 a { color:var(--lc-black) !important; }
+/* notification popover sits inside the header but is a light surface */
+.notification-popover :is(strong,h3,h4,b) { color:var(--lc-black) !important; }
+.notification-popover :is(p,li,label,summary) { color:var(--lc-body) !important; }
+.notification-popover :is(small,span:not(.notification-count)) { color:var(--lc-green-soft) !important; }
+.notification-popover :is(button,a) { color:var(--lc-green) !important; }
+/* chart legends */
+.ndvi-scale-title,.ndvi-scale span,[class*=legend] span { color:var(--lc-black); }
+
+/* Status chips: amber → deep gold text on a pale gold chip (red "visit" and green "routine" chips keep their meaning). */
+.fh-status:not(.visit):not(.routine),.fh-tag { color:#7a5200 !important; background:#f2c14e38; }
+html[data-ts-theme=dark] .farm-home .fh-status:not(.visit):not(.routine),html[data-ts-theme=dark] .farm-home .fh-tag { color:#f2c14e !important; background:#f2c14e24; }
+/* dark dashboard: the weather tip was green on dark (3:1) → soft white with a golden icon */
+html[data-ts-theme=dark] .farm-home .fh-insight { color:#e8f5ee; } html[data-ts-theme=dark] .farm-home .fh-insight svg { color:#f2c14e; }

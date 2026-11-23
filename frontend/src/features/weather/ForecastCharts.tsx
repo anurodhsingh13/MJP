@@ -60,10 +60,10 @@ export function ForecastCharts({ forecast }: { forecast: Forecast }) {
             <YAxis width={40} unit="°" tick={{ fontSize: 12, fill: '#2f4a38' }} domain={[(min: number) => Math.floor(min - 3), (max: number) => Math.ceil(max + 3)]}/>
             <Tooltip content={tip as never} cursor={{ stroke: '#19744a', strokeDasharray: '3 3' }}/>
             <Line dataKey="maxC" stroke={HIGH} strokeWidth={3} dot={{ r: 5, fill: HIGH, stroke: '#fff', strokeWidth: 2 }} isAnimationActive={false}>
-              <LabelList dataKey="maxC" position="top" offset={9} formatter={(value: unknown) => `${Math.round(Number(value))}°`} fontSize={12} fontWeight={700} fill="#8a4b14"/>
+              <LabelList dataKey="maxC" position="top" offset={9} formatter={(value: unknown) => `${Math.round(Number(value))}°`} fontSize={12} fontWeight={700} fill="#7a5200"/>
             </Line>
             <Line dataKey="minC" stroke={LOW} strokeWidth={3} dot={{ r: 5, fill: LOW, stroke: '#fff', strokeWidth: 2 }} isAnimationActive={false}>
-              <LabelList dataKey="minC" position="bottom" offset={9} formatter={(value: unknown) => `${Math.round(Number(value))}°`} fontSize={12} fontWeight={700} fill="#245f80"/>
+              <LabelList dataKey="minC" position="bottom" offset={9} formatter={(value: unknown) => `${Math.round(Number(value))}°`} fontSize={12} fontWeight={700} fill="#157a4a"/>
             </Line>
           </LineChart>
         </ResponsiveContainer></div>

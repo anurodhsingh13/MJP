@@ -17,6 +17,7 @@ import { NdviZones } from '../fields/NdviZones';
 import './farm-home.css';
 
 type Message = { role: 'user' | 'assistant'; text: string };
+const deg = (value: number | null | undefined) => value == null ? '–' : Math.round(value);
 const num = (value: unknown): number | null => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)) ? Number(value) : null;
 const tone = (state: string) => state === 'needs_inspection' ? 'visit' : state === 'no_unusual_change' ? 'routine' : 'imagery';
 const toneColor = { visit: '#ef6b5b', routine: '#22b35e', imagery: '#e5a93d' } as const;
@@ -152,6 +153,7 @@ export function FarmHome({ fields, onAddField }: { fields: DatabaseField[]; onAd
   const [placeBusy, setPlaceBusy] = useState(false);
   const [placeNote, setPlaceNote] = useState('');
   const [target, setTarget] = useState<Target | null>(null);
+  const [globalSearch, setGlobalSearch] = useState('');
   const searchPlace = async (event: FormEvent) => {
     event.preventDefault();
     const query = placeQuery.trim();
@@ -163,6 +165,20 @@ export function FarmHome({ fields, onAddField }: { fields: DatabaseField[]; onAd
       else setPlaceNote(t('No place found. Try the village name with district or state.', 'जगह नहीं मिली। गाँव के साथ ज़िला या राज्य लिखकर देखें।'));
     } catch { setPlaceNote(t('Search is unavailable right now.', 'अभी खोज उपलब्ध नहीं।')); }
     finally { setPlaceBusy(false); }
+  };
+  const searchWorkspace = async (event: FormEvent) => {
+    event.preventDefault();
+    const query = globalSearch.trim();
+    if (!query) return;
+    const field = fields.find(item => `${item.name} ${item.crop ?? ''}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
+    if (field) { setPickedId(field.id); setGlobalSearch(''); document.getElementById('field-map')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    setPlaceQuery(query);
+    try {
+      const hit = await findPlace(query);
+      if (hit) { setTarget({ ...hit, n: Date.now() }); setPlaceNote(''); }
+      else setPlaceNote(t('No field or place found. Try a village with its district.', 'खेत या जगह नहीं मिली। गाँव के साथ ज़िला भी खोजें।'));
+    } catch { setPlaceNote(t('Search is unavailable right now.', 'अभी खोज उपलब्ध नहीं है।')); }
+    document.getElementById('field-map')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
   const [forecastId, setForecastId] = useState('');
   const forecastField = located.find(field => field.id === forecastId) ?? located[0];
@@ -224,16 +240,23 @@ export function FarmHome({ fields, onAddField }: { fields: DatabaseField[]; onAd
   const firstWith = fields[0];
 
   return <div className="farm-home">
+    <header className="fh-topbar">
+      <div className="fh-topbar-title"><Sprout size={18} aria-hidden="true"/><strong>{t('Dashboard', 'डैशबोर्ड')}</strong><small>{t('Grow Smarter', 'बेहतर खेती')}</small></div>
+      <Link className="fh-toolbar-profile" to="/profile" aria-label={t('Open account settings', 'खाता सेटिंग खोलें')}><span>{first.slice(0,1).toUpperCase()}</span><div><strong>{fullName}</strong><small>{t('Farm workspace', 'खेत का कार्यक्षेत्र')}</small></div><ArrowRight size={15}/></Link>
+    </header>
+    <form className="fh-global-search" onSubmit={searchWorkspace} role="search">
+      <Search size={17} aria-hidden="true"/><input value={globalSearch} onChange={event => setGlobalSearch(event.target.value)} placeholder={t('Search village, place or field…', 'गाँव, जगह या खेत खोजें…')} aria-label={t('Search village, place or field', 'गाँव, जगह या खेत खोजें')}/><kbd>/</kbd>
+    </form>
     {/* Hero + KPIs */}
     <section className="fh-top">
       <div className="fh-hero">
         <Sprout className="fh-hero-leaf" aria-hidden="true" />
         <div>
           <span className="fh-chip">{t('Your Farm Home', 'आपका फ़ार्म होम')}</span>
-          <h1>{t(`Hello, ${fullName}!`, `नमस्ते, ${fullName}!`)}</h1>
+          <h1>{t('Hello,', 'नमस्ते,')} <span>{fullName}!</span></h1>
           <p>{t('See your fields, decide what to check, and record ground inspection data.', 'अपने खेत देखें, तय करें क्या जाँचना है और खेत की जानकारी सेव करें।')}</p>
         </div>
-        <button className="fh-add" onClick={onAddField}><Plus size={16} strokeWidth={3} />{t('Add New Field', 'नया खेत जोड़ें')}</button>
+        <button className="fh-add" onClick={onAddField}><Plus size={16} strokeWidth={3} />{t('Add New Field', 'नया खेत जोड़ें')}<ArrowRight size={15}/></button>
       </div>
       <div className="fh-kpis" role="region" aria-label={t('Farm summary', 'खेतों का सारांश')}>
         <article><header><span>{t('Saved Fields', 'सेव किए खेत')}</span><i><Sprout size={16} /></i></header><strong>{fields.length}</strong><small>{t('Active fields', 'सक्रिय खेत')}</small></article>
@@ -279,7 +302,7 @@ export function FarmHome({ fields, onAddField }: { fields: DatabaseField[]; onAd
           {forecast && <>
             <div className="fh-days">{days.slice(0, 7).map((day, index) => <div key={day.date} className={index === 0 ? 'today' : ''}>
               <b>{dayLabel(day.date)}</b><span className="emoji">{icon(day.rain_probability_percent, day.precipitation_mm)}</span>
-              <strong>{day.max_c ?? '–'}° / {day.min_c ?? '–'}°</strong>
+              <strong>{deg(day.max_c)}° / {deg(day.min_c)}°</strong>
               <small>{t('Rain', 'बारिश')}: {day.precipitation_mm ?? 0} mm</small><small>{t('Hum', 'नमी')}: {day.humidity_percent ?? '–'}%</small>
             </div>)}</div>
             <p className="fh-insight"><Info size={16} />{wet ? t(`Heavy rain (${wet.precipitation_mm} mm) is forecast on ${dayLabel(wet.date)}. Plan irrigation and inspections around it.`, `${dayLabel(wet.date)} को ${wet.precipitation_mm} mm बारिश का अनुमान है। सिंचाई और जाँच उसी हिसाब से करें।`) : t('No day with 5mm or more rainfall forecast. Ideal window for scheduled field inspection and soil moisture checks.', '5 mm या ज़्यादा बारिश का अनुमान नहीं है। खेत की जाँच और नमी देखने का अच्छा समय।')}</p>
@@ -310,13 +333,13 @@ export function FarmHome({ fields, onAddField }: { fields: DatabaseField[]; onAd
           <header className="fh-head"><div className="fh-title-row"><i className="fh-spark">✨</i><h3>{t('Ask Gemini AI', 'Gemini AI से पूछें')}</h3></div></header>
           <p className="fh-muted">{t('Get direct explanations of crop greenness, satellite index changes, or weather impacts.', 'फ़सल की हरियाली, सैटेलाइट बदलाव या मौसम का असर समझें।')}</p>
           <div className="fh-prompts">{prompts.map(prompt => <button key={prompt} disabled={busy} onClick={() => void send(prompt)}><span>{prompt}</span><ArrowRight size={12} /></button>)}</div>
-          <div className="fh-chat" ref={log} aria-live="polite">
+          <div className={`fh-chat${messages.length || busy || chatError ? ' has-msgs' : ''}`} ref={log} aria-live="polite">
             {!messages.length && <div className="bot"><p>{t(`Hello ${first}! I am Gemini AI. How can I help with ${askField?.name ?? 'your fields'} today?`, `नमस्ते ${first}! मैं Gemini AI हूँ। ${askField?.name ?? 'आपके खेतों'} में आज कैसे मदद करूँ?`)}</p></div>}
             {messages.map((message, index) => <div key={index} className={message.role === 'user' ? 'me' : 'bot'}><p>{message.text}</p></div>)}
             {busy && <div className="bot"><p>…</p></div>}
             {chatError && <div className="bot err" role="alert"><p>{chatError}</p></div>}
           </div>
-          <form onSubmit={submit}><input value={question} onChange={event => setQuestion(event.target.value)} placeholder={t('Ask Gemini AI a question...', 'Gemini AI से सवाल पूछें...')} aria-label={t('Ask Gemini AI', 'Gemini AI से पूछें')} /><button aria-label={t('Send', 'भेजें')} disabled={busy || !question.trim()}><Send size={14} /></button></form>
+          <form onSubmit={submit}><input id="fh-gemini-question" value={question} onChange={event => setQuestion(event.target.value)} placeholder={t('Ask Gemini AI a question...', 'Gemini AI से सवाल पूछें...')} aria-label={t('Ask Gemini AI', 'Gemini AI से पूछें')} /><button aria-label={t('Send', 'भेजें')} disabled={busy || !question.trim()}><Send size={14} /></button></form>
         </section>
 
         {/* My fields */}
