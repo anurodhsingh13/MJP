@@ -5,7 +5,7 @@ import {assistantAvailability,assistantHistory,deleteAssistantHistory} from '../
 import {rateLimit} from '../services/limits.ts';
 import {enqueue,listJobs,retryJob} from '../services/jobs.ts';
 import {createTask} from '../controllers/tasksController.ts';
-import {deleteScouting,listScouting,photoContent,retryDiagnosis,saveScouting,previewScoutingPhoto,listTasks,updateTask} from '../controllers/scoutingController.ts';
+import {deleteScouting,listScouting,photoContent,retryDiagnosis,saveScouting,previewScoutingPhoto,checkPotatoLeaf,listTasks,updateTask} from '../controllers/scoutingController.ts';
 import express, { Router } from 'express';
 import {session,sameOrigin,authRouter,requireAccount,requireField} from '../services/auth.ts';
 import { getHealth } from '../controllers/healthController.ts';
@@ -81,6 +81,7 @@ router.delete('/fields/:fieldId/events/:eventId', deleteFieldEvent);
 router.get('/fields/:fieldId/scouting',listScouting);
 router.post('/fields/:fieldId/scouting',rateLimit('photos',20),express.json({limit:'8mb'}),saveScouting);
 router.post('/fields/:fieldId/scouting/quality-preview',rateLimit('photo-preview',20),express.json({limit:'8mb'}),previewScoutingPhoto);
+router.post('/fields/:fieldId/scouting/leaf-check',rateLimit('photo-preview',20),express.json({limit:'8mb'}),checkPotatoLeaf);
 router.delete('/fields/:fieldId/scouting/:caseId',deleteScouting);
 router.post('/fields/:fieldId/scouting/:caseId/retry-diagnosis',retryDiagnosis);
 router.get('/fields/:fieldId/scouting/:caseId/photos/:photoId',photoContent);

@@ -37,6 +37,32 @@ export async function previewScoutingPhoto(request:Request,response:Response){
   response.status(503).json({error:'Photo quality check is temporarily unavailable. You can still save the scouting note.'});
  }
 }
+export async function checkPotatoLeaf(request:Request,response:Response){
+ const image=(request.body as {image?:unknown}|undefined)?.image;
+ if(typeof image!=='string'||!decodeScoutingImage(image)){
+  response.status(400).json({error:'Choose a JPEG, PNG or WebP image under 5 MB.'});return;
+ }
+ try{
+  const upstream=await fetch(`${engineUrl()}/classify-potato-leaf`,{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({image:image.slice(image.indexOf(',')+1)}),
+   signal:AbortSignal.timeout(20000)
+  });
+  response.setHeader('Cache-Control','no-store');
+  if(upstream.status===503){response.json({status:'unavailable'});return;}
+  if(!upstream.ok){response.status(422).json({error:'The image could not be checked. Use a clear JPEG, PNG or WebP under 5 MB.'});return;}
+  const r=await upstream.json() as Record<string,unknown>;
+  const status=r.status;
+  if(status!=='answered'&&status!=='not_sure'&&status!=='photo_quality'){response.status(502).json({error:'Leaf check returned an unexpected result.'});return;}
+  // Advisory only: nothing is stored and the saved-case diagnosis status is unchanged.
+  response.json({status,label:r.label??null,confidence:r.confidence??null,probabilities:r.probabilities??null,
+   issues:Array.isArray(r.issues)?r.issues:[],suggestions:Array.isArray(r.suggestions)?r.suggestions:[],
+   modelVersion:r.modelVersion??null,disclaimer:r.disclaimer??null});
+ }catch(error){
+  console.error('Potato leaf check unavailable:',error instanceof Error?error.message:'unknown');
+  response.status(503).json({error:'Leaf check is temporarily unavailable. You can still save the scouting note.'});
+ }
+}
 export async function listScouting(request:Request,response:Response){
  const result=await pool.query(`select ${scoutingCaseColumns},
   coalesce((select jsonb_agg(jsonb_build_object('id',p.id,'width',p.width,'height',p.height,'quality',p.quality)) from scouting_photos p where p.case_id=scouting_cases.id),'[]'::jsonb) photos

@@ -1,5 +1,8 @@
 from datetime import datetime
+import json
+import logging
 import os
+from pathlib import Path
 
 # rasterio/pyproj wheels ship their own PROJ database. A system-wide PROJ_LIB (for example
 # from a PostGIS install on Windows) points them at an incompatible proj.db and breaks CRS lookups.
@@ -353,3 +356,69 @@ def inspect_photo(payload: PhotoRequest):
                 'qualityNote':'Capture quality review only; not a disease diagnosis', 'assessment':assessment}
     except Exception as exc:
         raise HTTPException(422,'Photo could not be decoded safely. Use JPEG, PNG or WebP under 5 MB and 20 megapixels.') from exc
+
+# --- Experimental potato leaf check (PLDD-UP, MobileNetV2). Advisory only: never stored, never a diagnosis. ---
+LEAF_CLASSES=['Healthy','Early Blight','Late Blight']
+_leaf_model={'loaded':False,'model':None,'calibration':None,'metadata':None}
+
+def _leaf_model_dir():
+    default=Path(__file__).resolve().parents[2]/'.local'/'models'/'pldd-up-run4'
+    return Path(os.environ.get('POTATO_LEAF_MODEL_DIR') or default)
+
+def _load_leaf_model():
+    if _leaf_model['loaded']:
+        return _leaf_model['model']
+    _leaf_model['loaded']=True
+    folder=_leaf_model_dir()
+    try:
+        import torch
+        from torchvision import models
+        calibration=json.loads((folder/'calibration.json').read_text(encoding='utf-8'))
+        metadata=json.loads((folder/'model-metadata.json').read_text(encoding='utf-8'))
+        net=models.mobilenet_v2(weights=None)
+        net.classifier[1]=torch.nn.Linear(net.last_channel,len(LEAF_CLASSES))
+        state=torch.load(folder/'model.pth',map_location='cpu',weights_only=True)
+        net.load_state_dict(state['model_state_dict'] if isinstance(state,dict) and 'model_state_dict' in state else state)
+        _leaf_model.update(model=net.eval(),calibration=calibration,metadata=metadata)
+    except Exception:
+        logging.getLogger(__name__).exception('Potato leaf model unavailable')
+        _leaf_model['model']=None
+    return _leaf_model['model']
+
+@app.post('/classify-potato-leaf')
+def classify_potato_leaf(payload: PhotoRequest):
+    from PIL import ImageOps
+    model=_load_leaf_model()
+    if model is None:
+        raise HTTPException(503,'Potato leaf model is not available')
+    try:
+        data=base64.b64decode(payload.image,validate=True)
+        if len(data)>5*1024*1024:
+            raise ValueError('Photo exceeds 5 MB')
+        with Image.open(io.BytesIO(data)) as original:
+            if original.format not in ('JPEG','PNG','WEBP') or original.width*original.height>20_000_000:
+                raise ValueError('Unsupported photo')
+            image=ImageOps.exif_transpose(original).convert('RGB')
+            image.thumbnail((2048,2048))
+    except Exception as exc:
+        raise HTTPException(422,'Photo could not be decoded safely.') from exc
+    import numpy as np
+    import torch
+    calibration,metadata=_leaf_model['calibration'],_leaf_model['metadata']
+    base={'modelVersion':metadata.get('model_version'),'threshold':calibration['threshold'],
+          'disclaimer':'Experimental model trained on public potato leaf photos from Uttar Pradesh. Not validated on this app\'s field photos. Not a diagnosis.'}
+    assessment=photo_quality_assessment(image)
+    if assessment['status']=='needs_review':
+        return {**base,'status':'photo_quality','issues':assessment['issues'],'suggestions':assessment['suggestions']}
+    # Same preprocessing as training: Resize((224,224)) bilinear, ImageNet normalisation.
+    array=np.asarray(image.resize((224,224),Image.BILINEAR),dtype=np.float32)/255.0
+    array=(array-np.array([0.485,0.456,0.406],dtype=np.float32))/np.array([0.229,0.224,0.225],dtype=np.float32)
+    tensor=torch.from_numpy(array.transpose(2,0,1)).unsqueeze(0)
+    with torch.no_grad():
+        probabilities=torch.softmax(model(tensor)/calibration['temperature'],dim=1)[0].tolist()
+    best=max(range(len(LEAF_CLASSES)),key=lambda i:probabilities[i])
+    answered=probabilities[best]>=calibration['threshold']
+    return {**base,'status':'answered' if answered else 'not_sure',
+            'label':LEAF_CLASSES[best] if answered else None,
+            'confidence':round(probabilities[best],3),
+            'probabilities':{name:round(p,3) for name,p in zip(LEAF_CLASSES,probabilities)}}
