@@ -1,0 +1,290 @@
+{
+ "thresholds": {
+  "min_coverage": 70.0,
+  "min_pixels": 10,
+  "decline": 0.1,
+  "compare_days": 30
+ },
+ "harvest_dates": {
+  "fields_with_plausible_season_length_60_240_days": 2522,
+  "fields_with_5plus_images_in_season": 2463,
+  "ndvi_peak_offset_from_recorded_harvest_days": {
+   "median": -66.0,
+   "q25": -99.0,
+   "q75": -37.0,
+   "share_with_peak_after_harvest": 0.01
+  },
+  "composite_ndvi_over_season_peak": [
+   {
+    "days_to_harvest_from": -120,
+    "days_to_harvest_to": -110,
+    "n": 2383,
+    "median": 0.605,
+    "q25": 0.35,
+    "q75": 0.835
+   },
+   {
+    "days_to_harvest_from": -110,
+    "days_to_harvest_to": -100,
+    "n": 2752,
+    "median": 0.682,
+    "q25": 0.393,
+    "q75": 0.867
+   },
+   {
+    "days_to_harvest_from": -100,
+    "days_to_harvest_to": -90,
+    "n": 3084,
+    "median": 0.712,
+    "q25": 0.453,
+    "q75": 0.878
+   },
+   {
+    "days_to_harvest_from": -90,
+    "days_to_harvest_to": -80,
+    "n": 3279,
+    "median": 0.739,
+    "q25": 0.516,
+    "q75": 0.882
+   },
+   {
+    "days_to_harvest_from": -80,
+    "days_to_harvest_to": -70,
+    "n": 3723,
+    "median": 0.779,
+    "q25": 0.561,
+    "q75": 0.918
+   },
+   {
+    "days_to_harvest_from": -70,
+    "days_to_harvest_to": -60,
+    "n": 4095,
+    "median": 0.774,
+    "q25": 0.546,
+    "q75": 0.909
+   },
+   {
+    "days_to_harvest_from": -60,
+    "days_to_harvest_to": -50,
+    "n": 4259,
+    "median": 0.761,
+    "q25": 0.515,
+    "q75": 0.9
+   },
+   {
+    "days_to_harvest_from": -50,
+    "days_to_harvest_to": -40,
+    "n": 4465,
+    "median": 0.739,
+    "q25": 0.467,
+    "q75": 0.895
+   },
+   {
+    "days_to_harvest_from": -40,
+    "days_to_harvest_to": -30,
+    "n": 4503,
+    "median": 0.691,
+    "q25": 0.399,
+    "q75": 0.869
+   },
+   {
+    "days_to_harvest_from": -30,
+    "days_to_harvest_to": -20,
+    "n": 4676,
+    "median": 0.625,
+    "q25": 0.33,
+    "q75": 0.847
+   },
+   {
+    "days_to_harvest_from": -20,
+    "days_to_harvest_to": -10,
+    "n": 4736,
+    "median": 0.54,
+    "q25": 0.289,
+    "q75": 0.819
+   },
+   {
+    "days_to_harvest_from": -10,
+    "days_to_harvest_to": 0,
+    "n": 4768,
+    "median": 0.447,
+    "q25": 0.263,
+    "q75": 0.752
+   },
+   {
+    "days_to_harvest_from": 0,
+    "days_to_harvest_to": 10,
+    "n": 949,
+    "median": 0.409,
+    "q25": 0.25,
+    "q75": 0.724
+   }
+  ],
+  "decline_rule_rate_by_days_before_harvest": {
+   "-400..-100": {
+    "k": 1054,
+    "n": 13945,
+    "value": 0.076,
+    "ci95": [
+     0.0713,
+     0.0801
+    ]
+   },
+   "-100..-60": {
+    "k": 1273,
+    "n": 13705,
+    "value": 0.093,
+    "ci95": [
+     0.0881,
+     0.0979
+    ]
+   },
+   "-60..-30": {
+    "k": 1607,
+    "n": 12952,
+    "value": 0.124,
+    "ci95": [
+     0.1185,
+     0.1299
+    ]
+   },
+   "-30..3": {
+    "k": 1648,
+    "n": 15028,
+    "value": 0.11,
+    "ci95": [
+     0.1048,
+     0.1148
+    ]
+   }
+  },
+  "decline_rule_rate_by_crop": {
+   "Bengal Gram": {
+    "-400..-100": 0.088,
+    "-100..-60": 0.113,
+    "-60..-30": 0.141,
+    "-30..3": 0.133
+   },
+   "Chillies": {
+    "-400..-100": 0.125,
+    "-100..-60": 0.087,
+    "-60..-30": 0.131,
+    "-30..3": 0.133
+   },
+   "Cotton": {
+    "-400..-100": 0.041,
+    "-100..-60": 0.059,
+    "-60..-30": 0.062,
+    "-30..3": 0.041
+   },
+   "Groundnut": {
+    "-400..-100": 0.046,
+    "-100..-60": 0.043,
+    "-60..-30": 0.132,
+    "-30..3": 0.149
+   },
+   "Maize": {
+    "-400..-100": 0.097,
+    "-100..-60": 0.149,
+    "-60..-30": 0.212,
+    "-30..3": 0.142
+   },
+   "Paddy": {
+    "-400..-100": 0.063,
+    "-100..-60": 0.059,
+    "-60..-30": 0.115,
+    "-30..3": 0.152
+   },
+   "Red Gram": {
+    "-400..-100": 0.137,
+    "-100..-60": 0.094,
+    "-60..-30": 0.046,
+    "-30..3": 0.068
+   }
+  },
+  "limitation": "No images after the recorded harvest date exist in the extract, so a before/after harvest comparison is not possible."
+ },
+ "rainfall": {
+  "Kharif_rainfed": {
+   "pairs": 809,
+   "fields": 134,
+   "dry_tercile_max_mm_per_day": 0.0,
+   "wet_tercile_min_mm_per_day": 1.05,
+   "decline_rate_dry": 0.055,
+   "decline_rate_wet": 0.161,
+   "dry_minus_wet": -0.106,
+   "dry_minus_wet_ci95": [
+    -0.156,
+    -0.055
+   ],
+   "spearman_rain_vs_ndvi_change": 0.168,
+   "spearman_ci95": [
+    0.094,
+    0.249
+   ],
+   "median_change_dry": -0.0106,
+   "median_change_wet": 0.0453
+  },
+  "Kharif_irrigated": {
+   "pairs": 2625,
+   "fields": 464,
+   "dry_tercile_max_mm_per_day": 0.02,
+   "wet_tercile_min_mm_per_day": 1.75,
+   "decline_rate_dry": 0.044,
+   "decline_rate_wet": 0.084,
+   "dry_minus_wet": -0.04,
+   "dry_minus_wet_ci95": [
+    -0.062,
+    -0.017
+   ],
+   "spearman_rain_vs_ndvi_change": 0.351,
+   "spearman_ci95": [
+    0.314,
+    0.388
+   ],
+   "median_change_dry": -0.0153,
+   "median_change_wet": 0.0595
+  },
+  "Rabi_rainfed": {
+   "pairs": 3994,
+   "fields": 393,
+   "dry_tercile_max_mm_per_day": 0.0,
+   "wet_tercile_min_mm_per_day": 0.01,
+   "decline_rate_dry": 0.168,
+   "decline_rate_wet": 0.087,
+   "dry_minus_wet": 0.082,
+   "dry_minus_wet_ci95": [
+    0.062,
+    0.103
+   ],
+   "spearman_rain_vs_ndvi_change": 0.123,
+   "spearman_ci95": [
+    0.089,
+    0.154
+   ],
+   "median_change_dry": -0.0079,
+   "median_change_wet": 0.0023
+  },
+  "Rabi_irrigated": {
+   "pairs": 18327,
+   "fields": 1491,
+   "dry_tercile_max_mm_per_day": 0.0,
+   "wet_tercile_min_mm_per_day": 0.0,
+   "decline_rate_dry": 0.114,
+   "decline_rate_wet": 0.136,
+   "dry_minus_wet": -0.021,
+   "dry_minus_wet_ci95": [
+    -0.03,
+    -0.006
+   ],
+   "spearman_rain_vs_ndvi_change": -0.024,
+   "spearman_ci95": [
+    -0.039,
+    -0.008
+   ],
+   "median_change_dry": -0.0029,
+   "median_change_wet": -0.0105
+  }
+ },
+ "note": "Labels (Healthy/Pests/Diseased/Stressed) are not used anywhere in this script."
+}
