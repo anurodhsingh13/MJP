@@ -36,7 +36,7 @@ for(const width of [320,390,768,1440]){
   await page.goto(`/fields/${seed.id}/analysis`,{waitUntil:'domcontentloaded'});
   await expect(page.getByRole('region',{name:'Field evidence'})).toContainText('Visit this field');
   await expect(page.getByRole('region',{name:'Field evidence'})).toContainText('91%');
-  await expect(page.getByRole('region',{name:'Vegetation trends'}).locator('.recharts-surface')).toBeVisible();
+  await expect(page.getByRole('region',{name:'Vegetation trends'}).locator('.vegetation-chart .recharts-surface')).toBeVisible();
   const comparison=page.getByRole('region',{name:'Two-date comparison'});
   await page.getByText('Advanced: measurements and experimental score',{exact:true}).click();
   await expect(comparison).toContainText('NDVI change between these dates: -0.250');

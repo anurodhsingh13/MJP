@@ -15,8 +15,9 @@ const osmRows = [
 async function openBoundaryStep(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: /Add New Field/ }).first().click();
-  await page.getByLabel(/Field name/i).fill('Search test field');
-  await page.getByLabel(/Crop/i).first().fill('Rice');
+  await page.getByLabel('Field Name').selectOption('__other');
+  await page.getByLabel('Other field name').fill('Search test field');
+  await page.getByLabel('Crop Type').selectOption('Rice');
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Next' }).click();
   await expect(page.getByText('Find the farm area')).toBeVisible();
