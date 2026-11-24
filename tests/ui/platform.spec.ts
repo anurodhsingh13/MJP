@@ -12,8 +12,9 @@ test('forecast, processed layers and report keep their source labels',async({pag
  await page.getByRole('link',{name:'Field map',exact:true}).click();
  const comparison=page.getByRole('region',{name:'Processed satellite image comparison',exact:true});
  await expect(comparison.locator('.open-field-map')).toHaveCount(2);
- const before=comparison.getByRole('combobox',{name:'Before acquisition',exact:true});const after=comparison.getByRole('combobox',{name:'After acquisition',exact:true});
- const current=await after.inputValue();await before.selectOption(current);await expect(comparison.getByRole('alert')).toContainText('Choose two different');
+ const before=comparison.getByLabel('Before date');const after=comparison.getByLabel('After date');
+ const current=await after.inputValue();expect(current).toMatch(/^\d{4}-\d{2}-\d{2}$/);await expect(before).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
+ await before.fill(current);await expect(comparison.getByRole('status')).toContainText('must be earlier');   // a Before date on or after the After date is refused with a message
  await page.getByRole('link',{name:'Report',exact:true}).click();
  const appendix=page.getByRole('region',{name:'Additional monitoring report',exact:true});await expect(appendix).toContainText('Open-Meteo');
 });
