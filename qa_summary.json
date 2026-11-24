@@ -1,0 +1,55 @@
+{
+  "source_rows": 6381,
+  "source_pages": 139,
+  "sl_no_min": 1,
+  "sl_no_max": 6381,
+  "sl_no_missing_count": 0,
+  "sl_no_duplicates": 0,
+  "states": {
+    "Bihar": 713,
+    "Jharkhand": 432,
+    "Odisha": 544,
+    "Gujarat": 496,
+    "Rajasthan": 432,
+    "Himachal Pradesh": 184,
+    "Uttar Pradesh": 755,
+    "Uttarakhand": 477,
+    "Andhra Pradesh": 209,
+    "Tamil Nadu": 210,
+    "Madhya Pradesh": 1173,
+    "Chhattisgarh": 756
+  },
+  "n_states": 12,
+  "n_districts": 311,
+  "n_distinct_crop_names_raw": 231,
+  "n_crops_canonical": 74,
+  "row_quality": {
+    "parsed": 4643,
+    "parsed_approximate": 243,
+    "no_window_in_source": 1253,
+    "partial_parse": 242
+  },
+  "sowing_parse_status": {
+    "parsed": 3714,
+    "single_point": 955,
+    "not_stated": 1422,
+    "partial": 35,
+    "parsed_month_range": 219,
+    "unparsed": 36
+  },
+  "harvest_parse_status": {
+    "parsed": 3836,
+    "not_stated": 1313,
+    "single_point": 931,
+    "partial": 22,
+    "unparsed": 209,
+    "parsed_month_range": 70
+  },
+  "season_source": {
+    "pdf": 4168,
+    "derived_from_sowing_month": 1591,
+    "not_stated_in_source": 620,
+    "pdf_unmapped": 2
+  },
+  "duplicate_district_crop_season_rows": 61
+}
