@@ -1,7 +1,7 @@
 {
  "overall_status": "PARTIAL PASS",
  "production_decision": "NOT READY",
- "engineering_completion_percent": 70.9,
+ "engineering_completion_percent": 78.7,
  "ml_validation_and_production_readiness": {
   "tasks_with_an_eligible_model": "0 of 3",
   "models_that_beat_chance_on_unseen_districts": 0,
@@ -33,7 +33,7 @@
   "reproduced_exactly": 49,
   "passed_pre_registered_validation_bar": 0,
   "classical_by_artifact": 34,
-  "deep_by_refit": 15
+  "deep_by_artifact": 15
  },
  "components": [
   {
@@ -69,7 +69,7 @@
   {
    "component": "Deep learning training",
    "status": "PASS",
-   "evidence": "5 models x 3 tasks executed (15 results); reproduced by refit; artifacts not self-contained (I-02)"
+   "evidence": "5 models x 3 tasks executed (15 results); every artifact reloads from its own files and reproduces exactly (I-02 fixed)"
   },
   {
    "component": "Hyperparameter optimization",
@@ -93,13 +93,13 @@
   },
   {
    "component": "Prediction confidence / abstention",
-   "status": "PARTIAL",
-   "evidence": "rules implemented and unit-tested, but safety tests found real gaps (I-01); no single predict-with-safety function"
+   "status": "PASS",
+   "evidence": "prediction_safety.predict_with_safety: one function, every check derived from the row; 7 safety cases refused correctly; 10 unit tests (I-01 fixed). Not wired into the backend"
   },
   {
    "component": "Model export",
-   "status": "PARTIAL",
-   "evidence": "classical joblib artifacts reload exactly; deep artifacts incomplete (I-02); no best_* folders or metadata (I-04)"
+   "status": "PASS",
+   "evidence": "all 49 artifacts reload exactly (classical joblib + native tree exports; deep .pt + .json + .prep.joblib). No best_* folder or model_metadata.json exists because no model qualified (not applicable, I-04)"
   },
   {
    "component": "Backend integration",
@@ -115,38 +115,38 @@
  "score_rubric": {
   "Implementation (15%)": {
    "weight": 0.15,
-   "score": 0.833,
+   "score": 0.9,
    "basis": "PASS=1, PARTIAL=0.5, else 0 over 15 components"
   },
   "Dataset quality (15%)": {
    "weight": 0.15,
    "score": 0.667,
-   "basis": "12 checks: unique ids, no duplicates, valid labels, no missing, no cross-split leakage, low spatial label leakage, licence recorded = 7; class imbalance handled 0.5; sample adequacy 0.5; label reliability verifiable 0; labels support the target 0; temporal coverage 0"
+   "basis": "12 checks: unique ids, no duplicates, valid labels, no missing, no cross-split leakage, low spatial label leakage, licence recorded = 7; class imbalance handled 0.5; sample adequacy 0.5; label reliability verifiable 0; labels support the target 0; temporal coverage 0. Unchanged: these are data limits"
   },
   "Actual training (20%)": {
    "weight": 0.2,
-   "score": 0.906,
-   "basis": "8 checks: all trained 1, per-model data documented 1, durations 0.5 (contaminated), tuning 1, validation 1, test 1, artifacts 0.75 (deep incomplete), failures documented 1"
+   "score": 1.0,
+   "basis": "8 checks: all trained 1, per-model data documented 1, durations clean 1, tuning 1, validation 1, test 1, artifacts self-contained 1, failures documented 1"
   },
   "Independent validation (20%)": {
    "weight": 0.2,
-   "score": 0.679,
-   "basis": "7 checks: metrics reproduced 1, independent metric code 1, test not used for selection 0.75, external independent test set 0, held-out validation done 1, no tuning leakage in held-out 0.5, calibration/abstention validated 0.5"
+   "score": 0.821,
+   "basis": "7 checks: metrics reproduced from every artifact 1, independent metric code 1, test not used for selection 0.75 (visible to the author), external independent test set 0, held-out validation done 1, no tuning leakage in held-out 1 (294 nested, 0 fallback), calibration and abstention validated 1"
   },
   "Performance benchmarking (10%)": {
    "weight": 0.1,
-   "score": 0.718,
-   "basis": "6 checks: fresh benchmark of all 49 1, identical conditions 1, training time re-measured for 15 of 49 models, peak RAM 1, hardware recorded 1, original timings clean 0"
+   "score": 0.843,
+   "basis": "6 checks: fresh benchmark of all 49 1, identical conditions 1, training time re-measured for 15 of 49 models (0.31), peak RAM 1, hardware recorded 1, recorded timings from an idle re-run consistent with the fresh benchmark 0.75"
   },
   "Backend integration (10%)": {
    "weight": 0.1,
    "score": 0.2,
-   "basis": "10 checks: only existing-API compatibility and frontend build pass; model loading, versioning, endpoint, validation, schema, confidence, error handling, database are not implemented"
+   "basis": "10 checks: only existing-API compatibility and frontend build pass; model loading, versioning, endpoint, validation, schema, confidence, error handling, database are not implemented (deliberate)"
   },
   "Testing and documentation (10%)": {
    "weight": 0.1,
-   "score": 0.75,
-   "basis": "7 checks: ML unit tests 1, other suites 1, executed not skipped 0.5 (0 skipped of 52), ML API tests 0 (none exist), deliverables exist 1, numbers accurate 0.75 (2 errors fixed), JSON valid and consistent 1"
+   "score": 0.836,
+   "basis": "7 checks: ML unit tests (21) 1, other suites 1, executed not skipped 0.85 (integration tests now run: 6 of 6; 3 launcher tests skip by design on Windows), ML API tests 0 (none exist), deliverables exist 1, numbers accurate 1 (2 errors fixed), JSON valid and consistent 1"
   }
  },
  "dataset": {
@@ -290,22 +290,22 @@
   "ram_gb": 15.2,
   "gpu_before": {
    "gpu_util_percent": 0.0,
-   "gpu_memory_used_mb": 159.0
+   "gpu_memory_used_mb": 103.0
   },
   "torch_cuda_available": false,
   "gpu_after": {
    "gpu_util_percent": 0.0,
-   "gpu_memory_used_mb": 231.0
+   "gpu_memory_used_mb": 175.0
   }
  },
  "tests": [
   {
    "name": "ml_unittest",
    "exit_code": 0,
-   "seconds": 2,
+   "seconds": 9,
    "command": "bash -c cd scripts/ml && ../../.venv/Scripts/python.exe -m unittest test_ml_pipeline -v",
-   "tests": 11,
-   "pass": 11,
+   "tests": 21,
+   "pass": 21,
    "fail": 0,
    "skipped": 0
   },
@@ -318,25 +318,31 @@
   {
    "name": "frontend_build",
    "exit_code": 0,
-   "seconds": 5,
+   "seconds": 7,
    "command": "npx vite --config frontend/vite.config.ts build"
   },
   {
    "name": "backend_node_tests",
    "exit_code": 0,
-   "seconds": 28,
+   "seconds": 32,
    "command": "node --import tsx --test backend/api/controllers/assistantController.test.ts backend/api/controllers/faoCalendarController.test.ts backend/api/control..."
   },
   {
    "name": "launcher_tests",
    "exit_code": 0,
-   "seconds": 3,
+   "seconds": 4,
    "command": "node --test scripts/local.test.mjs"
+  },
+  {
+   "name": "integration_tests",
+   "exit_code": 0,
+   "seconds": 5,
+   "command": "env DATABASE_URL=postgresql\u0001***@127.0.0.1:5432/chm_integration node scripts/run-integration-tests.mjs"
   },
   {
    "name": "engine_pytest",
    "exit_code": 0,
-   "seconds": 8,
+   "seconds": 10,
    "command": ".venv/Scripts/python.exe -m pytest backend/engine -q -x --no-header -p no:cacheprovider",
    "tests": 41,
    "pass": 41,
@@ -346,14 +352,14 @@
  ],
  "tests_not_executed": [
   {
-   "name": "backend integration tests (4 tests)",
-   "status": "SKIPPED",
-   "reason": "need a dedicated PostGIS database named chm_integration (the tests assert it); creating a database on your server was not done without asking. Includes the durable-job test that covers backend/api/services/jobs.ts, which the uncommitted weather scheduler touches."
+   "name": "launcher migration tests (3 tests)",
+   "status": "SKIPPED BY DESIGN",
+   "reason": "scripts/local.test.mjs skips them when process.platform is win32; they cannot run on this Windows machine"
   },
   {
-   "name": "launcher database tests (3 tests)",
-   "status": "SKIPPED",
-   "reason": "skipped by the test file in this environment"
+   "name": "5 backend tests marked integration (4 existing + the new weather-scheduler test)",
+   "status": "SKIPPED in the ordinary run, EXECUTED in the integration run",
+   "reason": "ordinary `npm test` skips them by design; the integration_tests row above runs them against the dedicated chm_integration database: 6 of 6 pass"
   },
   {
    "name": "Playwright UI tests (npm run test:ui)",
@@ -460,53 +466,116 @@
     "threshold_from_validation": null,
     "cases": {
      "1_normal_healthy_field": {
-      "model_ran": true,
-      "top_probability": 0.5282870244592901,
-      "inside_training_range": true,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "no_validated_confidence_threshold"
+       ],
+       "confidence": 0.5282870244592901
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "Healthy",
+       "reasons": [],
+       "confidence": 0.5282870244592901
+      }
      },
      "2_stressed_field": {
-      "model_ran": true,
-      "top_probability": 0.556791898151148,
-      "inside_training_range": true,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "no_validated_confidence_threshold"
+       ],
+       "confidence": 0.556791898151148
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "Problem",
+       "reasons": [],
+       "confidence": 0.556791898151148
+      }
      },
      "3_missing_satellite_observations": {
-      "model_ran": true,
-      "top_probability": 0.8865733044232715,
-      "inside_training_range": true,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "too_many_missing_features",
+        "too_few_clear_observations"
+       ],
+       "confidence": null
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "too_many_missing_features",
+        "too_few_clear_observations"
+       ],
+       "confidence": null
+      }
      },
      "4_cloud_obscured_one_clear_observation": {
-      "model_ran": true,
-      "top_probability": 0.5408497043571101,
-      "inside_training_range": true,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "too_few_clear_observations"
+       ],
+       "confidence": null
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "too_few_clear_observations"
+       ],
+       "confidence": null
+      }
      },
      "5_invalid_numbers_inf_minus999_1e12": {
-      "model_ran": true,
-      "top_probability": 0.5214767236620389,
-      "inside_training_range": true,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "non_finite_values",
+        "physically_implausible_values"
+       ],
+       "confidence": null
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "non_finite_values",
+        "physically_implausible_values"
+       ],
+       "confidence": null
+      }
      },
      "6_out_of_distribution_x1000": {
-      "model_ran": true,
-      "top_probability": 0.5621531646762042,
-      "inside_training_range": false,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "physically_implausible_values",
+        "outside_training_distribution"
+       ],
+       "confidence": null
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "physically_implausible_values",
+        "outside_training_distribution"
+       ],
+       "confidence": null
+      }
      },
      "7_lowest_confidence_validation_row": {
-      "model_ran": true,
-      "top_probability": 0.5007042641963908,
-      "inside_training_range": true,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "no_validated_confidence_threshold"
+       ],
+       "confidence": 0.5007042641963908
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "Problem",
+       "reasons": [],
+       "confidence": 0.5007042641963908
+      }
      }
     }
    },
@@ -515,108 +584,240 @@
     "threshold_from_validation": null,
     "cases": {
      "1_normal_healthy_field": {
-      "model_ran": true,
-      "top_probability": 0.28220948576927185,
-      "inside_training_range": true,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "no_validated_confidence_threshold"
+       ],
+       "confidence": 0.28220948576927185
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "low_confidence"
+       ],
+       "confidence": 0.28220948576927185
+      }
      },
      "2_stressed_field": {
-      "model_ran": true,
-      "top_probability": 0.32432177662849426,
-      "inside_training_range": true,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "no_validated_confidence_threshold"
+       ],
+       "confidence": 0.32432177662849426
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "Diseased",
+       "reasons": [],
+       "confidence": 0.32432177662849426
+      }
      },
      "3_missing_satellite_observations": {
-      "model_ran": true,
-      "top_probability": 0.5088688731193542,
-      "inside_training_range": true,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "too_many_missing_features",
+        "too_few_clear_observations"
+       ],
+       "confidence": null
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "too_many_missing_features",
+        "too_few_clear_observations"
+       ],
+       "confidence": null
+      }
      },
      "4_cloud_obscured_one_clear_observation": {
-      "model_ran": true,
-      "top_probability": 0.3352864682674408,
-      "inside_training_range": true,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "too_few_clear_observations"
+       ],
+       "confidence": null
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "too_few_clear_observations"
+       ],
+       "confidence": null
+      }
      },
      "5_invalid_numbers_inf_minus999_1e12": {
-      "model_ran": true,
-      "top_probability": 0.4914321303367615,
-      "inside_training_range": true,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "non_finite_values",
+        "physically_implausible_values"
+       ],
+       "confidence": null
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "non_finite_values",
+        "physically_implausible_values"
+       ],
+       "confidence": null
+      }
      },
      "6_out_of_distribution_x1000": {
-      "model_ran": true,
-      "top_probability": 0.4781046509742737,
-      "inside_training_range": false,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "physically_implausible_values",
+        "outside_training_distribution"
+       ],
+       "confidence": null
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "physically_implausible_values",
+        "outside_training_distribution"
+       ],
+       "confidence": null
+      }
      },
      "7_lowest_confidence_validation_row": {
-      "model_ran": true,
-      "top_probability": 0.2811567783355713,
-      "inside_training_range": true,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "no_validated_confidence_threshold"
+       ],
+       "confidence": 0.2811567783355713
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "low_confidence"
+       ],
+       "confidence": 0.2811567783355713
+      }
      }
     }
    },
    "stress_cause": {
     "model": "xgboost",
-    "threshold_from_validation": 0.3,
+    "threshold_from_validation": null,
     "cases": {
      "1_normal_healthy_field": {
-      "model_ran": true,
-      "top_probability": 0.38577717542648315,
-      "inside_training_range": true,
-      "final_answer": "Pests",
-      "abstained": false
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "no_validated_confidence_threshold"
+       ],
+       "confidence": 0.38577717542648315
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "Pests",
+       "reasons": [],
+       "confidence": 0.38577717542648315
+      }
      },
      "2_stressed_field": {
-      "model_ran": true,
-      "top_probability": 0.7167025804519653,
-      "inside_training_range": true,
-      "final_answer": "Diseased",
-      "abstained": false
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "no_validated_confidence_threshold"
+       ],
+       "confidence": 0.7167025804519653
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "Diseased",
+       "reasons": [],
+       "confidence": 0.7167025804519653
+      }
      },
      "3_missing_satellite_observations": {
-      "model_ran": true,
-      "top_probability": 0.5646834373474121,
-      "inside_training_range": true,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "too_many_missing_features",
+        "too_few_clear_observations"
+       ],
+       "confidence": null
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "too_many_missing_features",
+        "too_few_clear_observations"
+       ],
+       "confidence": null
+      }
      },
      "4_cloud_obscured_one_clear_observation": {
-      "model_ran": true,
-      "top_probability": 0.6344620585441589,
-      "inside_training_range": true,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "too_few_clear_observations"
+       ],
+       "confidence": null
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "too_few_clear_observations"
+       ],
+       "confidence": null
+      }
      },
      "5_invalid_numbers_inf_minus999_1e12": {
-      "model_ran": true,
-      "top_probability": 0.8793579339981079,
-      "inside_training_range": true,
-      "final_answer": "Stressed",
-      "abstained": false
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "non_finite_values",
+        "physically_implausible_values"
+       ],
+       "confidence": null
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "non_finite_values",
+        "physically_implausible_values"
+       ],
+       "confidence": null
+      }
      },
      "6_out_of_distribution_x1000": {
-      "model_ran": true,
-      "top_probability": 0.6004257202148438,
-      "inside_training_range": false,
-      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
-      "abstained": true
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "physically_implausible_values",
+        "outside_training_distribution"
+       ],
+       "confidence": null
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "physically_implausible_values",
+        "outside_training_distribution"
+       ],
+       "confidence": null
+      }
      },
      "7_lowest_confidence_validation_row": {
-      "model_ran": true,
-      "top_probability": 0.39784613251686096,
-      "inside_training_range": true,
-      "final_answer": "Diseased",
-      "abstained": false
+      "as_shipped": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "outside_training_distribution"
+       ],
+       "confidence": null
+      },
+      "with_permissive_threshold_0.30": {
+       "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+       "reasons": [
+        "outside_training_distribution"
+       ],
+       "confidence": null
+      }
      }
     }
    }
@@ -624,94 +825,94 @@
  },
  "fit_time_remeasured_health_binary": {
   "catboost": {
-   "final_fit_seconds_now": 0.9855999999999767,
-   "final_fit_seconds_recorded": 0.7703000000001339,
-   "peak_ram_mb_now": 331.875,
-   "peak_ram_mb_recorded_tuning_plus_fit": 505.10546875
+   "final_fit_seconds_now": 1.1589661999969394,
+   "final_fit_seconds_recorded": 0.6665816999993694,
+   "peak_ram_mb_now": 331.796875,
+   "peak_ram_mb_recorded_tuning_plus_fit": 578.79296875
   },
   "cnn1d": {
-   "final_fit_seconds_now": 4.5676659000000654,
-   "final_fit_seconds_recorded": 7.310895200000232,
-   "peak_ram_mb_now": 435.3828125,
-   "peak_ram_mb_recorded_tuning_plus_fit": 447.9921875
+   "final_fit_seconds_now": 5.888261899999634,
+   "final_fit_seconds_recorded": 3.597458500000357,
+   "peak_ram_mb_now": 437.75,
+   "peak_ram_mb_recorded_tuning_plus_fit": 449.08984375
   },
   "decision_tree": {
-   "final_fit_seconds_now": 0.09765089999928023,
-   "final_fit_seconds_recorded": 0.06956189999982598,
-   "peak_ram_mb_now": 439.41015625,
-   "peak_ram_mb_recorded_tuning_plus_fit": 319.92578125
+   "final_fit_seconds_now": 0.09434600000167848,
+   "final_fit_seconds_recorded": 0.08145640000293497,
+   "peak_ram_mb_now": 441.77734375,
+   "peak_ram_mb_recorded_tuning_plus_fit": 323.80078125
   },
   "extra_trees": {
-   "final_fit_seconds_now": 0.173568800000794,
-   "final_fit_seconds_recorded": 0.1538157000013598,
-   "peak_ram_mb_now": 444.16015625,
-   "peak_ram_mb_recorded_tuning_plus_fit": 329.0546875
+   "final_fit_seconds_now": 0.2176804999980959,
+   "final_fit_seconds_recorded": 0.18410629999925732,
+   "peak_ram_mb_now": 446.4609375,
+   "peak_ram_mb_recorded_tuning_plus_fit": 332.4140625
   },
   "gru": {
-   "final_fit_seconds_now": 3.7389484999985143,
-   "final_fit_seconds_recorded": 8.190919599999688,
-   "peak_ram_mb_now": 442.4609375,
-   "peak_ram_mb_recorded_tuning_plus_fit": 512.0
+   "final_fit_seconds_now": 4.667594700000336,
+   "final_fit_seconds_recorded": 4.030573399999412,
+   "peak_ram_mb_now": 444.57421875,
+   "peak_ram_mb_recorded_tuning_plus_fit": 558.5078125
   },
   "hist_gradient_boosting": {
-   "final_fit_seconds_now": 0.4043476999995619,
-   "final_fit_seconds_recorded": 0.4405721999992238,
-   "peak_ram_mb_now": 448.75390625,
-   "peak_ram_mb_recorded_tuning_plus_fit": 502.5625
+   "final_fit_seconds_now": 0.46923400000014226,
+   "final_fit_seconds_recorded": 0.36947999999756576,
+   "peak_ram_mb_now": 451.92578125,
+   "peak_ram_mb_recorded_tuning_plus_fit": 576.7578125
   },
   "knn": {
-   "final_fit_seconds_now": 0.017029200000251876,
-   "final_fit_seconds_recorded": 0.02409090000037395,
-   "peak_ram_mb_now": 447.265625,
-   "peak_ram_mb_recorded_tuning_plus_fit": 511.234375
+   "final_fit_seconds_now": 0.018295400001079543,
+   "final_fit_seconds_recorded": 0.01668769999741926,
+   "peak_ram_mb_now": 450.43359375,
+   "peak_ram_mb_recorded_tuning_plus_fit": 587.9921875
   },
   "lightgbm": {
-   "final_fit_seconds_now": 0.24841550000019197,
-   "final_fit_seconds_recorded": 0.17083110000021406,
-   "peak_ram_mb_now": 453.76171875,
-   "peak_ram_mb_recorded_tuning_plus_fit": 461.05078125
+   "final_fit_seconds_now": 0.2740135999993072,
+   "final_fit_seconds_recorded": 0.1581869999972696,
+   "peak_ram_mb_now": 456.81640625,
+   "peak_ram_mb_recorded_tuning_plus_fit": 533.54296875
   },
   "logistic_regression": {
-   "final_fit_seconds_now": 0.02199330000075861,
-   "final_fit_seconds_recorded": 0.021609100000205217,
-   "peak_ram_mb_now": 454.6796875,
-   "peak_ram_mb_recorded_tuning_plus_fit": 317.98046875
+   "final_fit_seconds_now": 0.029211900000518654,
+   "final_fit_seconds_recorded": 0.020317399998020846,
+   "peak_ram_mb_now": 457.375,
+   "peak_ram_mb_recorded_tuning_plus_fit": 317.8828125
   },
   "lstm": {
-   "final_fit_seconds_now": 1.4206544000007852,
-   "final_fit_seconds_recorded": 3.5159187000008387,
-   "peak_ram_mb_now": 455.2890625,
-   "peak_ram_mb_recorded_tuning_plus_fit": 591.6953125
+   "final_fit_seconds_now": 1.7313012999984494,
+   "final_fit_seconds_recorded": 1.5306576999973913,
+   "peak_ram_mb_now": 457.1328125,
+   "peak_ram_mb_recorded_tuning_plus_fit": 504.2890625
   },
   "mlp": {
-   "final_fit_seconds_now": 0.36611179999999877,
-   "final_fit_seconds_recorded": 0.6855761000006169,
-   "peak_ram_mb_now": 445.4453125,
-   "peak_ram_mb_recorded_tuning_plus_fit": 400.99609375
+   "final_fit_seconds_now": 0.41292149999935646,
+   "final_fit_seconds_recorded": 0.46301170000151615,
+   "peak_ram_mb_now": 450.1171875,
+   "peak_ram_mb_recorded_tuning_plus_fit": 399.68359375
   },
   "random_forest": {
-   "final_fit_seconds_now": 0.42045909999978903,
-   "final_fit_seconds_recorded": 0.4089555999998993,
-   "peak_ram_mb_now": 439.4140625,
-   "peak_ram_mb_recorded_tuning_plus_fit": 328.05078125
+   "final_fit_seconds_now": 0.5587309999973513,
+   "final_fit_seconds_recorded": 0.4986323999983142,
+   "peak_ram_mb_now": 441.44140625,
+   "peak_ram_mb_recorded_tuning_plus_fit": 327.5859375
   },
   "svm": {
-   "final_fit_seconds_now": 1.5048557000009168,
-   "final_fit_seconds_recorded": 1.6171427999997832,
-   "peak_ram_mb_now": 461.76171875,
-   "peak_ram_mb_recorded_tuning_plus_fit": 500.76953125
+   "final_fit_seconds_now": 2.1270999000007578,
+   "final_fit_seconds_recorded": 1.8585625999985496,
+   "peak_ram_mb_now": 460.87890625,
+   "peak_ram_mb_recorded_tuning_plus_fit": 572.77734375
   },
   "tcn": {
-   "final_fit_seconds_now": 3.1007099999987986,
-   "final_fit_seconds_recorded": 8.475478700000167,
-   "peak_ram_mb_now": 444.0703125,
-   "peak_ram_mb_recorded_tuning_plus_fit": 548.26953125
+   "final_fit_seconds_now": 3.7360627000016393,
+   "final_fit_seconds_recorded": 3.800374099999317,
+   "peak_ram_mb_now": 449.890625,
+   "peak_ram_mb_recorded_tuning_plus_fit": 578.61328125
   },
   "xgboost": {
-   "final_fit_seconds_now": 0.878538999999364,
-   "final_fit_seconds_recorded": 0.7683465999998589,
-   "peak_ram_mb_now": 573.16796875,
-   "peak_ram_mb_recorded_tuning_plus_fit": 461.19921875
+   "final_fit_seconds_now": 1.1901276000025973,
+   "final_fit_seconds_recorded": 0.8605649000019184,
+   "peak_ram_mb_now": 581.0546875,
+   "peak_ram_mb_recorded_tuning_plus_fit": 459.3515625
   }
  },
  "models": [
@@ -741,22 +942,22 @@
    "false_healthy_rate": 0.9387755102040817,
    "brier": 0.4095367343157358,
    "ece": 0.094294764690503,
-   "train_seconds_recorded": 216.39788320000116,
+   "train_seconds_recorded": 162.15597550000166,
    "tuning_trials": 12,
    "val_f1_macro": 0.2697179137433558,
-   "p50_ms_verified": 0.5514499998753308,
-   "p95_ms_verified": 0.8587599993006734,
-   "throughput_verified": 149733.871440121,
-   "peak_ram_mb_verified": 320.2421875,
-   "p50_ms_original": 0.7928499999252381,
+   "p50_ms_verified": 0.49539999781700317,
+   "p95_ms_verified": 0.872899999922083,
+   "throughput_verified": 128650.97394447614,
+   "peak_ram_mb_verified": 319.99609375,
+   "p50_ms_original": 0.4836999978579115,
    "size_bytes": 1059355,
-   "heldout_balanced_accuracy": 0.25272643362710334
+   "heldout_balanced_accuracy": 0.24989491728686475
   },
   {
    "task": "health_4class",
    "model": "cnn1d",
    "kind": "deep",
-   "status": "VERIFIED_BY_REFIT",
+   "status": "VERIFIED_BY_ARTIFACT",
    "train_rows": 2550,
    "test_rows": 547,
    "features": 77,
@@ -778,16 +979,16 @@
    "false_healthy_rate": 0.5510204081632653,
    "brier": 0.7386062316944212,
    "ece": 0.16234780992406814,
-   "train_seconds_recorded": 15.921278600000733,
+   "train_seconds_recorded": 11.628277099996922,
    "tuning_trials": 4,
    "val_f1_macro": 0.20257188338639084,
-   "p50_ms_verified": 0.4642999992938712,
-   "p95_ms_verified": 0.8224800007155862,
-   "throughput_verified": 45728.004115601616,
-   "peak_ram_mb_verified": 445.62890625,
-   "p50_ms_original": 0.9299999992435914,
-   "size_bytes": 191217,
-   "heldout_balanced_accuracy": 0.25220363141628604
+   "p50_ms_verified": 0.6139000015537022,
+   "p95_ms_verified": 1.3992299998790252,
+   "throughput_verified": 33174.54475695685,
+   "peak_ram_mb_verified": 359.16796875,
+   "p50_ms_original": 0.5264999981591245,
+   "size_bytes": 194813,
+   "heldout_balanced_accuracy": 0.2393058623463651
   },
   {
    "task": "health_4class",
@@ -815,16 +1016,16 @@
    "false_healthy_rate": 0.41836734693877553,
    "brier": 0.875919379060812,
    "ece": 0.4196703861963177,
-   "train_seconds_recorded": 6.229610499998671,
+   "train_seconds_recorded": 4.159463700001652,
    "tuning_trials": 12,
    "val_f1_macro": 0.2423430712831379,
-   "p50_ms_verified": 0.17240000033780234,
-   "p95_ms_verified": 0.38862999908815243,
-   "throughput_verified": 525796.9106795072,
-   "peak_ram_mb_verified": 432.48046875,
-   "p50_ms_original": 0.36794999959965935,
+   "p50_ms_verified": 0.2065999997284962,
+   "p95_ms_verified": 0.5628400025670999,
+   "throughput_verified": 595487.3226091111,
+   "peak_ram_mb_verified": 357.3359375,
+   "p50_ms_original": 0.11334999908285681,
    "size_bytes": 35600,
-   "heldout_balanced_accuracy": 0.2696777304439899
+   "heldout_balanced_accuracy": 0.24541554469564852
   },
   {
    "task": "health_4class",
@@ -852,22 +1053,22 @@
    "false_healthy_rate": 0.8061224489795918,
    "brier": 0.5891824067820143,
    "ece": 0.3116157734207692,
-   "train_seconds_recorded": 16.890306799999962,
+   "train_seconds_recorded": 12.020677999997133,
    "tuning_trials": 12,
    "val_f1_macro": 0.24586108845535534,
-   "p50_ms_verified": 17.46129999992263,
-   "p95_ms_verified": 19.018219999088615,
-   "throughput_verified": 10286.941370827175,
-   "peak_ram_mb_verified": 440.5390625,
-   "p50_ms_original": 33.7519999993674,
+   "p50_ms_verified": 20.295100001021638,
+   "p95_ms_verified": 21.79266499915684,
+   "throughput_verified": 8206.695894594097,
+   "peak_ram_mb_verified": 365.01171875,
+   "p50_ms_original": 20.25100000173552,
    "size_bytes": 4474799,
-   "heldout_balanced_accuracy": 0.2539743056154417
+   "heldout_balanced_accuracy": 0.2509818125846399
   },
   {
    "task": "health_4class",
    "model": "gru",
    "kind": "deep",
-   "status": "VERIFIED_BY_REFIT",
+   "status": "VERIFIED_BY_ARTIFACT",
    "train_rows": 2550,
    "test_rows": 547,
    "features": 77,
@@ -889,16 +1090,16 @@
    "false_healthy_rate": 0.16326530612244897,
    "brier": 0.7311020264655987,
    "ece": 0.11565021595745681,
-   "train_seconds_recorded": 39.4518240999987,
+   "train_seconds_recorded": 32.756426299998566,
    "tuning_trials": 4,
    "val_f1_macro": 0.16325380646873972,
-   "p50_ms_verified": 1.0793999999805237,
-   "p95_ms_verified": 1.9341699999131379,
-   "throughput_verified": 30861.07213290898,
-   "peak_ram_mb_verified": 438.62890625,
-   "p50_ms_original": 1.9120500001008622,
-   "size_bytes": 23637,
-   "heldout_balanced_accuracy": 0.27367726796585173
+   "p50_ms_verified": 1.3536499991460005,
+   "p95_ms_verified": 2.3814900025172387,
+   "throughput_verified": 27589.715072719748,
+   "peak_ram_mb_verified": 370.44140625,
+   "p50_ms_original": 1.0719500005507143,
+   "size_bytes": 27240,
+   "heldout_balanced_accuracy": 0.24891664013019185
   },
   {
    "task": "health_4class",
@@ -926,16 +1127,16 @@
    "false_healthy_rate": 0.8673469387755102,
    "brier": 0.45912518286396115,
    "ece": 0.115515519427256,
-   "train_seconds_recorded": 65.29157120000127,
+   "train_seconds_recorded": 53.09217090000311,
    "tuning_trials": 12,
    "val_f1_macro": 0.2562972191037807,
-   "p50_ms_verified": 3.17324999923585,
-   "p95_ms_verified": 4.438665001271147,
-   "throughput_verified": 44922.52619023457,
-   "peak_ram_mb_verified": 439.72265625,
-   "p50_ms_original": 4.0997499991135555,
+   "p50_ms_verified": 4.224199999953271,
+   "p95_ms_verified": 5.89225999847258,
+   "throughput_verified": 38071.443444586606,
+   "peak_ram_mb_verified": 369.58203125,
+   "p50_ms_original": 3.4028999998554355,
    "size_bytes": 842082,
-   "heldout_balanced_accuracy": 0.24691261097020525
+   "heldout_balanced_accuracy": 0.2496922861331472
   },
   {
    "task": "health_4class",
@@ -963,14 +1164,14 @@
    "false_healthy_rate": 1.0,
    "brier": 0.32593784277879345,
    "ece": 0.04570383912248636,
-   "train_seconds_recorded": 2.7991977999990922,
+   "train_seconds_recorded": 2.6049791000004916,
    "tuning_trials": 12,
    "val_f1_macro": 0.2254016064257028,
-   "p50_ms_verified": 0.4928500002279179,
-   "p95_ms_verified": 1.0109799995007052,
-   "throughput_verified": 74495.69904042318,
-   "peak_ram_mb_verified": 445.21875,
-   "p50_ms_original": 0.7515999996030587,
+   "p50_ms_verified": 0.6568499993591104,
+   "p95_ms_verified": 1.4778099979594113,
+   "throughput_verified": 53625.3681443328,
+   "peak_ram_mb_verified": 373.75,
+   "p50_ms_original": 0.4775500001414912,
    "size_bytes": 1595195,
    "heldout_balanced_accuracy": 0.25
   },
@@ -1000,16 +1201,16 @@
    "false_healthy_rate": 0.9081632653061225,
    "brier": 0.41678843182337527,
    "ece": 0.11393122876116012,
-   "train_seconds_recorded": 39.578004000000874,
+   "train_seconds_recorded": 58.65995859999748,
    "tuning_trials": 12,
    "val_f1_macro": 0.23348559556235957,
-   "p50_ms_verified": 0.4710499997599982,
-   "p95_ms_verified": 0.9078550013327913,
-   "throughput_verified": 80031.51240419237,
-   "peak_ram_mb_verified": 445.8203125,
-   "p50_ms_original": 0.5484999992404482,
+   "p50_ms_verified": 0.5730499979108572,
+   "p95_ms_verified": 1.1664599976938907,
+   "throughput_verified": 77742.07851526885,
+   "peak_ram_mb_verified": 374.375,
+   "p50_ms_original": 1.1443000003055204,
    "size_bytes": 1798330,
-   "heldout_balanced_accuracy": 0.2509665320138462
+   "heldout_balanced_accuracy": 0.24963046672679123
   },
   {
    "task": "health_4class",
@@ -1037,22 +1238,22 @@
    "false_healthy_rate": 0.17346938775510204,
    "brier": 0.7894008401802242,
    "ece": 0.1928913755503877,
-   "train_seconds_recorded": 6.099398000000292,
+   "train_seconds_recorded": 4.594318100003875,
    "tuning_trials": 12,
    "val_f1_macro": 0.17648554882951842,
-   "p50_ms_verified": 0.1868999988801079,
-   "p95_ms_verified": 0.3699750008308911,
-   "throughput_verified": 576862.409035233,
-   "peak_ram_mb_verified": 446.640625,
-   "p50_ms_original": 0.4092999997737934,
+   "p50_ms_verified": 0.23394999880110845,
+   "p95_ms_verified": 0.662525001644098,
+   "throughput_verified": 435152.13341375964,
+   "peak_ram_mb_verified": 375.13671875,
+   "p50_ms_original": 0.14505000035569537,
    "size_bytes": 6550,
-   "heldout_balanced_accuracy": 0.2502006125422354
+   "heldout_balanced_accuracy": 0.24597886595293386
   },
   {
    "task": "health_4class",
    "model": "lstm",
    "kind": "deep",
-   "status": "VERIFIED_BY_REFIT",
+   "status": "VERIFIED_BY_ARTIFACT",
    "train_rows": 2550,
    "test_rows": 547,
    "features": 77,
@@ -1074,16 +1275,16 @@
    "false_healthy_rate": 0.1836734693877551,
    "brier": 0.7469613026056342,
    "ece": 0.12611654684138252,
-   "train_seconds_recorded": 14.369751700000052,
+   "train_seconds_recorded": 11.300288400001591,
    "tuning_trials": 4,
    "val_f1_macro": 0.14274133858750593,
-   "p50_ms_verified": 0.6765999987692339,
-   "p95_ms_verified": 1.1496600010104883,
-   "throughput_verified": 108489.28669257728,
-   "peak_ram_mb_verified": 451.23828125,
-   "p50_ms_original": 1.271249999263091,
-   "size_bytes": 28515,
-   "heldout_balanced_accuracy": 0.2510378187536731
+   "p50_ms_verified": 0.7315500006370712,
+   "p95_ms_verified": 1.579200002379366,
+   "throughput_verified": 101895.4138878841,
+   "peak_ram_mb_verified": 378.546875,
+   "p50_ms_original": 0.688300000547315,
+   "size_bytes": 32119,
+   "heldout_balanced_accuracy": 0.2551122772012396
   },
   {
    "task": "health_4class",
@@ -1111,14 +1312,14 @@
    "false_healthy_rate": 1.0,
    "brier": 0.3153765356735948,
    "ece": 5.663691436375018e-05,
-   "train_seconds_recorded": 0.0011615000003075693,
+   "train_seconds_recorded": 0.0005680999965989031,
    "tuning_trials": 0,
    "val_f1_macro": 0.2254016064257028,
-   "p50_ms_verified": 0.019299999621580355,
-   "p95_ms_verified": 0.02139999933206127,
-   "throughput_verified": 7520564.004023579,
-   "peak_ram_mb_verified": 452.98046875,
-   "p50_ms_original": 0.004499999704421498,
+   "p50_ms_verified": 0.027000001864507794,
+   "p95_ms_verified": 0.03544500032148788,
+   "throughput_verified": 2823114.2480952144,
+   "peak_ram_mb_verified": 377.1953125,
+   "p50_ms_original": 0.0029000002541579306,
    "size_bytes": 323,
    "heldout_balanced_accuracy": 0.25
   },
@@ -1126,7 +1327,7 @@
    "task": "health_4class",
    "model": "mlp",
    "kind": "deep",
-   "status": "VERIFIED_BY_REFIT",
+   "status": "VERIFIED_BY_ARTIFACT",
    "train_rows": 2550,
    "test_rows": 547,
    "features": 77,
@@ -1148,15 +1349,15 @@
    "false_healthy_rate": 0.030612244897959183,
    "brier": 0.7914194504159993,
    "ece": 0.24978110766280065,
-   "train_seconds_recorded": 2.4634095000001253,
+   "train_seconds_recorded": 2.417855400002736,
    "tuning_trials": 4,
    "val_f1_macro": 0.10343133177918734,
-   "p50_ms_verified": 0.2827500002240413,
-   "p95_ms_verified": 0.5290949989102953,
-   "throughput_verified": 372732.3023914701,
-   "peak_ram_mb_verified": 440.1484375,
-   "p50_ms_original": 0.2709000000322703,
-   "size_bytes": 12981,
+   "p50_ms_verified": 0.29424999956972897,
+   "p95_ms_verified": 0.6114300023909891,
+   "throughput_verified": 277771.74974252447,
+   "peak_ram_mb_verified": 379.62890625,
+   "p50_ms_original": 0.23994999901333358,
+   "size_bytes": 16518,
    "heldout_balanced_accuracy": 0.25700646435785396
   },
   {
@@ -1190,16 +1391,16 @@
    "false_healthy_rate": 0.8469387755102041,
    "brier": 0.6094025005125134,
    "ece": 0.31882183378624995,
-   "train_seconds_recorded": 31.810620899999776,
+   "train_seconds_recorded": 22.65196140000262,
    "tuning_trials": 12,
    "val_f1_macro": 0.2440788651467183,
-   "p50_ms_verified": 17.263000000639295,
-   "p95_ms_verified": 18.483829999968293,
-   "throughput_verified": 11766.890543932597,
-   "peak_ram_mb_verified": 442.3046875,
-   "p50_ms_original": 33.44980000019859,
+   "p50_ms_verified": 20.586599999660393,
+   "p95_ms_verified": 21.977479999986826,
+   "throughput_verified": 8493.628451521476,
+   "peak_ram_mb_verified": 379.5078125,
+   "p50_ms_original": 20.542499998555286,
    "size_bytes": 1408959,
-   "heldout_balanced_accuracy": 0.260803467794323
+   "heldout_balanced_accuracy": 0.25055643333452954
   },
   {
    "task": "health_4class",
@@ -1227,14 +1428,14 @@
    "false_healthy_rate": 1.0,
    "brier": 0.315750071618841,
    "ece": 0.0006852447183058885,
-   "train_seconds_recorded": 69.27255869999863,
+   "train_seconds_recorded": 67.06193960000019,
    "tuning_trials": 12,
    "val_f1_macro": 0.2254016064257028,
-   "p50_ms_verified": 0.3371500006323913,
-   "p95_ms_verified": 0.6087699985073407,
-   "throughput_verified": 6178.709518617667,
-   "peak_ram_mb_verified": 443.93359375,
-   "p50_ms_original": 0.6710499992550467,
+   "p50_ms_verified": 0.45980000140843913,
+   "p95_ms_verified": 1.0924799986241849,
+   "throughput_verified": 4627.1343108757355,
+   "peak_ram_mb_verified": 380.9609375,
+   "p50_ms_original": 0.3730000007635681,
    "size_bytes": 1687070,
    "heldout_balanced_accuracy": 0.25
   },
@@ -1242,7 +1443,7 @@
    "task": "health_4class",
    "model": "tcn",
    "kind": "deep",
-   "status": "VERIFIED_BY_REFIT",
+   "status": "VERIFIED_BY_ARTIFACT",
    "train_rows": 2550,
    "test_rows": 547,
    "features": 77,
@@ -1264,16 +1465,16 @@
    "false_healthy_rate": 0.12244897959183673,
    "brier": 0.7600790838881771,
    "ece": 0.20011576018560084,
-   "train_seconds_recorded": 62.30094129999998,
+   "train_seconds_recorded": 35.35814109999774,
    "tuning_trials": 4,
    "val_f1_macro": 0.12350027018980042,
-   "p50_ms_verified": 1.3434499996947125,
-   "p95_ms_verified": 2.0606299991413835,
-   "throughput_verified": 40099.371255245955,
-   "peak_ram_mb_verified": 468.8984375,
-   "p50_ms_original": 2.3781999998391257,
-   "size_bytes": 101489,
-   "heldout_balanced_accuracy": 0.2571349096123133
+   "p50_ms_verified": 1.483899999584537,
+   "p95_ms_verified": 2.6088700002219407,
+   "throughput_verified": 22903.80936825706,
+   "peak_ram_mb_verified": 374.5546875,
+   "p50_ms_original": 1.9345000018802239,
+   "size_bytes": 105096,
+   "heldout_balanced_accuracy": 0.26604965126067814
   },
   {
    "task": "health_4class",
@@ -1301,16 +1502,16 @@
    "false_healthy_rate": 0.6428571428571429,
    "brier": 0.6041278022024303,
    "ece": 0.09673943527219936,
-   "train_seconds_recorded": 68.78667999999925,
+   "train_seconds_recorded": 46.92062799999985,
    "tuning_trials": 12,
    "val_f1_macro": 0.2675274705119346,
-   "p50_ms_verified": 0.5249499990895856,
-   "p95_ms_verified": 1.0600450000310955,
-   "throughput_verified": 120052.5229721233,
-   "peak_ram_mb_verified": 571.07421875,
-   "p50_ms_original": 1.124100000197359,
+   "p50_ms_verified": 0.5391499980760273,
+   "p95_ms_verified": 1.2037249985951346,
+   "throughput_verified": 116741.45419547544,
+   "peak_ram_mb_verified": 482.35546875,
+   "p50_ms_original": 0.4579500000545522,
    "size_bytes": 921084,
-   "heldout_balanced_accuracy": 0.25089531379853314
+   "heldout_balanced_accuracy": 0.25130100821794776
   },
   {
    "task": "health_binary",
@@ -1338,22 +1539,22 @@
    "false_healthy_rate": 0.673469387755102,
    "brier": 0.47237982786372407,
    "ece": 0.04734504431795041,
-   "train_seconds_recorded": 40.59977030000118,
+   "train_seconds_recorded": 43.70193609999842,
    "tuning_trials": 12,
    "val_f1_macro": 0.48191514186490236,
-   "p50_ms_verified": 0.5950500008111703,
-   "p95_ms_verified": 0.8357150006304437,
-   "throughput_verified": 186763.16096961207,
-   "peak_ram_mb_verified": 571.90234375,
-   "p50_ms_original": 0.5498500004250673,
+   "p50_ms_verified": 0.5691999995178776,
+   "p95_ms_verified": 0.9119550022660405,
+   "throughput_verified": 176293.97020922258,
+   "peak_ram_mb_verified": 483.1484375,
+   "p50_ms_original": 0.4411999980220571,
    "size_bytes": 70756,
-   "heldout_balanced_accuracy": 0.5106511326002007
+   "heldout_balanced_accuracy": 0.4958768344460344
   },
   {
    "task": "health_binary",
    "model": "cnn1d",
    "kind": "deep",
-   "status": "VERIFIED_BY_REFIT",
+   "status": "VERIFIED_BY_ARTIFACT",
    "train_rows": 2550,
    "test_rows": 547,
    "features": 77,
@@ -1375,16 +1576,16 @@
    "false_healthy_rate": 0.5306122448979592,
    "brier": 0.5140110923750684,
    "ece": 0.017054822043919345,
-   "train_seconds_recorded": 29.35722810000152,
+   "train_seconds_recorded": 14.351317700002255,
    "tuning_trials": 4,
    "val_f1_macro": 0.4359551407496613,
-   "p50_ms_verified": 0.5321999997249804,
-   "p95_ms_verified": 0.9194400005071657,
-   "throughput_verified": 48352.61141679756,
-   "peak_ram_mb_verified": 600.3984375,
-   "p50_ms_original": 1.3358500000322238,
-   "size_bytes": 190961,
-   "heldout_balanced_accuracy": 0.4851192861301877
+   "p50_ms_verified": 0.5343499997252366,
+   "p95_ms_verified": 1.0748450020400924,
+   "throughput_verified": 40357.16087355413,
+   "peak_ram_mb_verified": 504.60546875,
+   "p50_ms_original": 0.4547499993350357,
+   "size_bytes": 194557,
+   "heldout_balanced_accuracy": 0.4921084626408949
   },
   {
    "task": "health_binary",
@@ -1412,16 +1613,16 @@
    "false_healthy_rate": 0.5714285714285714,
    "brier": 0.5238270197232268,
    "ece": 0.12410081658062466,
-   "train_seconds_recorded": 3.2147984000002907,
+   "train_seconds_recorded": 3.9338545000027807,
    "tuning_trials": 12,
    "val_f1_macro": 0.47243654822335024,
-   "p50_ms_verified": 0.17970000044442713,
-   "p95_ms_verified": 0.39193999919007183,
-   "throughput_verified": 601560.296912859,
-   "peak_ram_mb_verified": 600.3984375,
-   "p50_ms_original": 0.09969999882741831,
+   "p50_ms_verified": 0.19655000141938217,
+   "p95_ms_verified": 0.5528199993932503,
+   "throughput_verified": 775006.0532132771,
+   "peak_ram_mb_verified": 502.4609375,
+   "p50_ms_original": 0.10674999975890387,
    "size_bytes": 3952,
-   "heldout_balanced_accuracy": 0.5025278659100526
+   "heldout_balanced_accuracy": 0.48659123631083073
   },
   {
    "task": "health_binary",
@@ -1449,14 +1650,14 @@
    "false_healthy_rate": 0.7142857142857143,
    "brier": 0.46100188775566064,
    "ece": 0.1418267190373482,
-   "train_seconds_recorded": 9.208907300002465,
+   "train_seconds_recorded": 10.954969499998697,
    "tuning_trials": 12,
    "val_f1_macro": 0.4889882727092029,
-   "p50_ms_verified": 17.566900000019814,
-   "p95_ms_verified": 18.694335000327555,
-   "throughput_verified": 8755.225775398123,
-   "peak_ram_mb_verified": 602.0703125,
-   "p50_ms_original": 17.097750000175438,
+   "p50_ms_verified": 30.430450000494602,
+   "p95_ms_verified": 33.613409999270516,
+   "throughput_verified": 7639.483236740867,
+   "peak_ram_mb_verified": 503.25390625,
+   "p50_ms_original": 29.57770000102755,
    "size_bytes": 2584159,
    "heldout_balanced_accuracy": 0.5033804706792329
   },
@@ -1464,7 +1665,7 @@
    "task": "health_binary",
    "model": "gru",
    "kind": "deep",
-   "status": "VERIFIED_BY_REFIT",
+   "status": "VERIFIED_BY_ARTIFACT",
    "train_rows": 2550,
    "test_rows": 547,
    "features": 77,
@@ -1486,16 +1687,16 @@
    "false_healthy_rate": 0.6020408163265306,
    "brier": 0.4887056885234171,
    "ece": 0.11064192941463415,
-   "train_seconds_recorded": 70.98113159999957,
+   "train_seconds_recorded": 35.305944399999134,
    "tuning_trials": 4,
    "val_f1_macro": 0.5001451849827486,
-   "p50_ms_verified": 1.0634500004016445,
-   "p95_ms_verified": 1.806484998905944,
-   "throughput_verified": 42610.56275977853,
-   "peak_ram_mb_verified": 593.46875,
-   "p50_ms_original": 2.4631500000396045,
-   "size_bytes": 23381,
-   "heldout_balanced_accuracy": 0.5034163648313368
+   "p50_ms_verified": 1.2604500007000752,
+   "p95_ms_verified": 2.0571750004819473,
+   "throughput_verified": 36920.05941742646,
+   "peak_ram_mb_verified": 505.7890625,
+   "p50_ms_original": 0.9300500005338108,
+   "size_bytes": 26984,
+   "heldout_balanced_accuracy": 0.5024207075732859
   },
   {
    "task": "health_binary",
@@ -1523,16 +1724,16 @@
    "false_healthy_rate": 0.7244897959183674,
    "brier": 0.4422970611709201,
    "ece": 0.08729542840466985,
-   "train_seconds_recorded": 15.589274500000101,
+   "train_seconds_recorded": 15.677399699994567,
    "tuning_trials": 12,
    "val_f1_macro": 0.48244123547915685,
-   "p50_ms_verified": 1.768850000189559,
-   "p95_ms_verified": 2.7034599993385195,
-   "throughput_verified": 81186.33532419552,
-   "peak_ram_mb_verified": 593.44921875,
-   "p50_ms_original": 2.054350000435079,
+   "p50_ms_verified": 2.067850000457838,
+   "p95_ms_verified": 3.401100001428858,
+   "throughput_verified": 71480.02746695839,
+   "peak_ram_mb_verified": 503.62890625,
+   "p50_ms_original": 1.8245499977638246,
    "size_bytes": 489650,
-   "heldout_balanced_accuracy": 0.508387385864364
+   "heldout_balanced_accuracy": 0.5017042858124732
   },
   {
    "task": "health_binary",
@@ -1560,16 +1761,16 @@
    "false_healthy_rate": 0.9795918367346939,
    "brier": 0.3203372756780957,
    "ece": 0.06450770436145208,
-   "train_seconds_recorded": 3.1472248999998556,
+   "train_seconds_recorded": 2.702144599999883,
    "tuning_trials": 12,
    "val_f1_macro": 0.45550672376230184,
-   "p50_ms_verified": 0.41899999905581353,
-   "p95_ms_verified": 0.878314999863505,
-   "throughput_verified": 92181.16479428505,
-   "peak_ram_mb_verified": 599.171875,
-   "p50_ms_original": 0.9815500006880029,
+   "p50_ms_verified": 0.513249999130494,
+   "p95_ms_verified": 1.4004749975356388,
+   "throughput_verified": 79239.79324829641,
+   "peak_ram_mb_verified": 506.7734375,
+   "p50_ms_original": 0.40970000009110663,
    "size_bytes": 1595179,
-   "heldout_balanced_accuracy": 0.4999584361037664
+   "heldout_balanced_accuracy": 0.5
   },
   {
    "task": "health_binary",
@@ -1597,16 +1798,16 @@
    "false_healthy_rate": 0.7857142857142857,
    "brier": 0.422910787025708,
    "ece": 0.03823452033508954,
-   "train_seconds_recorded": 10.99725000000035,
+   "train_seconds_recorded": 12.741115699998772,
    "tuning_trials": 12,
    "val_f1_macro": 0.4913835854202827,
-   "p50_ms_verified": 0.47900000026857015,
-   "p95_ms_verified": 0.8914499999264078,
-   "throughput_verified": 210970.46413636667,
-   "peak_ram_mb_verified": 597.71875,
-   "p50_ms_original": 0.5364000007830327,
+   "p50_ms_verified": 0.5126500000187661,
+   "p95_ms_verified": 1.1356199980582458,
+   "throughput_verified": 228518.3796864169,
+   "peak_ram_mb_verified": 505.3125,
+   "p50_ms_original": 0.4153500012762379,
    "size_bytes": 247882,
-   "heldout_balanced_accuracy": 0.5046269533949002
+   "heldout_balanced_accuracy": 0.4975487897812103
   },
   {
    "task": "health_binary",
@@ -1634,22 +1835,22 @@
    "false_healthy_rate": 0.5,
    "brier": 0.500234701619779,
    "ece": 0.014869791797427295,
-   "train_seconds_recorded": 2.537008200000855,
+   "train_seconds_recorded": 2.846477999995841,
    "tuning_trials": 12,
    "val_f1_macro": 0.49144342893161047,
-   "p50_ms_verified": 0.20915000004606554,
-   "p95_ms_verified": 0.45793499994033476,
-   "throughput_verified": 901598.9293244639,
-   "peak_ram_mb_verified": 597.734375,
-   "p50_ms_original": 0.11590000030992087,
+   "p50_ms_verified": 0.21720000040659215,
+   "p95_ms_verified": 0.5556500007514839,
+   "throughput_verified": 797955.2406553715,
+   "peak_ram_mb_verified": 505.32421875,
+   "p50_ms_original": 0.13800000124319922,
    "size_bytes": 4670,
-   "heldout_balanced_accuracy": 0.5027231402246698
+   "heldout_balanced_accuracy": 0.5078628436906198
   },
   {
    "task": "health_binary",
    "model": "lstm",
    "kind": "deep",
-   "status": "VERIFIED_BY_REFIT",
+   "status": "VERIFIED_BY_ARTIFACT",
    "train_rows": 2550,
    "test_rows": 547,
    "features": 77,
@@ -1671,16 +1872,16 @@
    "false_healthy_rate": 0.5204081632653061,
    "brier": 0.4902355929495753,
    "ece": 0.09028479930905582,
-   "train_seconds_recorded": 27.955863000001045,
+   "train_seconds_recorded": 14.046227399994677,
    "tuning_trials": 4,
    "val_f1_macro": 0.5086558876367794,
-   "p50_ms_verified": 0.6751000000804197,
-   "p95_ms_verified": 1.0485350002454652,
-   "throughput_verified": 115621.55619822371,
-   "peak_ram_mb_verified": 597.734375,
-   "p50_ms_original": 1.9124999998894054,
-   "size_bytes": 28259,
-   "heldout_balanced_accuracy": 0.5123996868405848
+   "p50_ms_verified": 0.7907499984867172,
+   "p95_ms_verified": 1.9082699996943115,
+   "throughput_verified": 102250.30556744161,
+   "peak_ram_mb_verified": 507.48046875,
+   "p50_ms_original": 0.5908499988436233,
+   "size_bytes": 31863,
+   "heldout_balanced_accuracy": 0.506770731711593
   },
   {
    "task": "health_binary",
@@ -1708,14 +1909,14 @@
    "false_healthy_rate": 1.0,
    "brier": 0.29412217520051004,
    "ece": 5.663691436375018e-05,
-   "train_seconds_recorded": 0.0004926999972667545,
+   "train_seconds_recorded": 0.0009611999957996886,
    "tuning_trials": 0,
    "val_f1_macro": 0.4508032128514056,
-   "p50_ms_verified": 0.02010000025620684,
-   "p95_ms_verified": 0.035304999619256705,
-   "throughput_verified": 7352096.434653752,
-   "peak_ram_mb_verified": 597.734375,
-   "p50_ms_original": 0.002099999619531445,
+   "p50_ms_verified": 0.02260000110254623,
+   "p95_ms_verified": 0.03803499839705181,
+   "throughput_verified": 2542709.5630496233,
+   "peak_ram_mb_verified": 505.3359375,
+   "p50_ms_original": 0.0025000008463393897,
    "size_bytes": 307,
    "heldout_balanced_accuracy": 0.5
   },
@@ -1723,7 +1924,7 @@
    "task": "health_binary",
    "model": "mlp",
    "kind": "deep",
-   "status": "VERIFIED_BY_REFIT",
+   "status": "VERIFIED_BY_ARTIFACT",
    "train_rows": 2550,
    "test_rows": 547,
    "features": 77,
@@ -1745,16 +1946,16 @@
    "false_healthy_rate": 0.7448979591836735,
    "brier": 0.4823076564795056,
    "ece": 0.10982717554573604,
-   "train_seconds_recorded": 9.900945700001103,
+   "train_seconds_recorded": 5.86308949999875,
    "tuning_trials": 4,
    "val_f1_macro": 0.4901509973280308,
-   "p50_ms_verified": 0.3003000010721735,
-   "p95_ms_verified": 0.543714999275835,
-   "throughput_verified": 306697.0167935892,
-   "peak_ram_mb_verified": 573.1640625,
-   "p50_ms_original": 0.6378500011123833,
-   "size_bytes": 17381,
-   "heldout_balanced_accuracy": 0.4826145831693513
+   "p50_ms_verified": 0.3266499988967553,
+   "p95_ms_verified": 0.749444998655235,
+   "throughput_verified": 325948.56141452026,
+   "peak_ram_mb_verified": 507.48046875,
+   "p50_ms_original": 0.2636500012158649,
+   "size_bytes": 20922,
+   "heldout_balanced_accuracy": 0.5085867905468842
   },
   {
    "task": "health_binary",
@@ -1764,34 +1965,34 @@
    "train_rows": 2550,
    "test_rows": 547,
    "features": 77,
-   "accuracy": 0.2449725776965265,
-   "balanced_accuracy": 0.5241352665787918,
-   "f1_macro": 0.23754189265355577,
+   "accuracy": 0.3436928702010969,
+   "balanced_accuracy": 0.5364074360256352,
+   "f1_macro": 0.34242699232837626,
    "f1_macro_ci95": [
-    0.20690313226125975,
-    0.266323678524699
+    0.3038414294564421,
+    0.37946995736711103
    ],
-   "recall_macro": 0.5241352665787918,
-   "roc_auc": 0.5241352665787918,
-   "pr_auc": 0.18656363872505,
+   "recall_macro": 0.5364074360256352,
+   "roc_auc": 0.5364074360256352,
+   "pr_auc": 0.19069103326888343,
    "ba_ci95": [
-    0.500385076685044,
-    0.5440814372625498
+    0.497461612288971,
+    0.5746266140503123
    ],
-   "val_balanced_accuracy": 0.49240943593473024,
-   "false_healthy_rate": 0.04081632653061224,
-   "brier": 1.510054844606947,
-   "ece": 0.7550274223034735,
-   "train_seconds_recorded": 0.0004515000018727733,
+   "val_balanced_accuracy": 0.4720239989091405,
+   "false_healthy_rate": 0.16326530612244897,
+   "brier": 1.3126142595978063,
+   "ece": 0.6563071297989032,
+   "train_seconds_recorded": 0.012740799997118302,
    "tuning_trials": 0,
-   "val_f1_macro": 0.2259642597234576,
-   "p50_ms_verified": 0.045199999476608355,
-   "p95_ms_verified": 0.06779500026823357,
-   "throughput_verified": 4445988.185241408,
-   "peak_ram_mb_verified": 573.1640625,
-   "p50_ms_original": 0.0166000008903211,
-   "size_bytes": 69,
-   "heldout_balanced_accuracy": 0.5018502415831982
+   "val_f1_macro": 0.3023449661059503,
+   "p50_ms_verified": 0.008099999831756577,
+   "p95_ms_verified": 0.011500000255182385,
+   "throughput_verified": 1659535.853466647,
+   "peak_ram_mb_verified": 505.33984375,
+   "p50_ms_original": 0.005200003215577453,
+   "size_bytes": 69383,
+   "heldout_balanced_accuracy": 0.5047536382243049
   },
   {
    "task": "health_binary",
@@ -1819,16 +2020,16 @@
    "false_healthy_rate": 0.8163265306122449,
    "brier": 0.4539009840862854,
    "ece": 0.1499726744694772,
-   "train_seconds_recorded": 18.84996229999888,
+   "train_seconds_recorded": 22.356469999998808,
    "tuning_trials": 12,
    "val_f1_macro": 0.5423879172398305,
-   "p50_ms_verified": 17.585750000762346,
-   "p95_ms_verified": 18.938364999394253,
-   "throughput_verified": 14452.466065219367,
-   "peak_ram_mb_verified": 573.5625,
-   "p50_ms_original": 17.254500000490225,
+   "p50_ms_verified": 20.73229999950854,
+   "p95_ms_verified": 21.852285002023564,
+   "throughput_verified": 8389.949103170517,
+   "peak_ram_mb_verified": 505.83984375,
+   "p50_ms_original": 18.99330000014743,
    "size_bytes": 348655,
-   "heldout_balanced_accuracy": 0.5021661030389521
+   "heldout_balanced_accuracy": 0.5005459645128347
   },
   {
    "task": "health_binary",
@@ -1856,14 +2057,14 @@
    "false_healthy_rate": 1.0,
    "brier": 0.2947428964943539,
    "ece": 0.002549611031534578,
-   "train_seconds_recorded": 30.254838599999857,
+   "train_seconds_recorded": 34.34704319999946,
    "tuning_trials": 12,
    "val_f1_macro": 0.4508032128514056,
-   "p50_ms_verified": 0.3146999997625244,
-   "p95_ms_verified": 0.5434050008261692,
-   "throughput_verified": 6580.0972620858565,
-   "peak_ram_mb_verified": 574.5859375,
-   "p50_ms_original": 0.31135000062931795,
+   "p50_ms_verified": 0.4252500002621673,
+   "p95_ms_verified": 0.8535350001693579,
+   "throughput_verified": 5008.941743673171,
+   "peak_ram_mb_verified": 506.86328125,
+   "p50_ms_original": 0.3781000013987068,
    "size_bytes": 1531866,
    "heldout_balanced_accuracy": 0.5
   },
@@ -1871,7 +2072,7 @@
    "task": "health_binary",
    "model": "tcn",
    "kind": "deep",
-   "status": "VERIFIED_BY_REFIT",
+   "status": "VERIFIED_BY_ARTIFACT",
    "train_rows": 2550,
    "test_rows": 547,
    "features": 77,
@@ -1893,15 +2094,15 @@
    "false_healthy_rate": 0.17346938775510204,
    "brier": 0.5110278742429285,
    "ece": 0.15253424306674232,
-   "train_seconds_recorded": 61.691424599999664,
+   "train_seconds_recorded": 32.985841900001105,
    "tuning_trials": 4,
    "val_f1_macro": 0.3324446536334449,
-   "p50_ms_verified": 1.328800000010233,
-   "p95_ms_verified": 2.5673850004750394,
-   "throughput_verified": 45799.01388910166,
-   "peak_ram_mb_verified": 585.31640625,
-   "p50_ms_original": 1.4715999996042228,
-   "size_bytes": 25933,
+   "p50_ms_verified": 0.9604999995644903,
+   "p95_ms_verified": 1.8469800006641885,
+   "throughput_verified": 52214.20879147437,
+   "peak_ram_mb_verified": 509.26171875,
+   "p50_ms_original": 0.9668499988038093,
+   "size_bytes": 29472,
    "heldout_balanced_accuracy": 0.5067305502088671
   },
   {
@@ -1930,16 +2131,16 @@
    "false_healthy_rate": 0.8469387755102041,
    "brier": 0.40236001685816786,
    "ece": 0.07570607309149652,
-   "train_seconds_recorded": 15.758799699999145,
+   "train_seconds_recorded": 17.425764200004778,
    "tuning_trials": 12,
    "val_f1_macro": 0.4838389870998566,
-   "p50_ms_verified": 0.6607000004805741,
-   "p95_ms_verified": 1.4629850002165732,
-   "throughput_verified": 106011.1643014829,
-   "peak_ram_mb_verified": 575.484375,
-   "p50_ms_original": 0.44049999905837467,
+   "p50_ms_verified": 0.5701000009139534,
+   "p95_ms_verified": 1.2157350010966184,
+   "throughput_verified": 128733.78254854646,
+   "peak_ram_mb_verified": 507.2109375,
+   "p50_ms_original": 0.4432500008988427,
    "size_bytes": 498510,
-   "heldout_balanced_accuracy": 0.4939975482662597
+   "heldout_balanced_accuracy": 0.4929240980777652
   },
   {
    "task": "stress_cause",
@@ -1967,22 +2168,22 @@
    "false_healthy_rate": null,
    "brier": 0.6991364741923103,
    "ece": 0.11436554645152344,
-   "train_seconds_recorded": 181.5764349000001,
+   "train_seconds_recorded": 129.28434990000096,
    "tuning_trials": 12,
    "val_f1_macro": 0.3958333333333333,
-   "p50_ms_verified": 0.58309999985795,
-   "p95_ms_verified": 0.7659999999304997,
-   "throughput_verified": 152100.29112204874,
-   "peak_ram_mb_verified": 573.94140625,
-   "p50_ms_original": 1.1636500003078254,
+   "p50_ms_verified": 0.4751999986183364,
+   "p95_ms_verified": 0.8127250001052744,
+   "throughput_verified": 158584.63216569537,
+   "peak_ram_mb_verified": 505.38671875,
+   "p50_ms_original": 0.46550000115530565,
    "size_bytes": 235459,
-   "heldout_balanced_accuracy": 0.34708226482761756
+   "heldout_balanced_accuracy": 0.34937424825571495
   },
   {
    "task": "stress_cause",
    "model": "cnn1d",
    "kind": "deep",
-   "status": "VERIFIED_BY_REFIT",
+   "status": "VERIFIED_BY_ARTIFACT",
    "train_rows": 457,
    "test_rows": 98,
    "features": 77,
@@ -2004,16 +2205,16 @@
    "false_healthy_rate": null,
    "brier": 0.6693218485760891,
    "ece": 0.03962879977664168,
-   "train_seconds_recorded": 2.920677499998419,
+   "train_seconds_recorded": 3.0950582000004943,
    "tuning_trials": 4,
    "val_f1_macro": 0.2913803009214186,
-   "p50_ms_verified": 0.7264999994731625,
-   "p95_ms_verified": 1.3673200001903731,
-   "throughput_verified": 39733.660307113234,
-   "peak_ram_mb_verified": 582.95703125,
-   "p50_ms_original": 0.9382000007462921,
-   "size_bytes": 191089,
-   "heldout_balanced_accuracy": 0.3481747448413725
+   "p50_ms_verified": 0.5301999990479089,
+   "p95_ms_verified": 1.2955199998032179,
+   "throughput_verified": 38199.14887780082,
+   "peak_ram_mb_verified": 492.8515625,
+   "p50_ms_original": 0.5098000019643223,
+   "size_bytes": 194683,
+   "heldout_balanced_accuracy": 0.3332650554878373
   },
   {
    "task": "stress_cause",
@@ -2041,16 +2242,16 @@
    "false_healthy_rate": null,
    "brier": 0.6942131984676877,
    "ece": 0.1114637655147791,
-   "train_seconds_recorded": 1.9392227999996976,
+   "train_seconds_recorded": 1.9441953000023204,
    "tuning_trials": 12,
    "val_f1_macro": 0.31991135957291433,
-   "p50_ms_verified": 0.22739999985788018,
-   "p95_ms_verified": 0.5567250006606623,
-   "throughput_verified": 485197.68002077215,
-   "peak_ram_mb_verified": 583.96484375,
-   "p50_ms_original": 0.14294999982666923,
+   "p50_ms_verified": 0.1510500005679205,
+   "p95_ms_verified": 0.32211499765253376,
+   "throughput_verified": 864864.8654539995,
+   "peak_ram_mb_verified": 493.41796875,
+   "p50_ms_original": 0.10565000047790818,
    "size_bytes": 3256,
-   "heldout_balanced_accuracy": 0.327672261299722
+   "heldout_balanced_accuracy": 0.3431323116125073
   },
   {
    "task": "stress_cause",
@@ -2077,23 +2278,23 @@
    "val_balanced_accuracy": 0.3474537037037037,
    "false_healthy_rate": null,
    "brier": 0.6798804556569525,
-   "ece": 0.06911804167062628,
-   "train_seconds_recorded": 10.471057499999006,
+   "ece": 0.06911804167062623,
+   "train_seconds_recorded": 9.56105579999712,
    "tuning_trials": 12,
    "val_f1_macro": 0.33700854700854704,
-   "p50_ms_verified": 18.198099998699035,
-   "p95_ms_verified": 29.386440001508163,
-   "throughput_verified": 8882.356655828054,
-   "peak_ram_mb_verified": 584.71875,
-   "p50_ms_original": 29.583200000161014,
+   "p50_ms_verified": 29.637949999596458,
+   "p95_ms_verified": 33.030394998604606,
+   "throughput_verified": 6850.480764499769,
+   "peak_ram_mb_verified": 493.8125,
+   "p50_ms_original": 21.422450001409743,
    "size_bytes": 509959,
-   "heldout_balanced_accuracy": 0.3081680424187207
+   "heldout_balanced_accuracy": 0.31201543669131276
   },
   {
    "task": "stress_cause",
    "model": "gru",
    "kind": "deep",
-   "status": "VERIFIED_BY_REFIT",
+   "status": "VERIFIED_BY_ARTIFACT",
    "train_rows": 457,
    "test_rows": 98,
    "features": 77,
@@ -2115,16 +2316,16 @@
    "false_healthy_rate": null,
    "brier": 0.673405384953326,
    "ece": 0.03761907317200485,
-   "train_seconds_recorded": 11.081694899998183,
+   "train_seconds_recorded": 8.715178499998729,
    "tuning_trials": 4,
    "val_f1_macro": 0.25869072110566016,
-   "p50_ms_verified": 2.5599500004318543,
-   "p95_ms_verified": 3.3092349985963665,
-   "throughput_verified": 22156.98221901075,
-   "peak_ram_mb_verified": 577.82421875,
-   "p50_ms_original": 3.666999999950349,
-   "size_bytes": 49655,
-   "heldout_balanced_accuracy": 0.3327681473011712
+   "p50_ms_verified": 2.43995000164432,
+   "p95_ms_verified": 3.4724050021395665,
+   "throughput_verified": 20151.768003081335,
+   "peak_ram_mb_verified": 486.30078125,
+   "p50_ms_original": 2.351849998376565,
+   "size_bytes": 53261,
+   "heldout_balanced_accuracy": 0.35271203428136166
   },
   {
    "task": "stress_cause",
@@ -2152,16 +2353,16 @@
    "false_healthy_rate": null,
    "brier": 0.6874630359440399,
    "ece": 0.1128795866124732,
-   "train_seconds_recorded": 64.60343189999912,
+   "train_seconds_recorded": 20.669381100000464,
    "tuning_trials": 12,
    "val_f1_macro": 0.34605917015977156,
-   "p50_ms_verified": 2.7408000005380018,
-   "p95_ms_verified": 4.380315000435074,
-   "throughput_verified": 67177.14297327565,
-   "peak_ram_mb_verified": 577.80078125,
-   "p50_ms_original": 5.196750000322936,
+   "p50_ms_verified": 2.980149998620618,
+   "p95_ms_verified": 4.352794997976158,
+   "throughput_verified": 44049.982966082775,
+   "peak_ram_mb_verified": 486.2734375,
+   "p50_ms_original": 2.581199998530792,
    "size_bytes": 378674,
-   "heldout_balanced_accuracy": 0.3168539756940147
+   "heldout_balanced_accuracy": 0.33716706051776696
   },
   {
    "task": "stress_cause",
@@ -2189,16 +2390,16 @@
    "false_healthy_rate": null,
    "brier": 0.7040408334304107,
    "ece": 0.10998129767375382,
-   "train_seconds_recorded": 2.3349761000008584,
+   "train_seconds_recorded": 1.9885460000004969,
    "tuning_trials": 12,
    "val_f1_macro": 0.39376945680951964,
-   "p50_ms_verified": 3.778500000407803,
-   "p95_ms_verified": 4.4839449997198235,
-   "throughput_verified": 49644.729900370294,
-   "peak_ram_mb_verified": 578.22265625,
-   "p50_ms_original": 5.919650000578258,
+   "p50_ms_verified": 4.879349999100668,
+   "p95_ms_verified": 6.113860000732529,
+   "throughput_verified": 38501.2197061374,
+   "peak_ram_mb_verified": 486.53515625,
+   "p50_ms_original": 4.513900001256843,
    "size_bytes": 289155,
-   "heldout_balanced_accuracy": 0.34105448182712217
+   "heldout_balanced_accuracy": 0.3071377462702732
   },
   {
    "task": "stress_cause",
@@ -2226,16 +2427,16 @@
    "false_healthy_rate": null,
    "brier": 0.7151636195430088,
    "ece": 0.13286039993893056,
-   "train_seconds_recorded": 14.299138000000312,
+   "train_seconds_recorded": 7.769395200000872,
    "tuning_trials": 12,
    "val_f1_macro": 0.4025341130604288,
-   "p50_ms_verified": 0.43185000049561495,
-   "p95_ms_verified": 0.802835000649793,
-   "throughput_verified": 120867.60277467391,
-   "peak_ram_mb_verified": 578.65234375,
-   "p50_ms_original": 0.6380999993780279,
+   "p50_ms_verified": 0.47384999925270677,
+   "p95_ms_verified": 0.9007599992401082,
+   "throughput_verified": 113592.9998246769,
+   "peak_ram_mb_verified": 486.92578125,
+   "p50_ms_original": 0.43415000072855037,
    "size_bytes": 573410,
-   "heldout_balanced_accuracy": 0.3503587508257868
+   "heldout_balanced_accuracy": 0.33109423703504276
   },
   {
    "task": "stress_cause",
@@ -2263,22 +2464,22 @@
    "false_healthy_rate": null,
    "brier": 0.6786131014131912,
    "ece": 0.06381099016127982,
-   "train_seconds_recorded": 2.5155126999998174,
+   "train_seconds_recorded": 2.3469750999975076,
    "tuning_trials": 12,
    "val_f1_macro": 0.3049001639585733,
-   "p50_ms_verified": 0.18714999987423653,
-   "p95_ms_verified": 0.42405999984111986,
-   "throughput_verified": 651565.2840182742,
-   "peak_ram_mb_verified": 578.8125,
-   "p50_ms_original": 0.23670000064157648,
+   "p50_ms_verified": 0.1907499990920769,
+   "p95_ms_verified": 0.36948000197298814,
+   "throughput_verified": 636404.3158889648,
+   "peak_ram_mb_verified": 486.92578125,
+   "p50_ms_original": 0.14179999925545417,
    "size_bytes": 5934,
-   "heldout_balanced_accuracy": 0.3276230503045226
+   "heldout_balanced_accuracy": 0.33406559014073345
   },
   {
    "task": "stress_cause",
    "model": "lstm",
    "kind": "deep",
-   "status": "VERIFIED_BY_REFIT",
+   "status": "VERIFIED_BY_ARTIFACT",
    "train_rows": 457,
    "test_rows": 98,
    "features": 77,
@@ -2300,16 +2501,16 @@
    "false_healthy_rate": null,
    "brier": 0.706778349494055,
    "ece": 0.07729346472389845,
-   "train_seconds_recorded": 4.0492323999988,
+   "train_seconds_recorded": 3.7433380000002217,
    "tuning_trials": 4,
    "val_f1_macro": 0.35926295926295926,
-   "p50_ms_verified": 0.6113500012361328,
-   "p95_ms_verified": 1.1394950011890614,
-   "throughput_verified": 117058.53841676394,
-   "peak_ram_mb_verified": 579.5234375,
-   "p50_ms_original": 1.4451499991992023,
-   "size_bytes": 28387,
-   "heldout_balanced_accuracy": 0.33318193019817394
+   "p50_ms_verified": 0.6741500001226086,
+   "p95_ms_verified": 1.506709998648148,
+   "throughput_verified": 112983.37906972719,
+   "peak_ram_mb_verified": 487.109375,
+   "p50_ms_original": 0.6818500005465467,
+   "size_bytes": 31991,
+   "heldout_balanced_accuracy": 0.3603336541272372
   },
   {
    "task": "stress_cause",
@@ -2337,14 +2538,14 @@
    "false_healthy_rate": null,
    "brier": 0.6621721913918669,
    "ece": 0.011387487161166443,
-   "train_seconds_recorded": 0.0001297999988310039,
+   "train_seconds_recorded": 0.00020670000230893493,
    "tuning_trials": 0,
    "val_f1_macro": 0.1791044776119403,
-   "p50_ms_verified": 0.010099998689838685,
-   "p95_ms_verified": 0.010399999246146763,
-   "throughput_verified": 7660083.823915903,
-   "peak_ram_mb_verified": 580.33203125,
-   "p50_ms_original": 0.005099998816149309,
+   "p50_ms_verified": 0.007899998308857903,
+   "p95_ms_verified": 0.00839999847812578,
+   "throughput_verified": 10847457.633603925,
+   "peak_ram_mb_verified": 488.46484375,
+   "p50_ms_original": 0.0024000000848900527,
    "size_bytes": 315,
    "heldout_balanced_accuracy": 0.3333333333333333
   },
@@ -2352,7 +2553,7 @@
    "task": "stress_cause",
    "model": "mlp",
    "kind": "deep",
-   "status": "VERIFIED_BY_REFIT",
+   "status": "VERIFIED_BY_ARTIFACT",
    "train_rows": 457,
    "test_rows": 98,
    "features": 77,
@@ -2374,16 +2575,16 @@
    "false_healthy_rate": null,
    "brier": 0.6769922568799469,
    "ece": 0.09439808860117077,
-   "train_seconds_recorded": 1.344491100002415,
+   "train_seconds_recorded": 1.3817502000019886,
    "tuning_trials": 4,
    "val_f1_macro": 0.2892071289124,
-   "p50_ms_verified": 0.2974999997604755,
-   "p95_ms_verified": 0.5639150012029854,
-   "throughput_verified": 271157.7163914947,
-   "peak_ram_mb_verified": 575.5859375,
-   "p50_ms_original": 0.5373999993025791,
-   "size_bytes": 17509,
-   "heldout_balanced_accuracy": 0.3440932287962799
+   "p50_ms_verified": 0.32115000067278743,
+   "p95_ms_verified": 0.6523349989947745,
+   "throughput_verified": 213993.14558223536,
+   "peak_ram_mb_verified": 480.87109375,
+   "p50_ms_original": 0.2593500012153527,
+   "size_bytes": 21050,
+   "heldout_balanced_accuracy": 0.3397680770578606
   },
   {
    "task": "stress_cause",
@@ -2415,17 +2616,17 @@
    "val_balanced_accuracy": 0.3666666666666667,
    "false_healthy_rate": null,
    "brier": 0.6791166151192878,
-   "ece": 0.10285135168765029,
-   "train_seconds_recorded": 17.58891080000103,
+   "ece": 0.10285135168765021,
+   "train_seconds_recorded": 15.129084299998794,
    "tuning_trials": 12,
    "val_f1_macro": 0.364962364962365,
-   "p50_ms_verified": 28.293700000176614,
-   "p95_ms_verified": 30.16328999847246,
-   "throughput_verified": 6653.982512526057,
-   "peak_ram_mb_verified": 560.51953125,
-   "p50_ms_original": 31.97065000040311,
+   "p50_ms_verified": 31.51495000020077,
+   "p95_ms_verified": 42.46393999965221,
+   "throughput_verified": 4917.916893314388,
+   "peak_ram_mb_verified": 481.1796875,
+   "p50_ms_original": 31.191250000119908,
    "size_bytes": 861047,
-   "heldout_balanced_accuracy": 0.34183238713619213
+   "heldout_balanced_accuracy": 0.323911472982478
   },
   {
    "task": "stress_cause",
@@ -2453,22 +2654,22 @@
    "false_healthy_rate": null,
    "brier": 0.6679984335989516,
    "ece": 0.03393851271688424,
-   "train_seconds_recorded": 7.647889399999258,
+   "train_seconds_recorded": 2.933513899999525,
    "tuning_trials": 12,
    "val_f1_macro": 0.18845260354694315,
-   "p50_ms_verified": 0.17589999970368808,
-   "p95_ms_verified": 0.43747000036091743,
-   "throughput_verified": 31196.38121998623,
-   "peak_ram_mb_verified": 560.3125,
-   "p50_ms_original": 0.9064999994734535,
+   "p50_ms_verified": 0.21225000091362745,
+   "p95_ms_verified": 0.4477000000406404,
+   "throughput_verified": 26907.601819812226,
+   "peak_ram_mb_verified": 480.7890625,
+   "p50_ms_original": 0.19439999960013665,
    "size_bytes": 299634,
-   "heldout_balanced_accuracy": 0.3293260729530124
+   "heldout_balanced_accuracy": 0.3314760298737047
   },
   {
    "task": "stress_cause",
    "model": "tcn",
    "kind": "deep",
-   "status": "VERIFIED_BY_REFIT",
+   "status": "VERIFIED_BY_ARTIFACT",
    "train_rows": 457,
    "test_rows": 98,
    "features": 77,
@@ -2490,16 +2691,16 @@
    "false_healthy_rate": null,
    "brier": 0.709363009642629,
    "ece": 0.1302237626241178,
-   "train_seconds_recorded": 9.042969199999789,
+   "train_seconds_recorded": 7.175948600000993,
    "tuning_trials": 4,
    "val_f1_macro": 0.34797797797797797,
-   "p50_ms_verified": 1.1818000002676854,
-   "p95_ms_verified": 1.8485849998796764,
-   "throughput_verified": 60924.23975614757,
-   "peak_ram_mb_verified": 568.96875,
-   "p50_ms_original": 2.0137500005148468,
-   "size_bytes": 33201,
-   "heldout_balanced_accuracy": 0.3524778603089496
+   "p50_ms_verified": 1.2452499995561084,
+   "p95_ms_verified": 2.3925249979583882,
+   "throughput_verified": 45345.36874781587,
+   "peak_ram_mb_verified": 485.19921875,
+   "p50_ms_original": 1.2150500006100629,
+   "size_bytes": 36808,
+   "heldout_balanced_accuracy": 0.36274044147034773
   },
   {
    "task": "stress_cause",
@@ -2527,16 +2728,16 @@
    "false_healthy_rate": null,
    "brier": 0.7476546241907698,
    "ece": 0.1858419511391192,
-   "train_seconds_recorded": 26.448593000000983,
+   "train_seconds_recorded": 19.541457600000285,
    "tuning_trials": 12,
    "val_f1_macro": 0.4557454918349973,
-   "p50_ms_verified": 0.5701000000044587,
-   "p95_ms_verified": 0.8265649999884771,
-   "throughput_verified": 124357.56686137765,
-   "peak_ram_mb_verified": 569.41015625,
-   "p50_ms_original": 0.603850000516104,
+   "p50_ms_verified": 0.5624499990517506,
+   "p95_ms_verified": 1.0883999981160741,
+   "throughput_verified": 100671.66880836195,
+   "peak_ram_mb_verified": 489.89453125,
+   "p50_ms_original": 0.4853999980696244,
    "size_bytes": 872748,
-   "heldout_balanced_accuracy": 0.3606922812266535
+   "heldout_balanced_accuracy": 0.34488486505376365
   }
  ],
  "winners": {
@@ -2559,7 +2760,7 @@
    },
    "fastest_verified": {
     "model": "decision_tree",
-    "p50_ms": 0.17970000044442713
+    "p50_ms": 0.19655000141938217
    },
    "best_overall": null,
    "most_reliable": null,
@@ -2580,11 +2781,11 @@
      0.2995284325691423
     ],
     "majority_baseline": 0.2254016064257028,
-    "note": "above the majority baseline's 0.225, but balanced accuracy is 0.264 (95% 0.230 to 0.294), ROC-AUC 0.508, validation balanced accuracy 0.241 and held-out 0.251; it does NOT clear the pre-registered bar, so it is not a demonstrated winner"
+    "note": "above the majority baseline's 0.225, but balanced accuracy is 0.264 (95% 0.230 to 0.294), ROC-AUC 0.508, validation balanced accuracy 0.241 and held-out 0.250; it does NOT clear the pre-registered bar, so it is not a demonstrated winner"
    },
    "fastest_verified": {
     "model": "decision_tree",
-    "p50_ms": 0.17240000033780234
+    "p50_ms": 0.2065999997284962
    },
    "best_overall": null,
    "most_reliable": null,
@@ -2605,11 +2806,11 @@
      0.4997712462975621
     ],
     "majority_baseline": 0.18627450980392157,
-    "note": "above the majority baseline's 0.186, but balanced accuracy is 0.420 (95% 0.328 to 0.510), ROC-AUC 0.555, validation balanced accuracy 0.344 and held-out 0.317; it does NOT clear the pre-registered bar, so it is not a demonstrated winner"
+    "note": "above the majority baseline's 0.186, but balanced accuracy is 0.420 (95% 0.328 to 0.510), ROC-AUC 0.555, validation balanced accuracy 0.344 and held-out 0.337; it does NOT clear the pre-registered bar, so it is not a demonstrated winner"
    },
    "fastest_verified": {
-    "model": "svm",
-    "p50_ms": 0.17589999970368808
+    "model": "decision_tree",
+    "p50_ms": 0.1510500005679205
    },
    "best_overall": null,
    "most_reliable": null,
@@ -2623,7 +2824,9 @@
    "file": "scripts/ml/explain_predictions.py (out_of_range); scripts/ml/ml_common.py (choose_confidence_threshold)",
    "problem": "The stress-cause model answers on invalid and low-quality inputs, and can output \"Diseased\". The cause task has no Healthy class, so its confidence threshold falls to the 0.30 floor and it never abstains on confidence; the out-of-range test passes inf / -999 / 1e12 because only 4 of 77 features are outside the range (5% < 20%).",
    "evidence": "phase_safety.json: stress_cause case 5 (inf, -inf, -999, 1e12) -> \"Stressed\" at 0.879; case 2 (typical stressed field) -> \"Diseased\" at 0.717; case 7 (lowest-confidence validation row, p=0.398) -> \"Diseased\".",
-   "fix": "Validate inputs before prediction (finite, within physical bounds, enough non-missing features); require a validated accuracy-above-baseline threshold for the cause task or do not serve it; never expose a disease label from satellite data alone."
+   "fix": "Validate inputs before prediction (finite, within physical bounds, enough non-missing features); require a validated accuracy-above-baseline threshold for the cause task or do not serve it; never expose a disease label from satellite data alone.",
+   "status": "FIXED",
+   "status_evidence": "New scripts/ml/prediction_safety.py: one predict_with_safety function derives every check from the row. Re-ran the 7 safety cases (verify_safety.py): as shipped all abstain (True); with a deliberately permissive 0.30 threshold the validity gates still refuse missing observations, cloud (1 clear observation), inf / -inf / -999 / 1e12 and x1000 inputs in all three tasks (True). The stress-cause model also no longer answers at all, because only a model that passed the pre-registered validation bar may answer. 10 new unit tests."
   },
   {
    "id": "I-02",
@@ -2631,7 +2834,9 @@
    "file": "scripts/ml/train_deep_learning_models.py (save)",
    "problem": "The five deep-model artifacts are not self-contained. The .pt file holds weights only; the fitted imputer, scaler and sequence statistics are not saved, so predictions cannot be reproduced from the artifact.",
    "evidence": "phase_models.json: all 15 deep entries have artifact_reload.loaded = false; they were verified only by re-fitting with the saved settings and seed (probability difference 0.0).",
-   "fix": "Save the preprocessing objects and architecture next to the weights and add a reload test."
+   "fix": "Save the preprocessing objects and architecture next to the weights and add a reload test.",
+   "status": "FIXED",
+   "status_evidence": "Deep models save .pt (weights, loadable with weights_only=True) + .json + .prep.joblib and reload with deep.load(); all 15 reload and reproduce probabilities to 0.0e+00. Unit test: save, reload, identical predictions."
   },
   {
    "id": "I-03",
@@ -2639,7 +2844,9 @@
    "file": "datasets/TRAINING-DATA-REGISTER.md; data labels",
    "problem": "The target labels do not support the requested outcome. Telangana labels are season-level survey cause categories with no severity (Mild / Moderate / Severe), no dates, one year (99% sown 2023), and cannot be independently verified. All 49 models score at chance on unseen districts.",
    "evidence": "phase_data.json (labels, 99% single year); results.json selection.eligible = [] for all 3 tasks; shuffled-label AUC 0.491 vs real 0.499.",
-   "fix": "Collect dated, agronomist-confirmed severity observations; see PRODUCTION_READINESS.md."
+   "fix": "Collect dated, agronomist-confirmed severity observations; see PRODUCTION_READINESS.md.",
+   "status": "NOT FIXED",
+   "status_evidence": "Cannot be fixed in code: needs dated, agronomist-confirmed severity labels."
   },
   {
    "id": "I-04",
@@ -2647,15 +2854,19 @@
    "file": "backend/engine/{satellite_features,crop_health_predictor,stress_risk_predictor,prediction_confidence,model_loader}.py; .local/models/{best_health_model,best_stress_risk_model,model_metadata.json}",
    "problem": "The expected backend modules, \"best model\" folders and model_metadata.json do not exist. Backend integration was deliberately not done (no approved model; Telangana licence is evaluation-only).",
    "evidence": "file listing in this report; no reference to any new model in backend/ or frontend/src (grep).",
-   "fix": "Create them only together with a model that clears validation and licence review."
+   "fix": "Create them only together with a model that clears validation and licence review.",
+   "status": "NOT FIXED (deliberate)",
+   "status_evidence": "No model passed validation and the Telangana licence is evaluation-only, so nothing is integrated. The safety logic now exists as prediction_safety.py for when a model qualifies."
   },
   {
    "id": "I-05",
    "severity": "MEDIUM",
    "file": ".local/ml/runs/main/*/*.json (latency, train_seconds, peak_ram_mb)",
    "problem": "Originally recorded timings were taken while other processes were running (a large directory scan and unit tests), so they are inflated.",
-   "evidence": "Fresh benchmark vs original single-call p50: median ratio 1.57x, maximum 5.15x; deep-model final-fit time 1.6-2.7x higher than the clean re-run (phase_fit_time.json).",
-   "fix": "Use the verified numbers in this report; re-run the pipeline on an idle machine for the final record."
+   "evidence": "Fresh benchmark vs original single-call p50: median ratio 0.86x, maximum 2.00x; deep-model final-fit time 1.6-2.7x higher than the clean re-run (phase_fit_time.json).",
+   "fix": "Use the verified numbers in this report; re-run the pipeline on an idle machine for the final record.",
+   "status": "FIXED",
+   "status_evidence": "Whole pipeline re-run with --force on an idle machine. Recorded single-call p50 now vs the fresh verification benchmark: median ratio 0.86, range 0.54 to 2.00 (before: median 1.57, up to 5.15)."
   },
   {
    "id": "I-06",
@@ -2663,7 +2874,9 @@
    "file": "scripts/ml/experiment.py (held-out refits)",
    "problem": "Held-out district and season scores are slightly optimistic: the hyperparameters were tuned on main-train rows that include the held-out district's fields, and the refit reuses them.",
    "evidence": "code path: tune() uses td.train; held-out loops call fit(..., params, s[\"train\"]).",
-   "fix": "Nested tuning inside each held-out fold. Effect is small here because every model is near chance."
+   "fix": "Nested tuning inside each held-out fold. Effect is small here because every model is near chance.",
+   "status": "FIXED",
+   "status_evidence": "Held-out folds now tune on their own training rows (nested): 294 nested searches, 0 fallbacks to the main settings. The budget is deliberately small (2 trials, 2-fold CV for classical; 1 trial for deep): the aim is no leakage, not a better search."
   },
   {
    "id": "I-07",
@@ -2671,7 +2884,9 @@
    "file": "reports/ml (test split use)",
    "problem": "No genuinely independent test set exists. Test metrics were computed for every model and were visible when the report text was written and during this verification; selection never reads them (unit-tested), but the same 547 fields were reused.",
    "evidence": "splits.json has one test split; no other labelled satellite dataset is available.",
-   "fix": "Evaluate once on new, dated field observations collected after the pass limit is agreed."
+   "fix": "Evaluate once on new, dated field observations collected after the pass limit is agreed.",
+   "status": "NOT FIXED",
+   "status_evidence": "No other labelled satellite dataset exists, so no genuinely independent test set can be made. The limitation remains."
   },
   {
    "id": "I-08",
@@ -2679,7 +2894,9 @@
    "file": "scripts/ml/train_classical_models.py (NdviRule)",
    "problem": "The \"ndvi_rule\" baseline is a feature-based approximation of the app's two triggers, not a replay of shared/evidence.ts (which compares comparable pairs by tile and method).",
    "evidence": "source inspection; its test AUC 0.524 vs the earlier node replay on 750 fields (0.454).",
-   "fix": "Replay the real rule through node for the baseline."
+   "fix": "Replay the real rule through node for the baseline.",
+   "status": "FIXED",
+   "status_evidence": "The baseline now replays the app's real alert (shared/evidence.ts + advice.ts) through scripts/evaluate-telangana-alerts.mjs on all 3725 fields: it flags 80% of problem fields and 79% of healthy fields; its test balanced accuracy is 0.536. The pipeline runs the replay as a step."
   },
   {
    "id": "I-09",
@@ -2687,7 +2904,9 @@
    "file": "backend/api/services/platform.integration.test.ts, satellite.integration.test.ts",
    "problem": "4 integration tests were SKIPPED (need a dedicated chm_integration PostGIS database), including the durable-jobs test that covers jobs.ts, which the uncommitted weather scheduler modifies. They are not counted as passed.",
    "evidence": "backend_node_tests.log: 162 tests, 158 pass, 4 skipped.",
-   "fix": "Create the integration database and run `npm run test:integration` before committing the scheduler."
+   "fix": "Create the integration database and run `npm run test:integration` before committing the scheduler.",
+   "status": "FIXED",
+   "status_evidence": "Created the dedicated chm_integration PostGIS database on your local server (README steps; the tests refuse any other database), ran the migrations and scripts/run-integration-tests.mjs: 6 of 6 pass, including the durable-jobs test and a new test for the weather scheduler. Fixtures are cleaned up (0 rows left). This created a database on your server; drop it with DROP DATABASE chm_integration if unwanted."
   },
   {
    "id": "I-10",
@@ -2695,7 +2914,9 @@
    "file": "scripts/ml/build_satellite_features.py",
    "problem": "The raw bands B2, B3, B6, B7, B8A, B12 were never extracted, so NDWI and EVI (requested) cannot be computed, and there is no soil-moisture source.",
    "evidence": "scripts/telangana_ndvi_extract.py selects only B4, B5, B8, B11; feature_summary.json \"not_available\".",
-   "fix": "Re-extract the bands for the 3,644 fields."
+   "fix": "Re-extract the bands for the 3,644 fields.",
+   "status": "NOT FIXED",
+   "status_evidence": "Needs hours of Earth Engine extraction for 3,644 fields; not attempted."
   },
   {
    "id": "I-11",
@@ -2703,7 +2924,9 @@
    "file": "docs/ml/PRODUCTION_READINESS.md:9; scripts/ml/write_reports.py",
    "problem": "A report sentence said \"across all 16 models\"; the task has 15 models (17 with baselines). FIXED during this verification: the count is now computed and baselines are excluded.",
    "evidence": "results.json health_binary has 17 entries, 15 non-baseline.",
-   "fix": "Fixed."
+   "fix": "Fixed.",
+   "status": "FIXED",
+   "status_evidence": "Fixed earlier in this verification."
   },
   {
    "id": "I-12",
@@ -2711,7 +2934,9 @@
    "file": "docs/ml/REPOSITORY_AUDIT.md:40; docs/ml/TRAINING_REPORT.md:50; scripts/ml/explain_predictions.py; scripts/ml/README.md",
    "problem": "The documents said `shap` cannot load. It failed on the first import (Application Control, numba DLL) but imports now, and shap.TreeExplainer equals the native TreeSHAP exactly. FIXED.",
    "evidence": "verify_safety.py output: shap 0.51.0 loads; difference 0.0.",
-   "fix": "Fixed; the claim now says what was observed."
+   "fix": "Fixed; the claim now says what was observed.",
+   "status": "FIXED",
+   "status_evidence": "Fixed earlier in this verification."
   },
   {
    "id": "I-13",
@@ -2719,7 +2944,9 @@
    "file": ".local/ml/logs/classical.log",
    "problem": "The resumed run overwrote the log, so 19 of 34 classical models have no training log line (15 are logged). Their result JSON files are intact and the models were independently reproduced.",
    "evidence": "log lines found: classical 15, deep 15; mismatches vs result JSON: 0.",
-   "fix": "Append to logs instead of overwriting."
+   "fix": "Append to logs instead of overwriting.",
+   "status": "FIXED",
+   "status_evidence": "run_all_experiments.py now appends to each step log with a timestamped header (1 run headers in classical.log after the re-run). The earlier lost lines are not recoverable, but every result was re-generated."
   },
   {
    "id": "I-14",
@@ -2727,7 +2954,9 @@
    "file": ".local/models/main/**/*.joblib",
    "problem": "Artifacts are pickles: loading an untrusted file can execute code, and the two baselines need scripts/ml on the Python path to unpickle. Local files only.",
    "evidence": "joblib load worked only with scripts/ml on sys.path.",
-   "fix": "Export tree models to a portable format before any serving."
+   "fix": "Export tree models to a portable format before any serving.",
+   "status": "PARTIALLY FIXED",
+   "status_evidence": "The three boosted-tree libraries are also exported in their native formats (.lgb.txt / .xgb.json / .cbm) for 9 models, and deep weights load with weights_only=True. The other scikit-learn models are still pickles."
   },
   {
    "id": "I-15",
@@ -2735,7 +2964,9 @@
    "file": "scripts/ml/explain_predictions.py",
    "problem": "Explanations are unstable and lean on observation-quality proxies. For Healthy vs Problem the permutation ranking agrees between two seeds at only 0.45 (rank correlation) and with TreeSHAP at 0.03; the top features across tasks include clear_fraction and area_ha.",
    "evidence": "phase_safety.json explainability.",
-   "fix": "Do not present these as evidence of crop condition; they describe a model at chance."
+   "fix": "Do not present these as evidence of crop condition; they describe a model at chance.",
+   "status": "PARTIALLY FIXED",
+   "status_evidence": "explain.json now carries a reliability block per task (ranking stability and whether the model has validated skill); explanation_reliable = [False, False, False], each with a warning. The instability itself is a property of models at chance and cannot be fixed."
   },
   {
    "id": "I-16",
@@ -2743,7 +2974,19 @@
    "file": "environment",
    "problem": "No GPU was used: PyTorch is a CPU build although an RTX 4050 is present. GPU utilisation stayed at 0% during the benchmark. Not a correctness issue.",
    "evidence": "torch_cuda_available=False; nvidia-smi utilisation 0.0% before and 0.0% after.",
-   "fix": "Install a CUDA build only if larger models are ever justified."
+   "fix": "Install a CUDA build only if larger models are ever justified.",
+   "status": "NOT FIXED (not a defect)",
+   "status_evidence": "PyTorch stays a CPU build; no GPU is used or claimed."
+  },
+  {
+   "id": "I-17",
+   "severity": "MEDIUM",
+   "file": "backend/api/services/platform.integration.test.ts",
+   "problem": "The \"platform persistence\" integration test failed on a developer machine with GOOGLE_WEATHER_API_KEY set (as in this .env.local): the fixture mocks Open-Meteo but forecast.ts then calls Google Weather. Found while running the integration tests that were skipped before.",
+   "evidence": "integration_tests.log before the fix: 4 pass, 1 fail \"Weather provider request failed\" (provider: Google Weather API).",
+   "fix": "The test now removes the key for its own run and restores it.",
+   "status": "FIXED",
+   "status_evidence": "The test removes GOOGLE_WEATHER_API_KEY for its own run and restores it; the integration tests pass with the key set."
   }
  ],
  "missing_deliverables": [

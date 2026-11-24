@@ -19,8 +19,9 @@ from scipy.stats import spearmanr
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts/ml'))
 warnings.filterwarnings('ignore')
-from ml_common import INSUFFICIENT, apply_abstention  # noqa: E402
-from explain_predictions import contributions, out_of_range, permutation_importance  # noqa: E402
+from ml_common import INSUFFICIENT  # noqa: E402
+from explain_predictions import contributions, permutation_importance  # noqa: E402
+from prediction_safety import predict_with_safety  # noqa: E402
 from verify_models import CLASSES, load_task_arrays  # noqa: E402
 
 OUT = ROOT / '.local/ml/verify'
@@ -40,7 +41,7 @@ def main():
     for task, e in explain.items():
         model = e['model']
         pipe = joblib.load(ROOT / f'.local/models/main/{task}/{model}.joblib')
-        X, y, tr, te, _ = load_task_arrays(task)
+        X, y, tr, te, _, _keep = load_task_arrays(task)
         va = None
         sp_va = np.asarray(sp['main']['validation'])
         label = z['label']
@@ -85,38 +86,33 @@ def main():
                                        'treeshap_vs_permutation_rank_correlation': rho_methods, 'missing_feature': miss,
                                        'saved_example_has_not_a_diagnosis_note': all('not a diagnosis' in x['note'] for x in e['examples']),
                                        'model_is_near_chance_so_importance_is_mostly_noise': True}
-        # --- safety: seven input kinds
-        thr = (e['abstention']['threshold_chosen_on_validation'] or {}).get('threshold')
-        proba_v = pipe.predict_proba(Xv)
+        # --- safety: seven input kinds through the ONE safety function, using the settings stored beside the model
+        safe = json.load(open(ROOT / f'.local/models/main/{task}/{model}.safety.json'))
+        spec, thr = safe['spec'], safe['threshold']
         sat = [i for i, n in enumerate(names) if not (n.startswith('wx_') or n.startswith('crop=') or n in ('season_rabi', 'area_ha', 'season_days') or n.startswith('sow_doy_'))]
-        healthy_rows = X[tr][y[tr] == (0 if task != 'stress_cause' else 0)] if task != 'stress_cause' else X[tr][y[tr] == 0]
-        sick_rows = X[tr][y[tr] != 0] if task != 'stress_cause' else X[tr][y[tr] != 0]
+        proba_v = pipe.predict_proba(Xv)
         cases = {}
-        cases['1_normal_healthy_field'] = (np.nanmedian(healthy_rows, axis=0), 9)
-        cases['2_stressed_field'] = (np.nanmedian(sick_rows, axis=0), 9)
+        cases['1_normal_healthy_field'] = np.nanmedian(X[tr][y[tr] == 0], axis=0)
+        cases['2_stressed_field'] = np.nanmedian(X[tr][y[tr] != 0], axis=0)
         r = np.nanmedian(X[tr], axis=0)
         m = r.copy()
         m[sat] = np.nan
-        cases['3_missing_satellite_observations'] = (m, 0)
+        cases['3_missing_satellite_observations'] = m
         cl = r.copy()
         cl[names.index('n_clear_obs')], cl[names.index('clear_fraction')] = 1, 0.1
-        cases['4_cloud_obscured_one_clear_observation'] = (cl, 1)
+        cases['4_cloud_obscured_one_clear_observation'] = cl
         bad = r.copy()
         bad[[sat[0], sat[1], sat[2], sat[3]]] = [np.inf, -np.inf, -999.0, 1e12]
-        cases['5_invalid_numbers_inf_minus999_1e12'] = (bad, 9)
-        cases['6_out_of_distribution_x1000'] = (r * 1000, 9)
-        order = np.argsort(proba_v.max(1))
-        cases['7_lowest_confidence_validation_row'] = (Xv[order[0]], 9)
+        cases['5_invalid_numbers_inf_minus999_1e12'] = bad
+        cases['6_out_of_distribution_x1000'] = r * 1000
+        cases['7_lowest_confidence_validation_row'] = Xv[np.argsort(proba_v.max(1))[0]]
+        permissive = 0.30                                    # a deliberately weak threshold: shows the validity gates work even when confidence would allow an answer
         out = {}
-        for name, (row, n_clear) in cases.items():
-            row = row.reshape(1, -1)
-            try:
-                p = pipe.predict_proba(row)
-                inside = out_of_range(X[tr], row)
-                answer = apply_abstention(p, thr, CLASSES[task], np.array([n_clear]), 3, inside)[0]
-                out[name] = {'model_ran': True, 'top_probability': float(p.max()), 'inside_training_range': bool(inside[0]), 'final_answer': answer, 'abstained': answer == INSUFFICIENT}
-            except Exception as exc:
-                out[name] = {'model_ran': False, 'error': f'{type(exc).__name__}: {str(exc)[:140]}', 'final_answer': 'ERROR (no safe response was produced)', 'abstained': False}
+        for name, row in cases.items():
+            shipped = predict_with_safety(pipe, row.reshape(1, -1), spec, CLASSES[task], thr)[0]
+            gate = predict_with_safety(pipe, row.reshape(1, -1), spec, CLASSES[task], permissive)[0]
+            out[name] = {'as_shipped': {'final_answer': shipped['answer'], 'reasons': shipped['reasons'], 'confidence': shipped['confidence']},
+                         'with_permissive_threshold_0.30': {'final_answer': gate['answer'], 'reasons': gate['reasons'], 'confidence': gate['confidence']}}
         res['safety'][task] = {'model': model, 'threshold_from_validation': thr, 'cases': out}
     json.dump(res, open(OUT / 'phase_safety.json', 'w'), indent=1, default=lambda o: bool(o) if isinstance(o, np.bool_) else float(o))
     print(json.dumps(res, indent=1, default=lambda o: bool(o) if isinstance(o, np.bool_) else float(o))[:7000])

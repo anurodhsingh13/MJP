@@ -1,0 +1,2760 @@
+{
+ "overall_status": "PARTIAL PASS",
+ "production_decision": "NOT READY",
+ "engineering_completion_percent": 70.9,
+ "ml_validation_and_production_readiness": {
+  "tasks_with_an_eligible_model": "0 of 3",
+  "models_that_beat_chance_on_unseen_districts": 0,
+  "production_readiness_percent": 0,
+  "test_intervals_above_chance": {
+   "count": 1,
+   "of_model_task_combinations": 45,
+   "detail": [
+    {
+     "task": "health_binary",
+     "model": "tcn",
+     "test_balanced_accuracy": 0.5491227671469479,
+     "ci95_lower": 0.5067195148261324,
+     "chance": 0.5,
+     "val_balanced_accuracy": 0.4880800872687605,
+     "heldout_balanced_accuracy": 0.5067305502088671,
+     "eligible": false
+    }
+   ],
+   "note": "about 2 of 45 are expected by chance alone at a 95% interval; none of them passes the validation / held-out bar"
+  },
+  "statement": "High engineering completion does not mean the models are valid: none beats chance."
+ },
+ "counts": {
+  "result_files": 51,
+  "models_trained_ok": 49,
+  "not_applicable": 2,
+  "failed": 0,
+  "reproduced_exactly": 49,
+  "passed_pre_registered_validation_bar": 0,
+  "classical_by_artifact": 34,
+  "deep_by_refit": 15
+ },
+ "components": [
+  {
+   "component": "Repository audit",
+   "status": "PASS",
+   "evidence": "docs/ml/REPOSITORY_AUDIT.md (facts checked against code: e.g. potato-leaf model is wired into the app)"
+  },
+  {
+   "component": "Dataset audit",
+   "status": "PASS",
+   "evidence": "scripts/ml/audit_datasets.py executed; docs/ml/DATASET_REPORT.md; numbers re-derived independently by verify_data.py"
+  },
+  {
+   "component": "Satellite feature extraction",
+   "status": "PARTIAL",
+   "evidence": "77 features and 32-step sequences built from NDVI / NDRE / NDMI; B2, B3, B6, B7, B8A, B12, NDWI, EVI and soil moisture are unavailable (I-10)"
+  },
+  {
+   "component": "Data preprocessing",
+   "status": "PASS",
+   "evidence": "prepare_satellite_data.py: tile choice and clear-observation rules; independent recount 3,644 = 3,644"
+  },
+  {
+   "component": "Leakage-safe data splitting",
+   "status": "PASS",
+   "evidence": "verify_data.py: 0 overlapping rows or FarmIDs; held-out district never in training; spatial leakage low"
+  },
+  {
+   "component": "Classical ML training",
+   "status": "PASS",
+   "evidence": "10 models + 2 baselines x 3 tasks executed; 34 results, artifacts reloaded and reproduced"
+  },
+  {
+   "component": "Deep learning training",
+   "status": "PASS",
+   "evidence": "5 models x 3 tasks executed (15 results); reproduced by refit; artifacts not self-contained (I-02)"
+  },
+  {
+   "component": "Hyperparameter optimization",
+   "status": "PASS",
+   "evidence": "Optuna ran for every model (12 trials classical, 4 deep); small by design"
+  },
+  {
+   "component": "Model evaluation",
+   "status": "PASS",
+   "evidence": "49 results; every metric recomputed independently with zero difference"
+  },
+  {
+   "component": "Model comparison",
+   "status": "PASS",
+   "evidence": "tables, figures and pre-registered selection; unit test that selection never reads test"
+  },
+  {
+   "component": "Explainability",
+   "status": "PASS",
+   "evidence": "TreeSHAP additive to 2e-15 and equal to shap.TreeExplainer; but near-chance models (I-15)"
+  },
+  {
+   "component": "Prediction confidence / abstention",
+   "status": "PARTIAL",
+   "evidence": "rules implemented and unit-tested, but safety tests found real gaps (I-01); no single predict-with-safety function"
+  },
+  {
+   "component": "Model export",
+   "status": "PARTIAL",
+   "evidence": "classical joblib artifacts reload exactly; deep artifacts incomplete (I-02); no best_* folders or metadata (I-04)"
+  },
+  {
+   "component": "Backend integration",
+   "status": "NOT IMPLEMENTED",
+   "evidence": "deliberate: no approved model, evaluation-only licence (I-04)"
+  },
+  {
+   "component": "Final reports",
+   "status": "PASS",
+   "evidence": "all 7 deliverables exist and parse; two wording errors found and fixed (I-11, I-12)"
+  }
+ ],
+ "score_rubric": {
+  "Implementation (15%)": {
+   "weight": 0.15,
+   "score": 0.833,
+   "basis": "PASS=1, PARTIAL=0.5, else 0 over 15 components"
+  },
+  "Dataset quality (15%)": {
+   "weight": 0.15,
+   "score": 0.667,
+   "basis": "12 checks: unique ids, no duplicates, valid labels, no missing, no cross-split leakage, low spatial label leakage, licence recorded = 7; class imbalance handled 0.5; sample adequacy 0.5; label reliability verifiable 0; labels support the target 0; temporal coverage 0"
+  },
+  "Actual training (20%)": {
+   "weight": 0.2,
+   "score": 0.906,
+   "basis": "8 checks: all trained 1, per-model data documented 1, durations 0.5 (contaminated), tuning 1, validation 1, test 1, artifacts 0.75 (deep incomplete), failures documented 1"
+  },
+  "Independent validation (20%)": {
+   "weight": 0.2,
+   "score": 0.679,
+   "basis": "7 checks: metrics reproduced 1, independent metric code 1, test not used for selection 0.75, external independent test set 0, held-out validation done 1, no tuning leakage in held-out 0.5, calibration/abstention validated 0.5"
+  },
+  "Performance benchmarking (10%)": {
+   "weight": 0.1,
+   "score": 0.718,
+   "basis": "6 checks: fresh benchmark of all 49 1, identical conditions 1, training time re-measured for 15 of 49 models, peak RAM 1, hardware recorded 1, original timings clean 0"
+  },
+  "Backend integration (10%)": {
+   "weight": 0.1,
+   "score": 0.2,
+   "basis": "10 checks: only existing-API compatibility and frontend build pass; model loading, versioning, endpoint, validation, schema, confidence, error handling, database are not implemented"
+  },
+  "Testing and documentation (10%)": {
+   "weight": 0.1,
+   "score": 0.75,
+   "basis": "7 checks: ML unit tests 1, other suites 1, executed not skipped 0.5 (0 skipped of 52), ML API tests 0 (none exist), deliverables exist 1, numbers accurate 0.75 (2 errors fixed), JSON valid and consistent 1"
+  }
+ },
+ "dataset": {
+  "train_csv_rows": 7888,
+  "unique_farm_ids": 7888,
+  "duplicate_id_rows": 0,
+  "labels": {
+   "Healthy": 6506,
+   "Diseased": 474,
+   "Pests": 485,
+   "Stressed": 423
+  },
+  "invalid_labels": 0,
+  "duplicate_geometry_rows": 0,
+  "missing_by_column": {},
+  "one_row_per_field_one_label_per_season": true,
+  "problem_rate": {
+   "crop:Bengal Gram": {
+    "n": 938,
+    "problem_rate": 0.204
+   },
+   "crop:Chillies": {
+    "n": 614,
+    "problem_rate": 0.178
+   },
+   "crop:Cotton": {
+    "n": 1692,
+    "problem_rate": 0.167
+   },
+   "crop:Groundnut": {
+    "n": 768,
+    "problem_rate": 0.167
+   },
+   "crop:Maize": {
+    "n": 1384,
+    "problem_rate": 0.173
+   },
+   "crop:Paddy": {
+    "n": 2268,
+    "problem_rate": 0.168
+   },
+   "crop:Red Gram": {
+    "n": 224,
+    "problem_rate": 0.223
+   },
+   "district:Adilabad": {
+    "n": 1770,
+    "problem_rate": 0.178
+   },
+   "district:Mahabubabad": {
+    "n": 1314,
+    "problem_rate": 0.165
+   },
+   "district:Mahabubnagar": {
+    "n": 655,
+    "problem_rate": 0.147
+   },
+   "district:Medak": {
+    "n": 1210,
+    "problem_rate": 0.167
+   },
+   "district:Nalgonda": {
+    "n": 1386,
+    "problem_rate": 0.175
+   },
+   "district:Narayanpet": {
+    "n": 203,
+    "problem_rate": 0.202
+   },
+   "district:Nirmal": {
+    "n": 1244,
+    "problem_rate": 0.203
+   },
+   "season:Kharif": {
+    "n": 1708,
+    "problem_rate": 0.161
+   },
+   "season:Rabi": {
+    "n": 6180,
+    "problem_rate": 0.179
+   }
+  },
+  "extract_fields": 3725,
+  "independently_counted_usable_fields": 3644,
+  "extract_ids_all_in_train_csv": true,
+  "feature_rows": 3644,
+  "feature_ids_match_independent_usable_set": true,
+  "split_sizes": {
+   "train": 2550,
+   "validation": 547,
+   "test": 547
+  },
+  "split_overlap_rows": 0,
+  "split_covers_all_rows": true,
+  "split_field_id_overlap": 0,
+  "split_label_share": {
+   "train": {
+    "Healthy": 0.821,
+    "Pests": 0.067,
+    "Diseased": 0.055,
+    "Stressed": 0.056
+   },
+   "validation": {
+    "Healthy": 0.821,
+    "Pests": 0.066,
+    "Diseased": 0.055,
+    "Stressed": 0.059
+   },
+   "test": {
+    "Healthy": 0.821,
+    "Pests": 0.069,
+    "Diseased": 0.051,
+    "Stressed": 0.059
+   }
+  },
+  "lodo_district_never_in_train": true,
+  "spatial_distance_to_nearest_training_field": {
+   "validation": {
+    "median_m": 352.04952786872593,
+    "share_within_50m": 0.007312614259597806,
+    "share_within_250m": 0.3820840950639854,
+    "share_within_1000m": 0.8226691042047533
+   },
+   "test": {
+    "median_m": 371.6405023421855,
+    "share_within_50m": 0.007312614259597806,
+    "share_within_250m": 0.3583180987202925,
+    "share_within_1000m": 0.8190127970749543
+   }
+  },
+  "spatial_leakage_conclusion": "most test fields are > 250 m from a training field",
+  "neighbour_label_agreement_within_250m": {
+   "fields_with_neighbour": 1590,
+   "agreement": 0.7125786163522012,
+   "expected_if_independent": 0.7058269702778939
+  }
+ },
+ "hardware": {
+  "cpu": "AMD64 Family 25 Model 124 Stepping 0, AuthenticAMD",
+  "logical_cores": 12,
+  "ram_gb": 15.2,
+  "gpu_before": {
+   "gpu_util_percent": 0.0,
+   "gpu_memory_used_mb": 159.0
+  },
+  "torch_cuda_available": false,
+  "gpu_after": {
+   "gpu_util_percent": 0.0,
+   "gpu_memory_used_mb": 231.0
+  }
+ },
+ "tests": [
+  {
+   "name": "ml_unittest",
+   "exit_code": 0,
+   "seconds": 2,
+   "command": "bash -c cd scripts/ml && ../../.venv/Scripts/python.exe -m unittest test_ml_pipeline -v",
+   "tests": 11,
+   "pass": 11,
+   "fail": 0,
+   "skipped": 0
+  },
+  {
+   "name": "typecheck",
+   "exit_code": 0,
+   "seconds": 11,
+   "command": "npx tsc -b"
+  },
+  {
+   "name": "frontend_build",
+   "exit_code": 0,
+   "seconds": 5,
+   "command": "npx vite --config frontend/vite.config.ts build"
+  },
+  {
+   "name": "backend_node_tests",
+   "exit_code": 0,
+   "seconds": 28,
+   "command": "node --import tsx --test backend/api/controllers/assistantController.test.ts backend/api/controllers/faoCalendarController.test.ts backend/api/control..."
+  },
+  {
+   "name": "launcher_tests",
+   "exit_code": 0,
+   "seconds": 3,
+   "command": "node --test scripts/local.test.mjs"
+  },
+  {
+   "name": "engine_pytest",
+   "exit_code": 0,
+   "seconds": 8,
+   "command": ".venv/Scripts/python.exe -m pytest backend/engine -q -x --no-header -p no:cacheprovider",
+   "tests": 41,
+   "pass": 41,
+   "fail": 0,
+   "skipped": 0
+  }
+ ],
+ "tests_not_executed": [
+  {
+   "name": "backend integration tests (4 tests)",
+   "status": "SKIPPED",
+   "reason": "need a dedicated PostGIS database named chm_integration (the tests assert it); creating a database on your server was not done without asking. Includes the durable-job test that covers backend/api/services/jobs.ts, which the uncommitted weather scheduler touches."
+  },
+  {
+   "name": "launcher database tests (3 tests)",
+   "status": "SKIPPED",
+   "reason": "skipped by the test file in this environment"
+  },
+  {
+   "name": "Playwright UI tests (npm run test:ui)",
+   "status": "NOT EXECUTED",
+   "reason": "not run in this verification; they start their own dev servers and browsers"
+  },
+  {
+   "name": "ML prediction API tests",
+   "status": "NOT APPLICABLE",
+   "reason": "there is no health / stress prediction endpoint to test"
+  }
+ ],
+ "explainability_and_safety": {
+  "explainability": {
+   "shap_package": "loads",
+   "health_binary": {
+    "model": "lightgbm",
+    "treeshap_additivity_max_abs_error": 1.9984014443252818e-15,
+    "top5_matches_saved_explain_json": true,
+    "top5_recomputed": [
+     "ndvi_median",
+     "area_ha",
+     "within_field_std",
+     "ndmi_mid",
+     "ndmi_min"
+    ],
+    "top5_saved": [
+     "ndvi_median",
+     "area_ha",
+     "within_field_std",
+     "ndmi_mid",
+     "ndmi_min"
+    ],
+    "permutation_rank_correlation_between_seeds": 0.44683368885932007,
+    "treeshap_vs_permutation_rank_correlation": 0.03222222952656528,
+    "missing_feature": {
+     "handled": true,
+     "mean_probability_change": 0.03970064462466525,
+     "feature": "ndvi_median"
+    },
+    "saved_example_has_not_a_diagnosis_note": true,
+    "model_is_near_chance_so_importance_is_mostly_noise": true
+   },
+   "health_4class": {
+    "model": "xgboost",
+    "treeshap_additivity_max_abs_error": 1.430511474609375e-06,
+    "top5_matches_saved_explain_json": true,
+    "top5_recomputed": [
+     "clear_fraction",
+     "growth_rate_max",
+     "within_field_std",
+     "area_ha",
+     "peak_phase"
+    ],
+    "top5_saved": [
+     "clear_fraction",
+     "growth_rate_max",
+     "within_field_std",
+     "area_ha",
+     "peak_phase"
+    ],
+    "permutation_rank_correlation_between_seeds": 0.7476361436593415,
+    "treeshap_vs_permutation_rank_correlation": 0.5362845846246841,
+    "missing_feature": {
+     "handled": true,
+     "mean_probability_change": 0.02140413038432598,
+     "feature": "clear_fraction"
+    },
+    "saved_example_has_not_a_diagnosis_note": true,
+    "model_is_near_chance_so_importance_is_mostly_noise": true
+   },
+   "stress_cause": {
+    "model": "xgboost",
+    "treeshap_additivity_max_abs_error": 1.1920928955078125e-06,
+    "top5_matches_saved_explain_json": true,
+    "top5_recomputed": [
+     "clear_fraction",
+     "growth_rate_max",
+     "area_ha",
+     "ndre_p3",
+     "within_field_std"
+    ],
+    "top5_saved": [
+     "clear_fraction",
+     "growth_rate_max",
+     "area_ha",
+     "ndre_p3",
+     "within_field_std"
+    ],
+    "permutation_rank_correlation_between_seeds": 0.7053093387615817,
+    "treeshap_vs_permutation_rank_correlation": 0.431450446096336,
+    "missing_feature": {
+     "handled": true,
+     "mean_probability_change": 0.05264115333557129,
+     "feature": "clear_fraction"
+    },
+    "saved_example_has_not_a_diagnosis_note": true,
+    "model_is_near_chance_so_importance_is_mostly_noise": true
+   }
+  },
+  "safety": {
+   "health_binary": {
+    "model": "lightgbm",
+    "threshold_from_validation": null,
+    "cases": {
+     "1_normal_healthy_field": {
+      "model_ran": true,
+      "top_probability": 0.5282870244592901,
+      "inside_training_range": true,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     },
+     "2_stressed_field": {
+      "model_ran": true,
+      "top_probability": 0.556791898151148,
+      "inside_training_range": true,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     },
+     "3_missing_satellite_observations": {
+      "model_ran": true,
+      "top_probability": 0.8865733044232715,
+      "inside_training_range": true,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     },
+     "4_cloud_obscured_one_clear_observation": {
+      "model_ran": true,
+      "top_probability": 0.5408497043571101,
+      "inside_training_range": true,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     },
+     "5_invalid_numbers_inf_minus999_1e12": {
+      "model_ran": true,
+      "top_probability": 0.5214767236620389,
+      "inside_training_range": true,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     },
+     "6_out_of_distribution_x1000": {
+      "model_ran": true,
+      "top_probability": 0.5621531646762042,
+      "inside_training_range": false,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     },
+     "7_lowest_confidence_validation_row": {
+      "model_ran": true,
+      "top_probability": 0.5007042641963908,
+      "inside_training_range": true,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     }
+    }
+   },
+   "health_4class": {
+    "model": "xgboost",
+    "threshold_from_validation": null,
+    "cases": {
+     "1_normal_healthy_field": {
+      "model_ran": true,
+      "top_probability": 0.28220948576927185,
+      "inside_training_range": true,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     },
+     "2_stressed_field": {
+      "model_ran": true,
+      "top_probability": 0.32432177662849426,
+      "inside_training_range": true,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     },
+     "3_missing_satellite_observations": {
+      "model_ran": true,
+      "top_probability": 0.5088688731193542,
+      "inside_training_range": true,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     },
+     "4_cloud_obscured_one_clear_observation": {
+      "model_ran": true,
+      "top_probability": 0.3352864682674408,
+      "inside_training_range": true,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     },
+     "5_invalid_numbers_inf_minus999_1e12": {
+      "model_ran": true,
+      "top_probability": 0.4914321303367615,
+      "inside_training_range": true,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     },
+     "6_out_of_distribution_x1000": {
+      "model_ran": true,
+      "top_probability": 0.4781046509742737,
+      "inside_training_range": false,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     },
+     "7_lowest_confidence_validation_row": {
+      "model_ran": true,
+      "top_probability": 0.2811567783355713,
+      "inside_training_range": true,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     }
+    }
+   },
+   "stress_cause": {
+    "model": "xgboost",
+    "threshold_from_validation": 0.3,
+    "cases": {
+     "1_normal_healthy_field": {
+      "model_ran": true,
+      "top_probability": 0.38577717542648315,
+      "inside_training_range": true,
+      "final_answer": "Pests",
+      "abstained": false
+     },
+     "2_stressed_field": {
+      "model_ran": true,
+      "top_probability": 0.7167025804519653,
+      "inside_training_range": true,
+      "final_answer": "Diseased",
+      "abstained": false
+     },
+     "3_missing_satellite_observations": {
+      "model_ran": true,
+      "top_probability": 0.5646834373474121,
+      "inside_training_range": true,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     },
+     "4_cloud_obscured_one_clear_observation": {
+      "model_ran": true,
+      "top_probability": 0.6344620585441589,
+      "inside_training_range": true,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     },
+     "5_invalid_numbers_inf_minus999_1e12": {
+      "model_ran": true,
+      "top_probability": 0.8793579339981079,
+      "inside_training_range": true,
+      "final_answer": "Stressed",
+      "abstained": false
+     },
+     "6_out_of_distribution_x1000": {
+      "model_ran": true,
+      "top_probability": 0.6004257202148438,
+      "inside_training_range": false,
+      "final_answer": "INSUFFICIENT_DATA_OR_LOW_CONFIDENCE",
+      "abstained": true
+     },
+     "7_lowest_confidence_validation_row": {
+      "model_ran": true,
+      "top_probability": 0.39784613251686096,
+      "inside_training_range": true,
+      "final_answer": "Diseased",
+      "abstained": false
+     }
+    }
+   }
+  }
+ },
+ "fit_time_remeasured_health_binary": {
+  "catboost": {
+   "final_fit_seconds_now": 0.9855999999999767,
+   "final_fit_seconds_recorded": 0.7703000000001339,
+   "peak_ram_mb_now": 331.875,
+   "peak_ram_mb_recorded_tuning_plus_fit": 505.10546875
+  },
+  "cnn1d": {
+   "final_fit_seconds_now": 4.5676659000000654,
+   "final_fit_seconds_recorded": 7.310895200000232,
+   "peak_ram_mb_now": 435.3828125,
+   "peak_ram_mb_recorded_tuning_plus_fit": 447.9921875
+  },
+  "decision_tree": {
+   "final_fit_seconds_now": 0.09765089999928023,
+   "final_fit_seconds_recorded": 0.06956189999982598,
+   "peak_ram_mb_now": 439.41015625,
+   "peak_ram_mb_recorded_tuning_plus_fit": 319.92578125
+  },
+  "extra_trees": {
+   "final_fit_seconds_now": 0.173568800000794,
+   "final_fit_seconds_recorded": 0.1538157000013598,
+   "peak_ram_mb_now": 444.16015625,
+   "peak_ram_mb_recorded_tuning_plus_fit": 329.0546875
+  },
+  "gru": {
+   "final_fit_seconds_now": 3.7389484999985143,
+   "final_fit_seconds_recorded": 8.190919599999688,
+   "peak_ram_mb_now": 442.4609375,
+   "peak_ram_mb_recorded_tuning_plus_fit": 512.0
+  },
+  "hist_gradient_boosting": {
+   "final_fit_seconds_now": 0.4043476999995619,
+   "final_fit_seconds_recorded": 0.4405721999992238,
+   "peak_ram_mb_now": 448.75390625,
+   "peak_ram_mb_recorded_tuning_plus_fit": 502.5625
+  },
+  "knn": {
+   "final_fit_seconds_now": 0.017029200000251876,
+   "final_fit_seconds_recorded": 0.02409090000037395,
+   "peak_ram_mb_now": 447.265625,
+   "peak_ram_mb_recorded_tuning_plus_fit": 511.234375
+  },
+  "lightgbm": {
+   "final_fit_seconds_now": 0.24841550000019197,
+   "final_fit_seconds_recorded": 0.17083110000021406,
+   "peak_ram_mb_now": 453.76171875,
+   "peak_ram_mb_recorded_tuning_plus_fit": 461.05078125
+  },
+  "logistic_regression": {
+   "final_fit_seconds_now": 0.02199330000075861,
+   "final_fit_seconds_recorded": 0.021609100000205217,
+   "peak_ram_mb_now": 454.6796875,
+   "peak_ram_mb_recorded_tuning_plus_fit": 317.98046875
+  },
+  "lstm": {
+   "final_fit_seconds_now": 1.4206544000007852,
+   "final_fit_seconds_recorded": 3.5159187000008387,
+   "peak_ram_mb_now": 455.2890625,
+   "peak_ram_mb_recorded_tuning_plus_fit": 591.6953125
+  },
+  "mlp": {
+   "final_fit_seconds_now": 0.36611179999999877,
+   "final_fit_seconds_recorded": 0.6855761000006169,
+   "peak_ram_mb_now": 445.4453125,
+   "peak_ram_mb_recorded_tuning_plus_fit": 400.99609375
+  },
+  "random_forest": {
+   "final_fit_seconds_now": 0.42045909999978903,
+   "final_fit_seconds_recorded": 0.4089555999998993,
+   "peak_ram_mb_now": 439.4140625,
+   "peak_ram_mb_recorded_tuning_plus_fit": 328.05078125
+  },
+  "svm": {
+   "final_fit_seconds_now": 1.5048557000009168,
+   "final_fit_seconds_recorded": 1.6171427999997832,
+   "peak_ram_mb_now": 461.76171875,
+   "peak_ram_mb_recorded_tuning_plus_fit": 500.76953125
+  },
+  "tcn": {
+   "final_fit_seconds_now": 3.1007099999987986,
+   "final_fit_seconds_recorded": 8.475478700000167,
+   "peak_ram_mb_now": 444.0703125,
+   "peak_ram_mb_recorded_tuning_plus_fit": 548.26953125
+  },
+  "xgboost": {
+   "final_fit_seconds_now": 0.878538999999364,
+   "final_fit_seconds_recorded": 0.7683465999998589,
+   "peak_ram_mb_now": 573.16796875,
+   "peak_ram_mb_recorded_tuning_plus_fit": 461.19921875
+  }
+ },
+ "models": [
+  {
+   "task": "health_4class",
+   "model": "catboost",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.7404021937842779,
+   "balanced_accuracy": 0.2387789752080647,
+   "f1_macro": 0.23213545504789976,
+   "f1_macro_ci95": [
+    0.21055087304482598,
+    0.2617764306271087
+   ],
+   "recall_macro": 0.2387789752080647,
+   "roc_auc": 0.5026018538954238,
+   "pr_auc": 0.25499840675678787,
+   "ba_ci95": [
+    0.2204859700433197,
+    0.26358946773609915
+   ],
+   "val_balanced_accuracy": 0.27034111296708735,
+   "false_healthy_rate": 0.9387755102040817,
+   "brier": 0.4095367343157358,
+   "ece": 0.094294764690503,
+   "train_seconds_recorded": 216.39788320000116,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.2697179137433558,
+   "p50_ms_verified": 0.5514499998753308,
+   "p95_ms_verified": 0.8587599993006734,
+   "throughput_verified": 149733.871440121,
+   "peak_ram_mb_verified": 320.2421875,
+   "p50_ms_original": 0.7928499999252381,
+   "size_bytes": 1059355,
+   "heldout_balanced_accuracy": 0.25272643362710334
+  },
+  {
+   "task": "health_4class",
+   "model": "cnn1d",
+   "kind": "deep",
+   "status": "VERIFIED_BY_REFIT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.39853747714808047,
+   "balanced_accuracy": 0.21779157317011905,
+   "f1_macro": 0.19806977875862358,
+   "f1_macro_ci95": [
+    0.17063000465400324,
+    0.23055025620449277
+   ],
+   "recall_macro": 0.21779157317011905,
+   "roc_auc": 0.49018159398936656,
+   "pr_auc": 0.2546917555852145,
+   "ba_ci95": [
+    0.16981194186075257,
+    0.26634463703087013
+   ],
+   "val_balanced_accuracy": 0.24534420626082654,
+   "false_healthy_rate": 0.5510204081632653,
+   "brier": 0.7386062316944212,
+   "ece": 0.16234780992406814,
+   "train_seconds_recorded": 15.921278600000733,
+   "tuning_trials": 4,
+   "val_f1_macro": 0.20257188338639084,
+   "p50_ms_verified": 0.4642999992938712,
+   "p95_ms_verified": 0.8224800007155862,
+   "throughput_verified": 45728.004115601616,
+   "peak_ram_mb_verified": 445.62890625,
+   "p50_ms_original": 0.9299999992435914,
+   "size_bytes": 191217,
+   "heldout_balanced_accuracy": 0.25220363141628604
+  },
+  {
+   "task": "health_4class",
+   "model": "decision_tree",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.40219378427787933,
+   "balanced_accuracy": 0.2778319249543681,
+   "f1_macro": 0.22480771357795687,
+   "f1_macro_ci95": [
+    0.19077466612726005,
+    0.2665724999698285
+   ],
+   "recall_macro": 0.2778319249543681,
+   "roc_auc": 0.492482850417839,
+   "pr_auc": 0.257873839016802,
+   "ba_ci95": [
+    0.21817415173899082,
+    0.36034246155578425
+   ],
+   "val_balanced_accuracy": 0.3129570341499629,
+   "false_healthy_rate": 0.41836734693877553,
+   "brier": 0.875919379060812,
+   "ece": 0.4196703861963177,
+   "train_seconds_recorded": 6.229610499998671,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.2423430712831379,
+   "p50_ms_verified": 0.17240000033780234,
+   "p95_ms_verified": 0.38862999908815243,
+   "throughput_verified": 525796.9106795072,
+   "peak_ram_mb_verified": 432.48046875,
+   "p50_ms_original": 0.36794999959965935,
+   "size_bytes": 35600,
+   "heldout_balanced_accuracy": 0.2696777304439899
+  },
+  {
+   "task": "health_4class",
+   "model": "extra_trees",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.7020109689213894,
+   "balanced_accuracy": 0.2487359650518278,
+   "f1_macro": 0.2481665624363266,
+   "f1_macro_ci95": [
+    0.21472696690233847,
+    0.27983123940422755
+   ],
+   "recall_macro": 0.2487359650518278,
+   "roc_auc": 0.5204281651737785,
+   "pr_auc": 0.26492809150557695,
+   "ba_ci95": [
+    0.21502906206020003,
+    0.27685407282253727
+   ],
+   "val_balanced_accuracy": 0.24918298379114082,
+   "false_healthy_rate": 0.8061224489795918,
+   "brier": 0.5891824067820143,
+   "ece": 0.3116157734207692,
+   "train_seconds_recorded": 16.890306799999962,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.24586108845535534,
+   "p50_ms_verified": 17.46129999992263,
+   "p95_ms_verified": 19.018219999088615,
+   "throughput_verified": 10286.941370827175,
+   "peak_ram_mb_verified": 440.5390625,
+   "p50_ms_original": 33.7519999993674,
+   "size_bytes": 4474799,
+   "heldout_balanced_accuracy": 0.2539743056154417
+  },
+  {
+   "task": "health_4class",
+   "model": "gru",
+   "kind": "deep",
+   "status": "VERIFIED_BY_REFIT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.23948811700182815,
+   "balanced_accuracy": 0.24983764568715777,
+   "f1_macro": 0.16279658368935865,
+   "f1_macro_ci95": [
+    0.1316476057779123,
+    0.19209343059581638
+   ],
+   "recall_macro": 0.24983764568715777,
+   "roc_auc": 0.4883980477771944,
+   "pr_auc": 0.2596547122276877,
+   "ba_ci95": [
+    0.19020963884748684,
+    0.30876126622481415
+   ],
+   "val_balanced_accuracy": 0.2536021405592675,
+   "false_healthy_rate": 0.16326530612244897,
+   "brier": 0.7311020264655987,
+   "ece": 0.11565021595745681,
+   "train_seconds_recorded": 39.4518240999987,
+   "tuning_trials": 4,
+   "val_f1_macro": 0.16325380646873972,
+   "p50_ms_verified": 1.0793999999805237,
+   "p95_ms_verified": 1.9341699999131379,
+   "throughput_verified": 30861.07213290898,
+   "peak_ram_mb_verified": 438.62890625,
+   "p50_ms_original": 1.9120500001008622,
+   "size_bytes": 23637,
+   "heldout_balanced_accuracy": 0.27367726796585173
+  },
+  {
+   "task": "health_4class",
+   "model": "hist_gradient_boosting",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.7257769652650823,
+   "balanced_accuracy": 0.2476024938459735,
+   "f1_macro": 0.24558992924140202,
+   "f1_macro_ci95": [
+    0.21632847161190577,
+    0.2832380736774104
+   ],
+   "recall_macro": 0.2476024938459735,
+   "roc_auc": 0.4921948714743676,
+   "pr_auc": 0.256166403233532,
+   "ba_ci95": [
+    0.2226207862138656,
+    0.27857007146098006
+   ],
+   "val_balanced_accuracy": 0.25637295842613217,
+   "false_healthy_rate": 0.8673469387755102,
+   "brier": 0.45912518286396115,
+   "ece": 0.115515519427256,
+   "train_seconds_recorded": 65.29157120000127,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.2562972191037807,
+   "p50_ms_verified": 3.17324999923585,
+   "p95_ms_verified": 4.438665001271147,
+   "throughput_verified": 44922.52619023457,
+   "peak_ram_mb_verified": 439.72265625,
+   "p50_ms_original": 4.0997499991135555,
+   "size_bytes": 842082,
+   "heldout_balanced_accuracy": 0.24691261097020525
+  },
+  {
+   "task": "health_4class",
+   "model": "knn",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.8208409506398537,
+   "balanced_accuracy": 0.25,
+   "f1_macro": 0.2254016064257028,
+   "f1_macro_ci95": [
+    0.22063329928498468,
+    0.22974975272056156
+   ],
+   "recall_macro": 0.25,
+   "roc_auc": 0.5058201601829971,
+   "pr_auc": 0.2535001078129688,
+   "ba_ci95": [
+    0.25,
+    0.25
+   ],
+   "val_balanced_accuracy": 0.25,
+   "false_healthy_rate": 1.0,
+   "brier": 0.32593784277879345,
+   "ece": 0.04570383912248636,
+   "train_seconds_recorded": 2.7991977999990922,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.2254016064257028,
+   "p50_ms_verified": 0.4928500002279179,
+   "p95_ms_verified": 1.0109799995007052,
+   "throughput_verified": 74495.69904042318,
+   "peak_ram_mb_verified": 445.21875,
+   "p50_ms_original": 0.7515999996030587,
+   "size_bytes": 1595195,
+   "heldout_balanced_accuracy": 0.25
+  },
+  {
+   "task": "health_4class",
+   "model": "lightgbm",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.753199268738574,
+   "balanced_accuracy": 0.26432616549726207,
+   "f1_macro": 0.26625300625300624,
+   "f1_macro_ci95": [
+    0.22179215682930825,
+    0.2995284325691423
+   ],
+   "recall_macro": 0.26432616549726207,
+   "roc_auc": 0.5084644261152889,
+   "pr_auc": 0.2635964977295029,
+   "ba_ci95": [
+    0.23023685850577297,
+    0.29384429696903264
+   ],
+   "val_balanced_accuracy": 0.241371643776293,
+   "false_healthy_rate": 0.9081632653061225,
+   "brier": 0.41678843182337527,
+   "ece": 0.11393122876116012,
+   "train_seconds_recorded": 39.578004000000874,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.23348559556235957,
+   "p50_ms_verified": 0.4710499997599982,
+   "p95_ms_verified": 0.9078550013327913,
+   "throughput_verified": 80031.51240419237,
+   "peak_ram_mb_verified": 445.8203125,
+   "p50_ms_original": 0.5484999992404482,
+   "size_bytes": 1798330,
+   "heldout_balanced_accuracy": 0.2509665320138462
+  },
+  {
+   "task": "health_4class",
+   "model": "logistic_regression",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.22486288848263253,
+   "balanced_accuracy": 0.29344305746269905,
+   "f1_macro": 0.1709234431102388,
+   "f1_macro_ci95": [
+    0.14547579531317406,
+    0.19849535091982148
+   ],
+   "recall_macro": 0.29344305746269905,
+   "roc_auc": 0.5231602357051744,
+   "pr_auc": 0.26374728493573535,
+   "ba_ci95": [
+    0.22656502915326107,
+    0.3683145908837771
+   ],
+   "val_balanced_accuracy": 0.31594592922543924,
+   "false_healthy_rate": 0.17346938775510204,
+   "brier": 0.7894008401802242,
+   "ece": 0.1928913755503877,
+   "train_seconds_recorded": 6.099398000000292,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.17648554882951842,
+   "p50_ms_verified": 0.1868999988801079,
+   "p95_ms_verified": 0.3699750008308911,
+   "throughput_verified": 576862.409035233,
+   "peak_ram_mb_verified": 446.640625,
+   "p50_ms_original": 0.4092999997737934,
+   "size_bytes": 6550,
+   "heldout_balanced_accuracy": 0.2502006125422354
+  },
+  {
+   "task": "health_4class",
+   "model": "lstm",
+   "kind": "deep",
+   "status": "VERIFIED_BY_REFIT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.1882998171846435,
+   "balanced_accuracy": 0.26121683837935594,
+   "f1_macro": 0.13952348910766302,
+   "f1_macro_ci95": [
+    0.11450533490900154,
+    0.17313869444548877
+   ],
+   "recall_macro": 0.26121683837935594,
+   "roc_auc": 0.5172240413416869,
+   "pr_auc": 0.256838849270254,
+   "ba_ci95": [
+    0.19717676275247054,
+    0.3249526072747244
+   ],
+   "val_balanced_accuracy": 0.25443307658995296,
+   "false_healthy_rate": 0.1836734693877551,
+   "brier": 0.7469613026056342,
+   "ece": 0.12611654684138252,
+   "train_seconds_recorded": 14.369751700000052,
+   "tuning_trials": 4,
+   "val_f1_macro": 0.14274133858750593,
+   "p50_ms_verified": 0.6765999987692339,
+   "p95_ms_verified": 1.1496600010104883,
+   "throughput_verified": 108489.28669257728,
+   "peak_ram_mb_verified": 451.23828125,
+   "p50_ms_original": 1.271249999263091,
+   "size_bytes": 28515,
+   "heldout_balanced_accuracy": 0.2510378187536731
+  },
+  {
+   "task": "health_4class",
+   "model": "majority_class",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.8208409506398537,
+   "balanced_accuracy": 0.25,
+   "f1_macro": 0.2254016064257028,
+   "f1_macro_ci95": [
+    0.22063329928498468,
+    0.22974975272056156
+   ],
+   "recall_macro": 0.25,
+   "roc_auc": 0.5,
+   "pr_auc": 0.25,
+   "ba_ci95": [
+    0.25,
+    0.25
+   ],
+   "val_balanced_accuracy": 0.25,
+   "false_healthy_rate": 1.0,
+   "brier": 0.3153765356735948,
+   "ece": 5.663691436375018e-05,
+   "train_seconds_recorded": 0.0011615000003075693,
+   "tuning_trials": 0,
+   "val_f1_macro": 0.2254016064257028,
+   "p50_ms_verified": 0.019299999621580355,
+   "p95_ms_verified": 0.02139999933206127,
+   "throughput_verified": 7520564.004023579,
+   "peak_ram_mb_verified": 452.98046875,
+   "p50_ms_original": 0.004499999704421498,
+   "size_bytes": 323,
+   "heldout_balanced_accuracy": 0.25
+  },
+  {
+   "task": "health_4class",
+   "model": "mlp",
+   "kind": "deep",
+   "status": "VERIFIED_BY_REFIT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.08226691042047532,
+   "balanced_accuracy": 0.24910397688262975,
+   "f1_macro": 0.09010264482047821,
+   "f1_macro_ci95": [
+    0.06784836198065015,
+    0.11611846543652288
+   ],
+   "recall_macro": 0.24910397688262975,
+   "roc_auc": 0.49277086549170784,
+   "pr_auc": 0.2519972980305013,
+   "ba_ci95": [
+    0.1961020045594811,
+    0.3157809931931783
+   ],
+   "val_balanced_accuracy": 0.27158848366740906,
+   "false_healthy_rate": 0.030612244897959183,
+   "brier": 0.7914194504159993,
+   "ece": 0.24978110766280065,
+   "train_seconds_recorded": 2.4634095000001253,
+   "tuning_trials": 4,
+   "val_f1_macro": 0.10343133177918734,
+   "p50_ms_verified": 0.2827500002240413,
+   "p95_ms_verified": 0.5290949989102953,
+   "throughput_verified": 372732.3023914701,
+   "peak_ram_mb_verified": 440.1484375,
+   "p50_ms_original": 0.2709000000322703,
+   "size_bytes": 12981,
+   "heldout_balanced_accuracy": 0.25700646435785396
+  },
+  {
+   "task": "health_4class",
+   "model": "ndvi_rule",
+   "status": "NOT_APPLICABLE"
+  },
+  {
+   "task": "health_4class",
+   "model": "random_forest",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.6855575868372943,
+   "balanced_accuracy": 0.26046838630540714,
+   "f1_macro": 0.2593928856553996,
+   "f1_macro_ci95": [
+    0.21596385345417862,
+    0.29415398710733065
+   ],
+   "recall_macro": 0.26046838630540714,
+   "roc_auc": 0.5048769186317246,
+   "pr_auc": 0.2515626067827993,
+   "ba_ci95": [
+    0.21366229013388088,
+    0.29745574447644013
+   ],
+   "val_balanced_accuracy": 0.24242955023509033,
+   "false_healthy_rate": 0.8469387755102041,
+   "brier": 0.6094025005125134,
+   "ece": 0.31882183378624995,
+   "train_seconds_recorded": 31.810620899999776,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.2440788651467183,
+   "p50_ms_verified": 17.263000000639295,
+   "p95_ms_verified": 18.483829999968293,
+   "throughput_verified": 11766.890543932597,
+   "peak_ram_mb_verified": 442.3046875,
+   "p50_ms_original": 33.44980000019859,
+   "size_bytes": 1408959,
+   "heldout_balanced_accuracy": 0.260803467794323
+  },
+  {
+   "task": "health_4class",
+   "model": "svm",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.8208409506398537,
+   "balanced_accuracy": 0.25,
+   "f1_macro": 0.2254016064257028,
+   "f1_macro_ci95": [
+    0.22063329928498468,
+    0.22974975272056156
+   ],
+   "recall_macro": 0.25,
+   "roc_auc": 0.4630829320370355,
+   "pr_auc": 0.24785660587395786,
+   "ba_ci95": [
+    0.25,
+    0.25
+   ],
+   "val_balanced_accuracy": 0.25,
+   "false_healthy_rate": 1.0,
+   "brier": 0.315750071618841,
+   "ece": 0.0006852447183058885,
+   "train_seconds_recorded": 69.27255869999863,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.2254016064257028,
+   "p50_ms_verified": 0.3371500006323913,
+   "p95_ms_verified": 0.6087699985073407,
+   "throughput_verified": 6178.709518617667,
+   "peak_ram_mb_verified": 443.93359375,
+   "p50_ms_original": 0.6710499992550467,
+   "size_bytes": 1687070,
+   "heldout_balanced_accuracy": 0.25
+  },
+  {
+   "task": "health_4class",
+   "model": "tcn",
+   "kind": "deep",
+   "status": "VERIFIED_BY_REFIT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.14625228519195613,
+   "balanced_accuracy": 0.2308115779426294,
+   "f1_macro": 0.11819225962543417,
+   "f1_macro_ci95": [
+    0.09444056706620005,
+    0.14248134459376852
+   ],
+   "recall_macro": 0.2308115779426294,
+   "roc_auc": 0.479914251397425,
+   "pr_auc": 0.2501702905863576,
+   "ba_ci95": [
+    0.16924056224961237,
+    0.29329280782679207
+   ],
+   "val_balanced_accuracy": 0.27126600779510024,
+   "false_healthy_rate": 0.12244897959183673,
+   "brier": 0.7600790838881771,
+   "ece": 0.20011576018560084,
+   "train_seconds_recorded": 62.30094129999998,
+   "tuning_trials": 4,
+   "val_f1_macro": 0.12350027018980042,
+   "p50_ms_verified": 1.3434499996947125,
+   "p95_ms_verified": 2.0606299991413835,
+   "throughput_verified": 40099.371255245955,
+   "peak_ram_mb_verified": 468.8984375,
+   "p50_ms_original": 2.3781999998391257,
+   "size_bytes": 101489,
+   "heldout_balanced_accuracy": 0.2571349096123133
+  },
+  {
+   "task": "health_4class",
+   "model": "xgboost",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.5484460694698354,
+   "balanced_accuracy": 0.23565931288410333,
+   "f1_macro": 0.23088018256140308,
+   "f1_macro_ci95": [
+    0.1953821031157728,
+    0.26079034756308056
+   ],
+   "recall_macro": 0.23565931288410333,
+   "roc_auc": 0.4901276789885171,
+   "pr_auc": 0.24980318854771852,
+   "ba_ci95": [
+    0.18614329438081573,
+    0.27750993987390293
+   ],
+   "val_balanced_accuracy": 0.28926008413758975,
+   "false_healthy_rate": 0.6428571428571429,
+   "brier": 0.6041278022024303,
+   "ece": 0.09673943527219936,
+   "train_seconds_recorded": 68.78667999999925,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.2675274705119346,
+   "p50_ms_verified": 0.5249499990895856,
+   "p95_ms_verified": 1.0600450000310955,
+   "throughput_verified": 120052.5229721233,
+   "peak_ram_mb_verified": 571.07421875,
+   "p50_ms_original": 1.124100000197359,
+   "size_bytes": 921084,
+   "heldout_balanced_accuracy": 0.25089531379853314
+  },
+  {
+   "task": "health_binary",
+   "model": "catboost",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.6069469835466179,
+   "balanced_accuracy": 0.49734102995318397,
+   "f1_macro": 0.4827935000109945,
+   "f1_macro_ci95": [
+    0.43835697731417944,
+    0.5231793107457517
+   ],
+   "recall_macro": 0.49734102995318397,
+   "roc_auc": 0.46693332121267217,
+   "pr_auc": 0.18304797474073436,
+   "ba_ci95": [
+    0.4432065848668016,
+    0.5469548111652037
+   ],
+   "val_balanced_accuracy": 0.4902958956411072,
+   "false_healthy_rate": 0.673469387755102,
+   "brier": 0.47237982786372407,
+   "ece": 0.04734504431795041,
+   "train_seconds_recorded": 40.59977030000118,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.48191514186490236,
+   "p50_ms_verified": 0.5950500008111703,
+   "p95_ms_verified": 0.8357150006304437,
+   "throughput_verified": 186763.16096961207,
+   "peak_ram_mb_verified": 571.90234375,
+   "p50_ms_original": 0.5498500004250673,
+   "size_bytes": 70756,
+   "heldout_balanced_accuracy": 0.5106511326002007
+  },
+  {
+   "task": "health_binary",
+   "model": "cnn1d",
+   "kind": "deep",
+   "status": "VERIFIED_BY_REFIT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.5082266910420475,
+   "balanced_accuracy": 0.4930457706467888,
+   "f1_macro": 0.44393132612532266,
+   "f1_macro_ci95": [
+    0.4021082463122545,
+    0.4854112968848204
+   ],
+   "recall_macro": 0.4930457706467888,
+   "roc_auc": 0.5070224080723604,
+   "pr_auc": 0.19056576123434804,
+   "ba_ci95": [
+    0.4331619105147182,
+    0.5421031882698589
+   ],
+   "val_balanced_accuracy": 0.48348938684605247,
+   "false_healthy_rate": 0.5306122448979592,
+   "brier": 0.5140110923750684,
+   "ece": 0.017054822043919345,
+   "train_seconds_recorded": 29.35722810000152,
+   "tuning_trials": 4,
+   "val_f1_macro": 0.4359551407496613,
+   "p50_ms_verified": 0.5321999997249804,
+   "p95_ms_verified": 0.9194400005071657,
+   "throughput_verified": 48352.61141679756,
+   "peak_ram_mb_verified": 600.3984375,
+   "p50_ms_original": 1.3358500000322238,
+   "size_bytes": 190961,
+   "heldout_balanced_accuracy": 0.4851192861301877
+  },
+  {
+   "task": "health_binary",
+   "model": "decision_tree",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.4625228519195612,
+   "balanced_accuracy": 0.44925230671333116,
+   "f1_macro": 0.4058038485412787,
+   "f1_macro_ci95": [
+    0.36527805618493897,
+    0.4369101440507932
+   ],
+   "recall_macro": 0.44925230671333116,
+   "roc_auc": 0.4380028180537248,
+   "pr_auc": 0.16065994472385292,
+   "ba_ci95": [
+    0.3932451344999564,
+    0.49416265750286376
+   ],
+   "val_balanced_accuracy": 0.5681787191491295,
+   "false_healthy_rate": 0.5714285714285714,
+   "brier": 0.5238270197232268,
+   "ece": 0.12410081658062466,
+   "train_seconds_recorded": 3.2147984000002907,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.47243654822335024,
+   "p50_ms_verified": 0.17970000044442713,
+   "p95_ms_verified": 0.39193999919007183,
+   "throughput_verified": 601560.296912859,
+   "peak_ram_mb_verified": 600.3984375,
+   "p50_ms_original": 0.09969999882741831,
+   "size_bytes": 3952,
+   "heldout_balanced_accuracy": 0.5025278659100526
+  },
+  {
+   "task": "health_binary",
+   "model": "extra_trees",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.6946983546617916,
+   "balanced_accuracy": 0.5348393254852052,
+   "f1_macro": 0.5296937183691751,
+   "f1_macro_ci95": [
+    0.4801943318561946,
+    0.5652276638579652
+   ],
+   "recall_macro": 0.5348393254852052,
+   "roc_auc": 0.5150902231716741,
+   "pr_auc": 0.20024996927086128,
+   "ba_ci95": [
+    0.48043960098124927,
+    0.5772866999980454
+   ],
+   "val_balanced_accuracy": 0.4915117494659334,
+   "false_healthy_rate": 0.7142857142857143,
+   "brier": 0.46100188775566064,
+   "ece": 0.1418267190373482,
+   "train_seconds_recorded": 9.208907300002465,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.4889882727092029,
+   "p50_ms_verified": 17.566900000019814,
+   "p95_ms_verified": 18.694335000327555,
+   "throughput_verified": 8755.225775398123,
+   "peak_ram_mb_verified": 602.0703125,
+   "p50_ms_original": 17.097750000175438,
+   "size_bytes": 2584159,
+   "heldout_balanced_accuracy": 0.5033804706792329
+  },
+  {
+   "task": "health_binary",
+   "model": "gru",
+   "kind": "deep",
+   "status": "VERIFIED_BY_REFIT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.6288848263254113,
+   "balanced_accuracy": 0.5386232443979819,
+   "f1_macro": 0.513943787124704,
+   "f1_macro_ci95": [
+    0.47072495645659496,
+    0.5502938909236069
+   ],
+   "recall_macro": 0.5386232443979819,
+   "roc_auc": 0.5688377801009046,
+   "pr_auc": 0.2218410683993651,
+   "ba_ci95": [
+    0.48576350002355,
+    0.5825729052371693
+   ],
+   "val_balanced_accuracy": 0.526373801190855,
+   "false_healthy_rate": 0.6020408163265306,
+   "brier": 0.4887056885234171,
+   "ece": 0.11064192941463415,
+   "train_seconds_recorded": 70.98113159999957,
+   "tuning_trials": 4,
+   "val_f1_macro": 0.5001451849827486,
+   "p50_ms_verified": 1.0634500004016445,
+   "p95_ms_verified": 1.806484998905944,
+   "throughput_verified": 42610.56275977853,
+   "peak_ram_mb_verified": 593.46875,
+   "p50_ms_original": 2.4631500000396045,
+   "size_bytes": 23381,
+   "heldout_balanced_accuracy": 0.5034163648313368
+  },
+  {
+   "task": "health_binary",
+   "model": "hist_gradient_boosting",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.6819012797074955,
+   "balanced_accuracy": 0.523055770192264,
+   "f1_macro": 0.5179591588671447,
+   "f1_macro_ci95": [
+    0.4765616099191504,
+    0.5569758786222059
+   ],
+   "recall_macro": 0.523055770192264,
+   "roc_auc": 0.5055224762510795,
+   "pr_auc": 0.19315347993510085,
+   "ba_ci95": [
+    0.4770142476453669,
+    0.5657681505500162
+   ],
+   "val_balanced_accuracy": 0.48418253715740195,
+   "false_healthy_rate": 0.7244897959183674,
+   "brier": 0.4422970611709201,
+   "ece": 0.08729542840466985,
+   "train_seconds_recorded": 15.589274500000101,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.48244123547915685,
+   "p50_ms_verified": 1.768850000189559,
+   "p95_ms_verified": 2.7034599993385195,
+   "throughput_verified": 81186.33532419552,
+   "peak_ram_mb_verified": 593.44921875,
+   "p50_ms_original": 2.054350000435079,
+   "size_bytes": 489650,
+   "heldout_balanced_accuracy": 0.508387385864364
+  },
+  {
+   "task": "health_binary",
+   "model": "knn",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.8080438756855576,
+   "balanced_accuracy": 0.500181809917731,
+   "f1_macro": 0.4650491314674242,
+   "f1_macro_ci95": [
+    0.44240570846075433,
+    0.4947181067885059
+   ],
+   "recall_macro": 0.500181809917731,
+   "roc_auc": 0.547020589973183,
+   "pr_auc": 0.19961886082588842,
+   "ba_ci95": [
+    0.4874828296703297,
+    0.515781027598082
+   ],
+   "val_balanced_accuracy": 0.4950797691014045,
+   "false_healthy_rate": 0.9795918367346939,
+   "brier": 0.3203372756780957,
+   "ece": 0.06450770436145208,
+   "train_seconds_recorded": 3.1472248999998556,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.45550672376230184,
+   "p50_ms_verified": 0.41899999905581353,
+   "p95_ms_verified": 0.878314999863505,
+   "throughput_verified": 92181.16479428505,
+   "peak_ram_mb_verified": 599.171875,
+   "p50_ms_original": 0.9815500006880029,
+   "size_bytes": 1595179,
+   "heldout_balanced_accuracy": 0.4999584361037664
+  },
+  {
+   "task": "health_binary",
+   "model": "lightgbm",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.6654478976234004,
+   "balanced_accuracy": 0.48910276805599745,
+   "f1_macro": 0.4880398925968546,
+   "f1_macro_ci95": [
+    0.4468682636428674,
+    0.5224839020169112
+   ],
+   "recall_macro": 0.48910276805599745,
+   "roc_auc": 0.514544793418481,
+   "pr_auc": 0.18635106685647765,
+   "ba_ci95": [
+    0.44335337060310076,
+    0.525886930430673
+   ],
+   "val_balanced_accuracy": 0.4924435252943048,
+   "false_healthy_rate": 0.7857142857142857,
+   "brier": 0.422910787025708,
+   "ece": 0.03823452033508954,
+   "train_seconds_recorded": 10.99725000000035,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.4913835854202827,
+   "p50_ms_verified": 0.47900000026857015,
+   "p95_ms_verified": 0.8914499999264078,
+   "throughput_verified": 210970.46413636667,
+   "peak_ram_mb_verified": 597.71875,
+   "p50_ms_original": 0.5364000007830327,
+   "size_bytes": 247882,
+   "heldout_balanced_accuracy": 0.5046269533949002
+  },
+  {
+   "task": "health_binary",
+   "model": "logistic_regression",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.5393053016453382,
+   "balanced_accuracy": 0.5239420935412027,
+   "f1_macro": 0.4706451612903226,
+   "f1_macro_ci95": [
+    0.4328557884131433,
+    0.5094839393527307
+   ],
+   "recall_macro": 0.5239420935412027,
+   "roc_auc": 0.5221353574837507,
+   "pr_auc": 0.19731922565359789,
+   "ba_ci95": [
+    0.4710465280554303,
+    0.5677878840286255
+   ],
+   "val_balanced_accuracy": 0.5417594654788418,
+   "false_healthy_rate": 0.5,
+   "brier": 0.500234701619779,
+   "ece": 0.014869791797427295,
+   "train_seconds_recorded": 2.537008200000855,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.49144342893161047,
+   "p50_ms_verified": 0.20915000004606554,
+   "p95_ms_verified": 0.45793499994033476,
+   "throughput_verified": 901598.9293244639,
+   "peak_ram_mb_verified": 597.734375,
+   "p50_ms_original": 0.11590000030992087,
+   "size_bytes": 4670,
+   "heldout_balanced_accuracy": 0.5027231402246698
+  },
+  {
+   "task": "health_binary",
+   "model": "lstm",
+   "kind": "deep",
+   "status": "VERIFIED_BY_REFIT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.6087751371115173,
+   "balanced_accuracy": 0.5582814417526476,
+   "f1_macro": 0.5164650870757741,
+   "f1_macro_ci95": [
+    0.4699304932386109,
+    0.5535472112728698
+   ],
+   "recall_macro": 0.5582814417526476,
+   "roc_auc": 0.5479523658015545,
+   "pr_auc": 0.21597152734301997,
+   "ba_ci95": [
+    0.4987808373229936,
+    0.6103318080148731
+   ],
+   "val_balanced_accuracy": 0.5515999272760329,
+   "false_healthy_rate": 0.5204081632653061,
+   "brier": 0.4902355929495753,
+   "ece": 0.09028479930905582,
+   "train_seconds_recorded": 27.955863000001045,
+   "tuning_trials": 4,
+   "val_f1_macro": 0.5086558876367794,
+   "p50_ms_verified": 0.6751000000804197,
+   "p95_ms_verified": 1.0485350002454652,
+   "throughput_verified": 115621.55619822371,
+   "peak_ram_mb_verified": 597.734375,
+   "p50_ms_original": 1.9124999998894054,
+   "size_bytes": 28259,
+   "heldout_balanced_accuracy": 0.5123996868405848
+  },
+  {
+   "task": "health_binary",
+   "model": "majority_class",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.8208409506398537,
+   "balanced_accuracy": 0.5,
+   "f1_macro": 0.4508032128514056,
+   "f1_macro_ci95": [
+    0.44126659856996936,
+    0.4594995054411231
+   ],
+   "recall_macro": 0.5,
+   "roc_auc": 0.5,
+   "pr_auc": 0.17915904936014626,
+   "ba_ci95": [
+    0.5,
+    0.5
+   ],
+   "val_balanced_accuracy": 0.5,
+   "false_healthy_rate": 1.0,
+   "brier": 0.29412217520051004,
+   "ece": 5.663691436375018e-05,
+   "train_seconds_recorded": 0.0004926999972667545,
+   "tuning_trials": 0,
+   "val_f1_macro": 0.4508032128514056,
+   "p50_ms_verified": 0.02010000025620684,
+   "p95_ms_verified": 0.035304999619256705,
+   "throughput_verified": 7352096.434653752,
+   "peak_ram_mb_verified": 597.734375,
+   "p50_ms_original": 0.002099999619531445,
+   "size_bytes": 307,
+   "heldout_balanced_accuracy": 0.5
+  },
+  {
+   "task": "health_binary",
+   "model": "mlp",
+   "kind": "deep",
+   "status": "VERIFIED_BY_REFIT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.6361974405850092,
+   "balanced_accuracy": 0.4872392163992546,
+   "f1_macro": 0.48265012713576194,
+   "f1_macro_ci95": [
+    0.44936237371762255,
+    0.5243470606221536
+   ],
+   "recall_macro": 0.4872392163992546,
+   "roc_auc": 0.5076360165447025,
+   "pr_auc": 0.20402313634079125,
+   "ba_ci95": [
+    0.4482884411656947,
+    0.5358540995822966
+   ],
+   "val_balanced_accuracy": 0.4956820144538885,
+   "false_healthy_rate": 0.7448979591836735,
+   "brier": 0.4823076564795056,
+   "ece": 0.10982717554573604,
+   "train_seconds_recorded": 9.900945700001103,
+   "tuning_trials": 4,
+   "val_f1_macro": 0.4901509973280308,
+   "p50_ms_verified": 0.3003000010721735,
+   "p95_ms_verified": 0.543714999275835,
+   "throughput_verified": 306697.0167935892,
+   "peak_ram_mb_verified": 573.1640625,
+   "p50_ms_original": 0.6378500011123833,
+   "size_bytes": 17381,
+   "heldout_balanced_accuracy": 0.4826145831693513
+  },
+  {
+   "task": "health_binary",
+   "model": "ndvi_rule",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.2449725776965265,
+   "balanced_accuracy": 0.5241352665787918,
+   "f1_macro": 0.23754189265355577,
+   "f1_macro_ci95": [
+    0.20690313226125975,
+    0.266323678524699
+   ],
+   "recall_macro": 0.5241352665787918,
+   "roc_auc": 0.5241352665787918,
+   "pr_auc": 0.18656363872505,
+   "ba_ci95": [
+    0.500385076685044,
+    0.5440814372625498
+   ],
+   "val_balanced_accuracy": 0.49240943593473024,
+   "false_healthy_rate": 0.04081632653061224,
+   "brier": 1.510054844606947,
+   "ece": 0.7550274223034735,
+   "train_seconds_recorded": 0.0004515000018727733,
+   "tuning_trials": 0,
+   "val_f1_macro": 0.2259642597234576,
+   "p50_ms_verified": 0.045199999476608355,
+   "p95_ms_verified": 0.06779500026823357,
+   "throughput_verified": 4445988.185241408,
+   "peak_ram_mb_verified": 573.1640625,
+   "p50_ms_original": 0.0166000008903211,
+   "size_bytes": 69,
+   "heldout_balanced_accuracy": 0.5018502415831982
+  },
+  {
+   "task": "health_binary",
+   "model": "random_forest",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.7020109689213894,
+   "balanced_accuracy": 0.4994091177673742,
+   "f1_macro": 0.4993908087925662,
+   "f1_macro_ci95": [
+    0.4554353432209122,
+    0.5338179201631287
+   ],
+   "recall_macro": 0.4994091177673742,
+   "roc_auc": 0.5015908367801464,
+   "pr_auc": 0.18272682530407935,
+   "ba_ci95": [
+    0.45590746945332766,
+    0.5341179958667982
+   ],
+   "val_balanced_accuracy": 0.5429185037043771,
+   "false_healthy_rate": 0.8163265306122449,
+   "brier": 0.4539009840862854,
+   "ece": 0.1499726744694772,
+   "train_seconds_recorded": 18.84996229999888,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.5423879172398305,
+   "p50_ms_verified": 17.585750000762346,
+   "p95_ms_verified": 18.938364999394253,
+   "throughput_verified": 14452.466065219367,
+   "peak_ram_mb_verified": 573.5625,
+   "p50_ms_original": 17.254500000490225,
+   "size_bytes": 348655,
+   "heldout_balanced_accuracy": 0.5021661030389521
+  },
+  {
+   "task": "health_binary",
+   "model": "svm",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.8208409506398537,
+   "balanced_accuracy": 0.5,
+   "f1_macro": 0.4508032128514056,
+   "f1_macro_ci95": [
+    0.44126659856996936,
+    0.4594995054411231
+   ],
+   "recall_macro": 0.5,
+   "roc_auc": 0.48313713013044857,
+   "pr_auc": 0.17685379702940615,
+   "ba_ci95": [
+    0.5,
+    0.5
+   ],
+   "val_balanced_accuracy": 0.5,
+   "false_healthy_rate": 1.0,
+   "brier": 0.2947428964943539,
+   "ece": 0.002549611031534578,
+   "train_seconds_recorded": 30.254838599999857,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.4508032128514056,
+   "p50_ms_verified": 0.3146999997625244,
+   "p95_ms_verified": 0.5434050008261692,
+   "throughput_verified": 6580.0972620858565,
+   "peak_ram_mb_verified": 574.5859375,
+   "p50_ms_original": 0.31135000062931795,
+   "size_bytes": 1531866,
+   "heldout_balanced_accuracy": 0.5
+  },
+  {
+   "task": "health_binary",
+   "model": "tcn",
+   "kind": "deep",
+   "status": "VERIFIED_BY_REFIT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.3711151736745887,
+   "balanced_accuracy": 0.5491227671469479,
+   "f1_macro": 0.3675620445806781,
+   "f1_macro_ci95": [
+    0.3297482898533063,
+    0.40832683883797805
+   ],
+   "recall_macro": 0.5491227671469479,
+   "roc_auc": 0.5562247170583156,
+   "pr_auc": 0.21235374325036546,
+   "ba_ci95": [
+    0.5067195148261324,
+    0.5886911534091502
+   ],
+   "val_balanced_accuracy": 0.4880800872687605,
+   "false_healthy_rate": 0.17346938775510204,
+   "brier": 0.5110278742429285,
+   "ece": 0.15253424306674232,
+   "train_seconds_recorded": 61.691424599999664,
+   "tuning_trials": 4,
+   "val_f1_macro": 0.3324446536334449,
+   "p50_ms_verified": 1.328800000010233,
+   "p95_ms_verified": 2.5673850004750394,
+   "throughput_verified": 45799.01388910166,
+   "peak_ram_mb_verified": 585.31640625,
+   "p50_ms_original": 1.4715999996042228,
+   "size_bytes": 25933,
+   "heldout_balanced_accuracy": 0.5067305502088671
+  },
+  {
+   "task": "health_binary",
+   "model": "xgboost",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 2550,
+   "test_rows": 547,
+   "features": 77,
+   "accuracy": 0.720292504570384,
+   "balanced_accuracy": 0.49857961001772644,
+   "f1_macro": 0.4979935577909341,
+   "f1_macro_ci95": [
+    0.45951651574196173,
+    0.530835306274951
+   ],
+   "recall_macro": 0.49857961001772644,
+   "roc_auc": 0.48020544520703606,
+   "pr_auc": 0.16917021939183763,
+   "ba_ci95": [
+    0.45968239986317977,
+    0.5295991400339272
+   ],
+   "val_balanced_accuracy": 0.4850347711467661,
+   "false_healthy_rate": 0.8469387755102041,
+   "brier": 0.40236001685816786,
+   "ece": 0.07570607309149652,
+   "train_seconds_recorded": 15.758799699999145,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.4838389870998566,
+   "p50_ms_verified": 0.6607000004805741,
+   "p95_ms_verified": 1.4629850002165732,
+   "throughput_verified": 106011.1643014829,
+   "peak_ram_mb_verified": 575.484375,
+   "p50_ms_original": 0.44049999905837467,
+   "size_bytes": 498510,
+   "heldout_balanced_accuracy": 0.4939975482662597
+  },
+  {
+   "task": "stress_cause",
+   "model": "catboost",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 457,
+   "test_rows": 98,
+   "features": 77,
+   "accuracy": 0.41836734693877553,
+   "balanced_accuracy": 0.41220238095238093,
+   "f1_macro": 0.41111111111111115,
+   "f1_macro_ci95": [
+    0.3115313831885286,
+    0.49597194839254033
+   ],
+   "recall_macro": 0.41220238095238093,
+   "roc_auc": 0.5244182561381808,
+   "pr_auc": 0.36311753786061846,
+   "ba_ci95": [
+    0.3153304716936466,
+    0.5018859518120271
+   ],
+   "val_balanced_accuracy": 0.4011574074074074,
+   "false_healthy_rate": null,
+   "brier": 0.6991364741923103,
+   "ece": 0.11436554645152344,
+   "train_seconds_recorded": 181.5764349000001,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.3958333333333333,
+   "p50_ms_verified": 0.58309999985795,
+   "p95_ms_verified": 0.7659999999304997,
+   "throughput_verified": 152100.29112204874,
+   "peak_ram_mb_verified": 573.94140625,
+   "p50_ms_original": 1.1636500003078254,
+   "size_bytes": 235459,
+   "heldout_balanced_accuracy": 0.34708226482761756
+  },
+  {
+   "task": "stress_cause",
+   "model": "cnn1d",
+   "kind": "deep",
+   "status": "VERIFIED_BY_REFIT",
+   "train_rows": 457,
+   "test_rows": 98,
+   "features": 77,
+   "accuracy": 0.32653061224489793,
+   "balanced_accuracy": 0.3205670426065163,
+   "f1_macro": 0.32305754007268067,
+   "f1_macro_ci95": [
+    0.23509218427339065,
+    0.415525271965717
+   ],
+   "recall_macro": 0.3205670426065163,
+   "roc_auc": 0.5000623175905131,
+   "pr_auc": 0.35606927153029383,
+   "ba_ci95": [
+    0.23452463624338624,
+    0.4141972908137003
+   ],
+   "val_balanced_accuracy": 0.29768518518518516,
+   "false_healthy_rate": null,
+   "brier": 0.6693218485760891,
+   "ece": 0.03962879977664168,
+   "train_seconds_recorded": 2.920677499998419,
+   "tuning_trials": 4,
+   "val_f1_macro": 0.2913803009214186,
+   "p50_ms_verified": 0.7264999994731625,
+   "p95_ms_verified": 1.3673200001903731,
+   "throughput_verified": 39733.660307113234,
+   "peak_ram_mb_verified": 582.95703125,
+   "p50_ms_original": 0.9382000007462921,
+   "size_bytes": 191089,
+   "heldout_balanced_accuracy": 0.3481747448413725
+  },
+  {
+   "task": "stress_cause",
+   "model": "decision_tree",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 457,
+   "test_rows": 98,
+   "features": 77,
+   "accuracy": 0.37755102040816324,
+   "balanced_accuracy": 0.3632518796992481,
+   "f1_macro": 0.35543237250554327,
+   "f1_macro_ci95": [
+    0.276310468543442,
+    0.44204373820161835
+   ],
+   "recall_macro": 0.3632518796992481,
+   "roc_auc": 0.5446308886393473,
+   "pr_auc": 0.3573687895764726,
+   "ba_ci95": [
+    0.28703545986347406,
+    0.4573900462962963
+   ],
+   "val_balanced_accuracy": 0.33495370370370364,
+   "false_healthy_rate": null,
+   "brier": 0.6942131984676877,
+   "ece": 0.1114637655147791,
+   "train_seconds_recorded": 1.9392227999996976,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.31991135957291433,
+   "p50_ms_verified": 0.22739999985788018,
+   "p95_ms_verified": 0.5567250006606623,
+   "throughput_verified": 485197.68002077215,
+   "peak_ram_mb_verified": 583.96484375,
+   "p50_ms_original": 0.14294999982666923,
+   "size_bytes": 3256,
+   "heldout_balanced_accuracy": 0.327672261299722
+  },
+  {
+   "task": "stress_cause",
+   "model": "extra_trees",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 457,
+   "test_rows": 98,
+   "features": 77,
+   "accuracy": 0.3469387755102041,
+   "balanced_accuracy": 0.34766604010025065,
+   "f1_macro": 0.34642401021711366,
+   "f1_macro_ci95": [
+    0.24703132619296414,
+    0.43644642664545036
+   ],
+   "recall_macro": 0.34766604010025065,
+   "roc_auc": 0.481328320802005,
+   "pr_auc": 0.3451848914890106,
+   "ba_ci95": [
+    0.24866469479455033,
+    0.43813440975081924
+   ],
+   "val_balanced_accuracy": 0.3474537037037037,
+   "false_healthy_rate": null,
+   "brier": 0.6798804556569525,
+   "ece": 0.06911804167062628,
+   "train_seconds_recorded": 10.471057499999006,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.33700854700854704,
+   "p50_ms_verified": 18.198099998699035,
+   "p95_ms_verified": 29.386440001508163,
+   "throughput_verified": 8882.356655828054,
+   "peak_ram_mb_verified": 584.71875,
+   "p50_ms_original": 29.583200000161014,
+   "size_bytes": 509959,
+   "heldout_balanced_accuracy": 0.3081680424187207
+  },
+  {
+   "task": "stress_cause",
+   "model": "gru",
+   "kind": "deep",
+   "status": "VERIFIED_BY_REFIT",
+   "train_rows": 457,
+   "test_rows": 98,
+   "features": 77,
+   "accuracy": 0.32653061224489793,
+   "balanced_accuracy": 0.3168076441102757,
+   "f1_macro": 0.2718855218855219,
+   "f1_macro_ci95": [
+    0.20229958313291646,
+    0.33583470726393944
+   ],
+   "recall_macro": 0.3168076441102757,
+   "roc_auc": 0.44516099502001766,
+   "pr_auc": 0.3316895323969175,
+   "ba_ci95": [
+    0.23466984112738384,
+    0.3886475462624888
+   ],
+   "val_balanced_accuracy": 0.3148148148148148,
+   "false_healthy_rate": null,
+   "brier": 0.673405384953326,
+   "ece": 0.03761907317200485,
+   "train_seconds_recorded": 11.081694899998183,
+   "tuning_trials": 4,
+   "val_f1_macro": 0.25869072110566016,
+   "p50_ms_verified": 2.5599500004318543,
+   "p95_ms_verified": 3.3092349985963665,
+   "throughput_verified": 22156.98221901075,
+   "peak_ram_mb_verified": 577.82421875,
+   "p50_ms_original": 3.666999999950349,
+   "size_bytes": 49655,
+   "heldout_balanced_accuracy": 0.3327681473011712
+  },
+  {
+   "task": "stress_cause",
+   "model": "hist_gradient_boosting",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 457,
+   "test_rows": 98,
+   "features": 77,
+   "accuracy": 0.41836734693877553,
+   "balanced_accuracy": 0.42042606516290726,
+   "f1_macro": 0.4171868910800815,
+   "f1_macro_ci95": [
+    0.32181939130898163,
+    0.4997712462975621
+   ],
+   "recall_macro": 0.42042606516290726,
+   "roc_auc": 0.5549137996506417,
+   "pr_auc": 0.39011659232658147,
+   "ba_ci95": [
+    0.3278388665798867,
+    0.5099541424541424
+   ],
+   "val_balanced_accuracy": 0.3435185185185185,
+   "false_healthy_rate": null,
+   "brier": 0.6874630359440399,
+   "ece": 0.1128795866124732,
+   "train_seconds_recorded": 64.60343189999912,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.34605917015977156,
+   "p50_ms_verified": 2.7408000005380018,
+   "p95_ms_verified": 4.380315000435074,
+   "throughput_verified": 67177.14297327565,
+   "peak_ram_mb_verified": 577.80078125,
+   "p50_ms_original": 5.196750000322936,
+   "size_bytes": 378674,
+   "heldout_balanced_accuracy": 0.3168539756940147
+  },
+  {
+   "task": "stress_cause",
+   "model": "knn",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 457,
+   "test_rows": 98,
+   "features": 77,
+   "accuracy": 0.3673469387755102,
+   "balanced_accuracy": 0.36027568922305764,
+   "f1_macro": 0.35719318376261944,
+   "f1_macro_ci95": [
+    0.26515486640393776,
+    0.4532357244154854
+   ],
+   "recall_macro": 0.36027568922305764,
+   "roc_auc": 0.5232229993273226,
+   "pr_auc": 0.36666691430199144,
+   "ba_ci95": [
+    0.2668108033549211,
+    0.4478165324924437
+   ],
+   "val_balanced_accuracy": 0.3993055555555555,
+   "false_healthy_rate": null,
+   "brier": 0.7040408334304107,
+   "ece": 0.10998129767375382,
+   "train_seconds_recorded": 2.3349761000008584,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.39376945680951964,
+   "p50_ms_verified": 3.778500000407803,
+   "p95_ms_verified": 4.4839449997198235,
+   "throughput_verified": 49644.729900370294,
+   "peak_ram_mb_verified": 578.22265625,
+   "p50_ms_original": 5.919650000578258,
+   "size_bytes": 289155,
+   "heldout_balanced_accuracy": 0.34105448182712217
+  },
+  {
+   "task": "stress_cause",
+   "model": "lightgbm",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 457,
+   "test_rows": 98,
+   "features": 77,
+   "accuracy": 0.41836734693877553,
+   "balanced_accuracy": 0.41235902255639095,
+   "f1_macro": 0.4133098470735202,
+   "f1_macro_ci95": [
+    0.318846207753742,
+    0.5161489079352121
+   ],
+   "recall_macro": 0.41235902255639095,
+   "roc_auc": 0.5547407818789397,
+   "pr_auc": 0.4075153949507058,
+   "ba_ci95": [
+    0.32057891414141415,
+    0.5175027313899265
+   ],
+   "val_balanced_accuracy": 0.40324074074074073,
+   "false_healthy_rate": null,
+   "brier": 0.7151636195430088,
+   "ece": 0.13286039993893056,
+   "train_seconds_recorded": 14.299138000000312,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.4025341130604288,
+   "p50_ms_verified": 0.43185000049561495,
+   "p95_ms_verified": 0.802835000649793,
+   "throughput_verified": 120867.60277467391,
+   "peak_ram_mb_verified": 578.65234375,
+   "p50_ms_original": 0.6380999993780279,
+   "size_bytes": 573410,
+   "heldout_balanced_accuracy": 0.3503587508257868
+  },
+  {
+   "task": "stress_cause",
+   "model": "logistic_regression",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 457,
+   "test_rows": 98,
+   "features": 77,
+   "accuracy": 0.35714285714285715,
+   "balanced_accuracy": 0.35479323308270677,
+   "f1_macro": 0.3539986121953335,
+   "f1_macro_ci95": [
+    0.2642720429632599,
+    0.43576454163998446
+   ],
+   "recall_macro": 0.35479323308270677,
+   "roc_auc": 0.47871762740183793,
+   "pr_auc": 0.3496818597056744,
+   "ba_ci95": [
+    0.2695450970400567,
+    0.4370282045670636
+   ],
+   "val_balanced_accuracy": 0.30416666666666664,
+   "false_healthy_rate": null,
+   "brier": 0.6786131014131912,
+   "ece": 0.06381099016127982,
+   "train_seconds_recorded": 2.5155126999998174,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.3049001639585733,
+   "p50_ms_verified": 0.18714999987423653,
+   "p95_ms_verified": 0.42405999984111986,
+   "throughput_verified": 651565.2840182742,
+   "peak_ram_mb_verified": 578.8125,
+   "p50_ms_original": 0.23670000064157648,
+   "size_bytes": 5934,
+   "heldout_balanced_accuracy": 0.3276230503045226
+  },
+  {
+   "task": "stress_cause",
+   "model": "lstm",
+   "kind": "deep",
+   "status": "VERIFIED_BY_REFIT",
+   "train_rows": 457,
+   "test_rows": 98,
+   "features": 77,
+   "accuracy": 0.336734693877551,
+   "balanced_accuracy": 0.3324718045112782,
+   "f1_macro": 0.33190932868352224,
+   "f1_macro_ci95": [
+    0.24225513145257638,
+    0.4205436703472839
+   ],
+   "recall_macro": 0.3324718045112782,
+   "roc_auc": 0.4694197615250247,
+   "pr_auc": 0.32974322825761093,
+   "ba_ci95": [
+    0.24889384447345728,
+    0.42907799435795724
+   ],
+   "val_balanced_accuracy": 0.36041666666666666,
+   "false_healthy_rate": null,
+   "brier": 0.706778349494055,
+   "ece": 0.07729346472389845,
+   "train_seconds_recorded": 4.0492323999988,
+   "tuning_trials": 4,
+   "val_f1_macro": 0.35926295926295926,
+   "p50_ms_verified": 0.6113500012361328,
+   "p95_ms_verified": 1.1394950011890614,
+   "throughput_verified": 117058.53841676394,
+   "peak_ram_mb_verified": 579.5234375,
+   "p50_ms_original": 1.4451499991992023,
+   "size_bytes": 28387,
+   "heldout_balanced_accuracy": 0.33318193019817394
+  },
+  {
+   "task": "stress_cause",
+   "model": "majority_class",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 457,
+   "test_rows": 98,
+   "features": 77,
+   "accuracy": 0.3877551020408163,
+   "balanced_accuracy": 0.3333333333333333,
+   "f1_macro": 0.18627450980392157,
+   "f1_macro_ci95": [
+    0.14804444444444445,
+    0.2130411877394636
+   ],
+   "recall_macro": 0.3333333333333333,
+   "roc_auc": 0.5,
+   "pr_auc": 0.3333333333333333,
+   "ba_ci95": [
+    0.3333333333333333,
+    0.3333333333333333
+   ],
+   "val_balanced_accuracy": 0.3333333333333333,
+   "false_healthy_rate": null,
+   "brier": 0.6621721913918669,
+   "ece": 0.011387487161166443,
+   "train_seconds_recorded": 0.0001297999988310039,
+   "tuning_trials": 0,
+   "val_f1_macro": 0.1791044776119403,
+   "p50_ms_verified": 0.010099998689838685,
+   "p95_ms_verified": 0.010399999246146763,
+   "throughput_verified": 7660083.823915903,
+   "peak_ram_mb_verified": 580.33203125,
+   "p50_ms_original": 0.005099998816149309,
+   "size_bytes": 315,
+   "heldout_balanced_accuracy": 0.3333333333333333
+  },
+  {
+   "task": "stress_cause",
+   "model": "mlp",
+   "kind": "deep",
+   "status": "VERIFIED_BY_REFIT",
+   "train_rows": 457,
+   "test_rows": 98,
+   "features": 77,
+   "accuracy": 0.3673469387755102,
+   "balanced_accuracy": 0.3525219298245614,
+   "f1_macro": 0.3485940824417198,
+   "f1_macro_ci95": [
+    0.260917140488036,
+    0.4518912995121488
+   ],
+   "recall_macro": 0.3525219298245614,
+   "roc_auc": 0.4800750523494884,
+   "pr_auc": 0.33600965956137346,
+   "ba_ci95": [
+    0.2748430489958597,
+    0.4579063962390286
+   ],
+   "val_balanced_accuracy": 0.2912037037037037,
+   "false_healthy_rate": null,
+   "brier": 0.6769922568799469,
+   "ece": 0.09439808860117077,
+   "train_seconds_recorded": 1.344491100002415,
+   "tuning_trials": 4,
+   "val_f1_macro": 0.2892071289124,
+   "p50_ms_verified": 0.2974999997604755,
+   "p95_ms_verified": 0.5639150012029854,
+   "throughput_verified": 271157.7163914947,
+   "peak_ram_mb_verified": 575.5859375,
+   "p50_ms_original": 0.5373999993025791,
+   "size_bytes": 17509,
+   "heldout_balanced_accuracy": 0.3440932287962799
+  },
+  {
+   "task": "stress_cause",
+   "model": "ndvi_rule",
+   "status": "NOT_APPLICABLE"
+  },
+  {
+   "task": "stress_cause",
+   "model": "random_forest",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 457,
+   "test_rows": 98,
+   "features": 77,
+   "accuracy": 0.40816326530612246,
+   "balanced_accuracy": 0.40029761904761907,
+   "f1_macro": 0.39957080595562045,
+   "f1_macro_ci95": [
+    0.3312998981937433,
+    0.5004666926162264
+   ],
+   "recall_macro": 0.40029761904761907,
+   "roc_auc": 0.5035915003960117,
+   "pr_auc": 0.3646143078822957,
+   "ba_ci95": [
+    0.33299068474822785,
+    0.5008264405845051
+   ],
+   "val_balanced_accuracy": 0.3666666666666667,
+   "false_healthy_rate": null,
+   "brier": 0.6791166151192878,
+   "ece": 0.10285135168765029,
+   "train_seconds_recorded": 17.58891080000103,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.364962364962365,
+   "p50_ms_verified": 28.293700000176614,
+   "p95_ms_verified": 30.16328999847246,
+   "throughput_verified": 6653.982512526057,
+   "peak_ram_mb_verified": 560.51953125,
+   "p50_ms_original": 31.97065000040311,
+   "size_bytes": 861047,
+   "heldout_balanced_accuracy": 0.34183238713619213
+  },
+  {
+   "task": "stress_cause",
+   "model": "svm",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 457,
+   "test_rows": 98,
+   "features": 77,
+   "accuracy": 0.3469387755102041,
+   "balanced_accuracy": 0.31704260651629074,
+   "f1_macro": 0.24363986628137568,
+   "f1_macro_ci95": [
+    0.17001448170838937,
+    0.31827841303309634
+   ],
+   "recall_macro": 0.31704260651629074,
+   "roc_auc": 0.4775005017956146,
+   "pr_auc": 0.3402030098375178,
+   "ba_ci95": [
+    0.23872797429782724,
+    0.39042777519439925
+   ],
+   "val_balanced_accuracy": 0.25740740740740736,
+   "false_healthy_rate": null,
+   "brier": 0.6679984335989516,
+   "ece": 0.03393851271688424,
+   "train_seconds_recorded": 7.647889399999258,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.18845260354694315,
+   "p50_ms_verified": 0.17589999970368808,
+   "p95_ms_verified": 0.43747000036091743,
+   "throughput_verified": 31196.38121998623,
+   "peak_ram_mb_verified": 560.3125,
+   "p50_ms_original": 0.9064999994734535,
+   "size_bytes": 299634,
+   "heldout_balanced_accuracy": 0.3293260729530124
+  },
+  {
+   "task": "stress_cause",
+   "model": "tcn",
+   "kind": "deep",
+   "status": "VERIFIED_BY_REFIT",
+   "train_rows": 457,
+   "test_rows": 98,
+   "features": 77,
+   "accuracy": 0.30612244897959184,
+   "balanced_accuracy": 0.28735902255639095,
+   "f1_macro": 0.27725805181510355,
+   "f1_macro_ci95": [
+    0.1959279494080659,
+    0.37543594073143277
+   ],
+   "recall_macro": 0.28735902255639095,
+   "roc_auc": 0.46560075784699845,
+   "pr_auc": 0.32957227943408846,
+   "ba_ci95": [
+    0.20991967999320943,
+    0.378070879531674
+   ],
+   "val_balanced_accuracy": 0.34421296296296294,
+   "false_healthy_rate": null,
+   "brier": 0.709363009642629,
+   "ece": 0.1302237626241178,
+   "train_seconds_recorded": 9.042969199999789,
+   "tuning_trials": 4,
+   "val_f1_macro": 0.34797797797797797,
+   "p50_ms_verified": 1.1818000002676854,
+   "p95_ms_verified": 1.8485849998796764,
+   "throughput_verified": 60924.23975614757,
+   "peak_ram_mb_verified": 568.96875,
+   "p50_ms_original": 2.0137500005148468,
+   "size_bytes": 33201,
+   "heldout_balanced_accuracy": 0.3524778603089496
+  },
+  {
+   "task": "stress_cause",
+   "model": "xgboost",
+   "kind": "classical",
+   "status": "VERIFIED_BY_ARTIFACT",
+   "train_rows": 457,
+   "test_rows": 98,
+   "features": 77,
+   "accuracy": 0.40816326530612246,
+   "balanced_accuracy": 0.39732142857142855,
+   "f1_macro": 0.39884641121876,
+   "f1_macro_ci95": [
+    0.30406401434386504,
+    0.48933392605502224
+   ],
+   "recall_macro": 0.39732142857142855,
+   "roc_auc": 0.550688104189044,
+   "pr_auc": 0.413183601495086,
+   "ba_ci95": [
+    0.309066250234184,
+    0.49768289327576604
+   ],
+   "val_balanced_accuracy": 0.45601851851851855,
+   "false_healthy_rate": null,
+   "brier": 0.7476546241907698,
+   "ece": 0.1858419511391192,
+   "train_seconds_recorded": 26.448593000000983,
+   "tuning_trials": 12,
+   "val_f1_macro": 0.4557454918349973,
+   "p50_ms_verified": 0.5701000000044587,
+   "p95_ms_verified": 0.8265649999884771,
+   "throughput_verified": 124357.56686137765,
+   "peak_ram_mb_verified": 569.41015625,
+   "p50_ms_original": 0.603850000516104,
+   "size_bytes": 872748,
+   "heldout_balanced_accuracy": 0.3606922812266535
+  }
+ ],
+ "winners": {
+  "health_binary": {
+   "highest_test_accuracy": {
+    "model": "svm",
+    "value": 0.8208409506398537,
+    "majority_baseline_accuracy": 0.8208409506398537,
+    "note": "equal to the always-answer-the-commonest-class baseline: no real skill"
+   },
+   "highest_test_macro_f1": {
+    "model": "extra_trees",
+    "value": 0.5296937183691751,
+    "ci95": [
+     0.4801943318561946,
+     0.5652276638579652
+    ],
+    "majority_baseline": 0.4508032128514056,
+    "note": "above the majority baseline's 0.451, but balanced accuracy is 0.535 (95% 0.480 to 0.577), ROC-AUC 0.515, validation balanced accuracy 0.492 and held-out 0.503; it does NOT clear the pre-registered bar, so it is not a demonstrated winner"
+   },
+   "fastest_verified": {
+    "model": "decision_tree",
+    "p50_ms": 0.17970000044442713
+   },
+   "best_overall": null,
+   "most_reliable": null,
+   "best_production_candidate": null
+  },
+  "health_4class": {
+   "highest_test_accuracy": {
+    "model": "knn",
+    "value": 0.8208409506398537,
+    "majority_baseline_accuracy": 0.8208409506398537,
+    "note": "equal to the always-answer-the-commonest-class baseline: no real skill"
+   },
+   "highest_test_macro_f1": {
+    "model": "lightgbm",
+    "value": 0.26625300625300624,
+    "ci95": [
+     0.22179215682930825,
+     0.2995284325691423
+    ],
+    "majority_baseline": 0.2254016064257028,
+    "note": "above the majority baseline's 0.225, but balanced accuracy is 0.264 (95% 0.230 to 0.294), ROC-AUC 0.508, validation balanced accuracy 0.241 and held-out 0.251; it does NOT clear the pre-registered bar, so it is not a demonstrated winner"
+   },
+   "fastest_verified": {
+    "model": "decision_tree",
+    "p50_ms": 0.17240000033780234
+   },
+   "best_overall": null,
+   "most_reliable": null,
+   "best_production_candidate": null
+  },
+  "stress_cause": {
+   "highest_test_accuracy": {
+    "model": "catboost",
+    "value": 0.41836734693877553,
+    "majority_baseline_accuracy": 0.3877551020408163,
+    "note": "equal to the always-answer-the-commonest-class baseline: no real skill"
+   },
+   "highest_test_macro_f1": {
+    "model": "hist_gradient_boosting",
+    "value": 0.4171868910800815,
+    "ci95": [
+     0.32181939130898163,
+     0.4997712462975621
+    ],
+    "majority_baseline": 0.18627450980392157,
+    "note": "above the majority baseline's 0.186, but balanced accuracy is 0.420 (95% 0.328 to 0.510), ROC-AUC 0.555, validation balanced accuracy 0.344 and held-out 0.317; it does NOT clear the pre-registered bar, so it is not a demonstrated winner"
+   },
+   "fastest_verified": {
+    "model": "svm",
+    "p50_ms": 0.17589999970368808
+   },
+   "best_overall": null,
+   "most_reliable": null,
+   "best_production_candidate": null
+  }
+ },
+ "issues": [
+  {
+   "id": "I-01",
+   "severity": "HIGH",
+   "file": "scripts/ml/explain_predictions.py (out_of_range); scripts/ml/ml_common.py (choose_confidence_threshold)",
+   "problem": "The stress-cause model answers on invalid and low-quality inputs, and can output \"Diseased\". The cause task has no Healthy class, so its confidence threshold falls to the 0.30 floor and it never abstains on confidence; the out-of-range test passes inf / -999 / 1e12 because only 4 of 77 features are outside the range (5% < 20%).",
+   "evidence": "phase_safety.json: stress_cause case 5 (inf, -inf, -999, 1e12) -> \"Stressed\" at 0.879; case 2 (typical stressed field) -> \"Diseased\" at 0.717; case 7 (lowest-confidence validation row, p=0.398) -> \"Diseased\".",
+   "fix": "Validate inputs before prediction (finite, within physical bounds, enough non-missing features); require a validated accuracy-above-baseline threshold for the cause task or do not serve it; never expose a disease label from satellite data alone."
+  },
+  {
+   "id": "I-02",
+   "severity": "HIGH",
+   "file": "scripts/ml/train_deep_learning_models.py (save)",
+   "problem": "The five deep-model artifacts are not self-contained. The .pt file holds weights only; the fitted imputer, scaler and sequence statistics are not saved, so predictions cannot be reproduced from the artifact.",
+   "evidence": "phase_models.json: all 15 deep entries have artifact_reload.loaded = false; they were verified only by re-fitting with the saved settings and seed (probability difference 0.0).",
+   "fix": "Save the preprocessing objects and architecture next to the weights and add a reload test."
+  },
+  {
+   "id": "I-03",
+   "severity": "HIGH",
+   "file": "datasets/TRAINING-DATA-REGISTER.md; data labels",
+   "problem": "The target labels do not support the requested outcome. Telangana labels are season-level survey cause categories with no severity (Mild / Moderate / Severe), no dates, one year (99% sown 2023), and cannot be independently verified. All 49 models score at chance on unseen districts.",
+   "evidence": "phase_data.json (labels, 99% single year); results.json selection.eligible = [] for all 3 tasks; shuffled-label AUC 0.491 vs real 0.499.",
+   "fix": "Collect dated, agronomist-confirmed severity observations; see PRODUCTION_READINESS.md."
+  },
+  {
+   "id": "I-04",
+   "severity": "MEDIUM",
+   "file": "backend/engine/{satellite_features,crop_health_predictor,stress_risk_predictor,prediction_confidence,model_loader}.py; .local/models/{best_health_model,best_stress_risk_model,model_metadata.json}",
+   "problem": "The expected backend modules, \"best model\" folders and model_metadata.json do not exist. Backend integration was deliberately not done (no approved model; Telangana licence is evaluation-only).",
+   "evidence": "file listing in this report; no reference to any new model in backend/ or frontend/src (grep).",
+   "fix": "Create them only together with a model that clears validation and licence review."
+  },
+  {
+   "id": "I-05",
+   "severity": "MEDIUM",
+   "file": ".local/ml/runs/main/*/*.json (latency, train_seconds, peak_ram_mb)",
+   "problem": "Originally recorded timings were taken while other processes were running (a large directory scan and unit tests), so they are inflated.",
+   "evidence": "Fresh benchmark vs original single-call p50: median ratio 1.57x, maximum 5.15x; deep-model final-fit time 1.6-2.7x higher than the clean re-run (phase_fit_time.json).",
+   "fix": "Use the verified numbers in this report; re-run the pipeline on an idle machine for the final record."
+  },
+  {
+   "id": "I-06",
+   "severity": "MEDIUM",
+   "file": "scripts/ml/experiment.py (held-out refits)",
+   "problem": "Held-out district and season scores are slightly optimistic: the hyperparameters were tuned on main-train rows that include the held-out district's fields, and the refit reuses them.",
+   "evidence": "code path: tune() uses td.train; held-out loops call fit(..., params, s[\"train\"]).",
+   "fix": "Nested tuning inside each held-out fold. Effect is small here because every model is near chance."
+  },
+  {
+   "id": "I-07",
+   "severity": "MEDIUM",
+   "file": "reports/ml (test split use)",
+   "problem": "No genuinely independent test set exists. Test metrics were computed for every model and were visible when the report text was written and during this verification; selection never reads them (unit-tested), but the same 547 fields were reused.",
+   "evidence": "splits.json has one test split; no other labelled satellite dataset is available.",
+   "fix": "Evaluate once on new, dated field observations collected after the pass limit is agreed."
+  },
+  {
+   "id": "I-08",
+   "severity": "MEDIUM",
+   "file": "scripts/ml/train_classical_models.py (NdviRule)",
+   "problem": "The \"ndvi_rule\" baseline is a feature-based approximation of the app's two triggers, not a replay of shared/evidence.ts (which compares comparable pairs by tile and method).",
+   "evidence": "source inspection; its test AUC 0.524 vs the earlier node replay on 750 fields (0.454).",
+   "fix": "Replay the real rule through node for the baseline."
+  },
+  {
+   "id": "I-09",
+   "severity": "MEDIUM",
+   "file": "backend/api/services/platform.integration.test.ts, satellite.integration.test.ts",
+   "problem": "4 integration tests were SKIPPED (need a dedicated chm_integration PostGIS database), including the durable-jobs test that covers jobs.ts, which the uncommitted weather scheduler modifies. They are not counted as passed.",
+   "evidence": "backend_node_tests.log: 162 tests, 158 pass, 4 skipped.",
+   "fix": "Create the integration database and run `npm run test:integration` before committing the scheduler."
+  },
+  {
+   "id": "I-10",
+   "severity": "MEDIUM",
+   "file": "scripts/ml/build_satellite_features.py",
+   "problem": "The raw bands B2, B3, B6, B7, B8A, B12 were never extracted, so NDWI and EVI (requested) cannot be computed, and there is no soil-moisture source.",
+   "evidence": "scripts/telangana_ndvi_extract.py selects only B4, B5, B8, B11; feature_summary.json \"not_available\".",
+   "fix": "Re-extract the bands for the 3,644 fields."
+  },
+  {
+   "id": "I-11",
+   "severity": "MEDIUM",
+   "file": "docs/ml/PRODUCTION_READINESS.md:9; scripts/ml/write_reports.py",
+   "problem": "A report sentence said \"across all 16 models\"; the task has 15 models (17 with baselines). FIXED during this verification: the count is now computed and baselines are excluded.",
+   "evidence": "results.json health_binary has 17 entries, 15 non-baseline.",
+   "fix": "Fixed."
+  },
+  {
+   "id": "I-12",
+   "severity": "LOW",
+   "file": "docs/ml/REPOSITORY_AUDIT.md:40; docs/ml/TRAINING_REPORT.md:50; scripts/ml/explain_predictions.py; scripts/ml/README.md",
+   "problem": "The documents said `shap` cannot load. It failed on the first import (Application Control, numba DLL) but imports now, and shap.TreeExplainer equals the native TreeSHAP exactly. FIXED.",
+   "evidence": "verify_safety.py output: shap 0.51.0 loads; difference 0.0.",
+   "fix": "Fixed; the claim now says what was observed."
+  },
+  {
+   "id": "I-13",
+   "severity": "LOW",
+   "file": ".local/ml/logs/classical.log",
+   "problem": "The resumed run overwrote the log, so 19 of 34 classical models have no training log line (15 are logged). Their result JSON files are intact and the models were independently reproduced.",
+   "evidence": "log lines found: classical 15, deep 15; mismatches vs result JSON: 0.",
+   "fix": "Append to logs instead of overwriting."
+  },
+  {
+   "id": "I-14",
+   "severity": "LOW",
+   "file": ".local/models/main/**/*.joblib",
+   "problem": "Artifacts are pickles: loading an untrusted file can execute code, and the two baselines need scripts/ml on the Python path to unpickle. Local files only.",
+   "evidence": "joblib load worked only with scripts/ml on sys.path.",
+   "fix": "Export tree models to a portable format before any serving."
+  },
+  {
+   "id": "I-15",
+   "severity": "LOW",
+   "file": "scripts/ml/explain_predictions.py",
+   "problem": "Explanations are unstable and lean on observation-quality proxies. For Healthy vs Problem the permutation ranking agrees between two seeds at only 0.45 (rank correlation) and with TreeSHAP at 0.03; the top features across tasks include clear_fraction and area_ha.",
+   "evidence": "phase_safety.json explainability.",
+   "fix": "Do not present these as evidence of crop condition; they describe a model at chance."
+  },
+  {
+   "id": "I-16",
+   "severity": "LOW",
+   "file": "environment",
+   "problem": "No GPU was used: PyTorch is a CPU build although an RTX 4050 is present. GPU utilisation stayed at 0% during the benchmark. Not a correctness issue.",
+   "evidence": "torch_cuda_available=False; nvidia-smi utilisation 0.0% before and 0.0% after.",
+   "fix": "Install a CUDA build only if larger models are ever justified."
+  }
+ ],
+ "missing_deliverables": [
+  "backend/engine/satellite_features.py",
+  "backend/engine/crop_health_predictor.py",
+  "backend/engine/stress_risk_predictor.py",
+  "backend/engine/prediction_confidence.py",
+  "backend/engine/model_loader.py",
+  ".local/models/best_health_model/",
+  ".local/models/best_stress_risk_model/",
+  ".local/models/model_metadata.json"
+ ],
+ "independence_limits": "The same author built and verified this. Independence comes from separate code paths (raw CSV recounts, direct scikit-learn metric calls, artifact reloads), not from a different person, machine or dataset."
+}

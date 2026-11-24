@@ -19,6 +19,7 @@ BASE = {'majority_class', 'ndvi_rule'}
 na = lambda x, f='{:.3f}': 'NOT AVAILABLE' if x is None else f.format(x)
 
 data, models, fit, safety = (json.load(open(V / f'phase_{n}.json')) for n in ('data', 'models', 'fit_time', 'safety'))
+before = json.load(open(ROOT / 'reports/ml/verification_results_before_fixes.json'))
 res = json.load(open(ROOT / 'reports/ml/results.json'))
 hw = models['hardware']
 
@@ -36,13 +37,14 @@ def parse_tests():
             counts = {'tests': int(m[1]), 'pass': int(m[1]), 'fail': 0, 'skipped': 0}
         elif m := re.search(r'(\d+) passed', log):
             counts = {'tests': int(m[1]), 'pass': int(m[1]), 'fail': 0, 'skipped': 0}
+        cmd = re.sub(r'(://[^:/@\s]+:)[^@\s]+@', r'***@', cmd)           # never write a database password into a report
         rows.append({'name': name, 'exit_code': int(code), 'seconds': int(secs), 'command': cmd[:150] + ('...' if len(cmd) > 150 else ''), **counts})
     return rows
 
 
 tests = parse_tests()
-not_run = [{'name': 'backend integration tests (4 tests)', 'status': 'SKIPPED', 'reason': 'need a dedicated PostGIS database named chm_integration (the tests assert it); creating a database on your server was not done without asking. Includes the durable-job test that covers backend/api/services/jobs.ts, which the uncommitted weather scheduler touches.'},
-           {'name': 'launcher database tests (3 tests)', 'status': 'SKIPPED', 'reason': 'skipped by the test file in this environment'},
+not_run = [{'name': 'launcher migration tests (3 tests)', 'status': 'SKIPPED BY DESIGN', 'reason': 'scripts/local.test.mjs skips them when process.platform is win32; they cannot run on this Windows machine'},
+           {'name': '5 backend tests marked integration (4 existing + the new weather-scheduler test)', 'status': 'SKIPPED in the ordinary run, EXECUTED in the integration run', 'reason': 'ordinary `npm test` skips them by design; the integration_tests row above runs them against the dedicated chm_integration database: 6 of 6 pass'},
            {'name': 'Playwright UI tests (npm run test:ui)', 'status': 'NOT EXECUTED', 'reason': 'not run in this verification; they start their own dev servers and browsers'},
            {'name': 'ML prediction API tests', 'status': 'NOT APPLICABLE', 'reason': 'there is no health / stress prediction endpoint to test'}]
 
@@ -116,6 +118,44 @@ ISSUES = [
     {'id': 'I-16', 'severity': 'LOW', 'file': 'environment', 'problem': 'No GPU was used: PyTorch is a CPU build although an RTX 4050 is present. GPU utilisation stayed at 0% during the benchmark. Not a correctness issue.', 'evidence': f"torch_cuda_available={hw['torch_cuda_available']}; nvidia-smi utilisation {hw['gpu_before']['gpu_util_percent']}% before and {hw['gpu_after']['gpu_util_percent']}% after.", 'fix': 'Install a CUDA build only if larger models are ever justified.'},
 ]
 
+# ------------------------------------------------------------------------------------------------- what was fixed, with evidence
+ISSUES.append({'id': 'I-17', 'severity': 'MEDIUM', 'file': 'backend/api/services/platform.integration.test.ts', 'problem': 'The "platform persistence" integration test failed on a developer machine with GOOGLE_WEATHER_API_KEY set (as in this .env.local): the fixture mocks Open-Meteo but forecast.ts then calls Google Weather. Found while running the integration tests that were skipped before.',
+               'evidence': 'integration_tests.log before the fix: 4 pass, 1 fail "Weather provider request failed" (provider: Google Weather API).', 'fix': 'The test now removes the key for its own run and restores it.'})
+runs = [json.load(open(p)) for p in sorted((ROOT / '.local/ml/runs/main').glob('*/*.json')) if not p.name.endswith('.proba.npz')]
+fold_notes = [v for r in runs if r['status'] == 'ok' for v in (r.get('heldout', {}).get('tuning') or {}).values()]
+nested, fallback = fold_notes.count('nested'), fold_notes.count('fallback_to_main_settings')
+as_shipped_all_abstain = all(c['as_shipped']['final_answer'] == 'INSUFFICIENT_DATA_OR_LOW_CONFIDENCE' for t in safety['safety'].values() for c in t['cases'].values())
+gate_cases = ('3_missing_satellite_observations', '4_cloud_obscured_one_clear_observation', '5_invalid_numbers_inf_minus999_1e12', '6_out_of_distribution_x1000')
+gates_hold = all(t['cases'][k]['with_permissive_threshold_0.30']['final_answer'] == 'INSUFFICIENT_DATA_OR_LOW_CONFIDENCE' for t in safety['safety'].values() for k in gate_cases)
+deep_entries = [m for m in models['models'].values() if m.get('kind') == 'deep']
+ratio = [r['p50_ms_original'] / r['p50_ms_verified'] for r in ok_rows if r['p50_ms_verified'] > 0.05]
+rule = next(r for r in ok_rows if r['task'] == 'health_binary' and r['model'] == 'ndvi_rule')
+log_headers = (ROOT / '.local/ml/logs/classical.log').read_text(errors='ignore').count('===== ')
+native = sum(1 for m in models['models'].values() if m.get('portable_native_export'))
+explain = json.load(open(ROOT / 'reports/ml/explain.json'))
+rule_replay = json.load(open(ROOT / '.local/ml/features/app_rule_replay.json'))['summary']['all']
+RESOLUTION = {
+    'I-01': ('FIXED', f"New scripts/ml/prediction_safety.py: one predict_with_safety function derives every check from the row. Re-ran the 7 safety cases (verify_safety.py): as shipped all abstain ({as_shipped_all_abstain}); with a deliberately permissive 0.30 threshold the validity gates still refuse missing observations, cloud (1 clear observation), inf / -inf / -999 / 1e12 and x1000 inputs in all three tasks ({gates_hold}). The stress-cause model also no longer answers at all, because only a model that passed the pre-registered validation bar may answer. 10 new unit tests."),
+    'I-02': ('FIXED', f"Deep models save .pt (weights, loadable with weights_only=True) + .json + .prep.joblib and reload with deep.load(); all {len(deep_entries)} reload and reproduce probabilities to {max(m['artifact_reload']['max_abs_probability_difference_vs_saved'] for m in deep_entries):.1e}. Unit test: save, reload, identical predictions."),
+    'I-03': ('NOT FIXED', 'Cannot be fixed in code: needs dated, agronomist-confirmed severity labels.'),
+    'I-04': ('NOT FIXED (deliberate)', 'No model passed validation and the Telangana licence is evaluation-only, so nothing is integrated. The safety logic now exists as prediction_safety.py for when a model qualifies.'),
+    'I-05': ('FIXED', f"Whole pipeline re-run with --force on an idle machine. Recorded single-call p50 now vs the fresh verification benchmark: median ratio {np.median(ratio):.2f}, range {min(ratio):.2f} to {max(ratio):.2f} (before: median 1.57, up to 5.15)."),
+    'I-06': ('FIXED', f"Held-out folds now tune on their own training rows (nested): {nested} nested searches, {fallback} fallbacks to the main settings. The budget is deliberately small (2 trials, 2-fold CV for classical; 1 trial for deep): the aim is no leakage, not a better search."),
+    'I-07': ('NOT FIXED', 'No other labelled satellite dataset exists, so no genuinely independent test set can be made. The limitation remains.'),
+    'I-08': ('FIXED', f"The baseline now replays the app's real alert (shared/evidence.ts + advice.ts) through scripts/evaluate-telangana-alerts.mjs on all {rule_replay['n']} fields: it flags {rule_replay['sensitivity_judged']['value']:.0%} of problem fields and {rule_replay['false_alarm_rate']['value']:.0%} of healthy fields; its test balanced accuracy is {rule['balanced_accuracy']:.3f}. The pipeline runs the replay as a step."),
+    'I-09': ('FIXED', 'Created the dedicated chm_integration PostGIS database on your local server (README steps; the tests refuse any other database), ran the migrations and scripts/run-integration-tests.mjs: 6 of 6 pass, including the durable-jobs test and a new test for the weather scheduler. Fixtures are cleaned up (0 rows left). This created a database on your server; drop it with DROP DATABASE chm_integration if unwanted.'),
+    'I-10': ('NOT FIXED', 'Needs hours of Earth Engine extraction for 3,644 fields; not attempted.'),
+    'I-11': ('FIXED', 'Fixed earlier in this verification.'),
+    'I-12': ('FIXED', 'Fixed earlier in this verification.'),
+    'I-13': ('FIXED', f"run_all_experiments.py now appends to each step log with a timestamped header ({log_headers} run headers in classical.log after the re-run). The earlier lost lines are not recoverable, but every result was re-generated."),
+    'I-14': ('PARTIALLY FIXED', f"The three boosted-tree libraries are also exported in their native formats (.lgb.txt / .xgb.json / .cbm) for {native} models, and deep weights load with weights_only=True. The other scikit-learn models are still pickles."),
+    'I-15': ('PARTIALLY FIXED', f"explain.json now carries a reliability block per task (ranking stability and whether the model has validated skill); explanation_reliable = {[e['reliability']['explanation_reliable'] for e in explain.values()]}, each with a warning. The instability itself is a property of models at chance and cannot be fixed."),
+    'I-16': ('NOT FIXED (not a defect)', 'PyTorch stays a CPU build; no GPU is used or claimed.'),
+    'I-17': ('FIXED', 'The test removes GOOGLE_WEATHER_API_KEY for its own run and restores it; the integration tests pass with the key set.'),
+}
+for i in ISSUES:
+    i['status'], i['status_evidence'] = RESOLUTION[i['id']]
+
 # ------------------------------------------------------------------------------------------------------------ implementation
 COMPONENTS = [
     ('Repository audit', 'PASS', 'docs/ml/REPOSITORY_AUDIT.md (facts checked against code: e.g. potato-leaf model is wired into the app)'),
@@ -124,13 +164,13 @@ COMPONENTS = [
     ('Data preprocessing', 'PASS', 'prepare_satellite_data.py: tile choice and clear-observation rules; independent recount 3,644 = 3,644'),
     ('Leakage-safe data splitting', 'PASS', 'verify_data.py: 0 overlapping rows or FarmIDs; held-out district never in training; spatial leakage low'),
     ('Classical ML training', 'PASS', '10 models + 2 baselines x 3 tasks executed; 34 results, artifacts reloaded and reproduced'),
-    ('Deep learning training', 'PASS', '5 models x 3 tasks executed (15 results); reproduced by refit; artifacts not self-contained (I-02)'),
+    ('Deep learning training', 'PASS', '5 models x 3 tasks executed (15 results); every artifact reloads from its own files and reproduces exactly (I-02 fixed)'),
     ('Hyperparameter optimization', 'PASS', 'Optuna ran for every model (12 trials classical, 4 deep); small by design'),
     ('Model evaluation', 'PASS', '49 results; every metric recomputed independently with zero difference'),
     ('Model comparison', 'PASS', 'tables, figures and pre-registered selection; unit test that selection never reads test'),
     ('Explainability', 'PASS', 'TreeSHAP additive to 2e-15 and equal to shap.TreeExplainer; but near-chance models (I-15)'),
-    ('Prediction confidence / abstention', 'PARTIAL', 'rules implemented and unit-tested, but safety tests found real gaps (I-01); no single predict-with-safety function'),
-    ('Model export', 'PARTIAL', 'classical joblib artifacts reload exactly; deep artifacts incomplete (I-02); no best_* folders or metadata (I-04)'),
+    ('Prediction confidence / abstention', 'PASS', 'prediction_safety.predict_with_safety: one function, every check derived from the row; 7 safety cases refused correctly; 10 unit tests (I-01 fixed). Not wired into the backend'),
+    ('Model export', 'PASS', 'all 49 artifacts reload exactly (classical joblib + native tree exports; deep .pt + .json + .prep.joblib). No best_* folder or model_metadata.json exists because no model qualified (not applicable, I-04)'),
     ('Backend integration', 'NOT IMPLEMENTED', 'deliberate: no approved model, evaluation-only licence (I-04)'),
     ('Final reports', 'PASS', 'all 7 deliverables exist and parse; two wording errors found and fixed (I-11, I-12)'),
 ]
@@ -139,14 +179,17 @@ impl = np.mean([score_of[s] for _, s, _ in COMPONENTS])
 
 n_exec = sum(t.get('tests', 0) for t in tests)
 n_skip = sum(t.get('skipped', 0) for t in tests)
+deep_ok = all(m['artifact_reload']['loaded'] for m in models['models'].values() if m.get('kind') == 'deep')
+heldout_clean = 1.0 if fallback == 0 else nested / max(nested + fallback, 1)
+timing_clean = 1.0 if (np.median(ratio) > 0.7 and np.median(ratio) < 1.4 and max(ratio) < 2.5) else 0.0
 rubric = {
     'Implementation (15%)': (0.15, float(impl), 'PASS=1, PARTIAL=0.5, else 0 over 15 components'),
-    'Dataset quality (15%)': (0.15, 8.0 / 12, '12 checks: unique ids, no duplicates, valid labels, no missing, no cross-split leakage, low spatial label leakage, licence recorded = 7; class imbalance handled 0.5; sample adequacy 0.5; label reliability verifiable 0; labels support the target 0; temporal coverage 0'),
-    'Actual training (20%)': (0.20, 7.25 / 8, '8 checks: all trained 1, per-model data documented 1, durations 0.5 (contaminated), tuning 1, validation 1, test 1, artifacts 0.75 (deep incomplete), failures documented 1'),
-    'Independent validation (20%)': (0.20, 4.75 / 7, '7 checks: metrics reproduced 1, independent metric code 1, test not used for selection 0.75, external independent test set 0, held-out validation done 1, no tuning leakage in held-out 0.5, calibration/abstention validated 0.5'),
-    'Performance benchmarking (10%)': (0.10, (1 + 1 + 15 / 49 + 1 + 1 + 0) / 6, '6 checks: fresh benchmark of all 49 1, identical conditions 1, training time re-measured for 15 of 49 models, peak RAM 1, hardware recorded 1, original timings clean 0'),
-    'Backend integration (10%)': (0.10, 2 / 10, '10 checks: only existing-API compatibility and frontend build pass; model loading, versioning, endpoint, validation, schema, confidence, error handling, database are not implemented'),
-    'Testing and documentation (10%)': (0.10, 5.25 / 7, f'7 checks: ML unit tests 1, other suites 1, executed not skipped 0.5 ({n_skip} skipped of {n_exec}), ML API tests 0 (none exist), deliverables exist 1, numbers accurate 0.75 (2 errors fixed), JSON valid and consistent 1'),
+    'Dataset quality (15%)': (0.15, 8.0 / 12, '12 checks: unique ids, no duplicates, valid labels, no missing, no cross-split leakage, low spatial label leakage, licence recorded = 7; class imbalance handled 0.5; sample adequacy 0.5; label reliability verifiable 0; labels support the target 0; temporal coverage 0. Unchanged: these are data limits'),
+    'Actual training (20%)': (0.20, (1 + 1 + timing_clean + 1 + 1 + 1 + (1.0 if deep_ok else 0.75) + 1) / 8, f'8 checks: all trained 1, per-model data documented 1, durations clean {timing_clean:g}, tuning 1, validation 1, test 1, artifacts self-contained {1.0 if deep_ok else 0.75:g}, failures documented 1'),
+    'Independent validation (20%)': (0.20, (1 + 1 + 0.75 + 0 + 1 + heldout_clean + 1) / 7, f'7 checks: metrics reproduced from every artifact 1, independent metric code 1, test not used for selection 0.75 (visible to the author), external independent test set 0, held-out validation done 1, no tuning leakage in held-out {heldout_clean:g} ({nested} nested, {fallback} fallback), calibration and abstention validated 1'),
+    'Performance benchmarking (10%)': (0.10, (1 + 1 + 15 / 49 + 1 + 1 + (0.75 if timing_clean else 0)) / 6, '6 checks: fresh benchmark of all 49 1, identical conditions 1, training time re-measured for 15 of 49 models (0.31), peak RAM 1, hardware recorded 1, recorded timings from an idle re-run consistent with the fresh benchmark 0.75'),
+    'Backend integration (10%)': (0.10, 2 / 10, '10 checks: only existing-API compatibility and frontend build pass; model loading, versioning, endpoint, validation, schema, confidence, error handling, database are not implemented (deliberate)'),
+    'Testing and documentation (10%)': (0.10, (1 + 1 + 0.85 + 0 + 1 + 1 + 1) / 7, f'7 checks: ML unit tests (21) 1, other suites 1, executed not skipped 0.85 (integration tests now run: 6 of 6; 3 launcher tests skip by design on Windows), ML API tests 0 (none exist), deliverables exist 1, numbers accurate 1 (2 errors fixed), JSON valid and consistent 1'),
 }
 engineering = sum(w * s for w, s, _ in rubric.values()) * 100
 overall = 'PARTIAL PASS'
@@ -158,8 +201,8 @@ verification = {
                                                'test_intervals_above_chance': {'count': len(above_on_test), 'of_model_task_combinations': len(real), 'detail': above_on_test, 'note': 'about 2 of 45 are expected by chance alone at a 95% interval; none of them passes the validation / held-out bar'},
                                                'statement': 'High engineering completion does not mean the models are valid: none beats chance.'},
     'counts': {'result_files': len(rows), 'models_trained_ok': trained_models, 'not_applicable': sum(1 for r in rows if r['status'] == 'NOT_APPLICABLE'), 'failed': sum(1 for r in rows if r['status'] == 'FAILED_IN_ORIGINAL_RUN'),
-               'reproduced_exactly': verified, 'passed_pre_registered_validation_bar': beat_chance, 'classical_by_artifact': sum(1 for r in ok_rows if r['status'] == 'VERIFIED_BY_ARTIFACT'),
-               'deep_by_refit': sum(1 for r in ok_rows if r['status'] == 'VERIFIED_BY_REFIT')},
+               'reproduced_exactly': verified, 'passed_pre_registered_validation_bar': beat_chance, 'classical_by_artifact': sum(1 for r in ok_rows if r['status'] == 'VERIFIED_BY_ARTIFACT' and r['kind'] == 'classical'),
+               'deep_by_artifact': sum(1 for r in ok_rows if r['status'] == 'VERIFIED_BY_ARTIFACT' and r['kind'] != 'classical')},
     'components': [{'component': c, 'status': s, 'evidence': e} for c, s, e in COMPONENTS],
     'score_rubric': {k: {'weight': w, 'score': round(s, 3), 'basis': b} for k, (w, s, b) in rubric.items()},
     'dataset': data, 'hardware': hw, 'tests': tests, 'tests_not_executed': not_run, 'explainability_and_safety': safety, 'fit_time_remeasured_health_binary': fit,
@@ -185,6 +228,7 @@ def table(task):
 
 def md():
     d, c = data, verification['counts']
+    c_now = c
     L = ['# Final verification report', '', 'Independent audit of the CHM model-training workflow. Every statement below comes from files read, commands run and models reloaded in this verification. '
          f"Limit of independence: {verification['independence_limits']}", '',
          '## A. Overall completion status', '', f"* **Overall status: {overall}.** The pipeline was implemented, executed and reproduced, but backend integration is not implemented (deliberately) and no model shows skill.",
@@ -192,6 +236,10 @@ def md():
          f"* **ML validation / production readiness: 0%.** {beat_chance} of 3 tasks have a model that clears the pre-registered bar; no model beats chance on unseen districts. A high engineering score does not make the models valid.",
          f"* One caveat stated plainly: on the test split {len(above_on_test)} of {len(real)} model-task combinations has a 95% balanced-accuracy interval above chance ({above_text}). About 2 of 45 are expected by chance alone, and it fails the validation / held-out bar, so it is not a finding.", '',
          f"Not FALSE COMPLETION: the earlier claims (49 models trained, none production ready) reproduced exactly. Two wording errors in the reports were found and fixed (I-11, I-12).", '',
+         '### Before and after the fixes', '', '| | Before | After |', '|---|---|---|',
+         f"| Engineering completion | {before['engineering_completion_percent']}% | {engineering:.0f}% |", f"| Models reproduced from their own saved files | {before['counts']['classical_by_artifact']} of 49 (deep models only by re-fit) | {c_now['reproduced_exactly']} of 49 |",
+         f"| Issues open | {len(before['issues'])} found | {sum(1 for i in ISSUES if i['status'].startswith('FIXED'))} fixed, {sum(1 for i in ISSUES if i['status'].startswith('PARTIALLY'))} partly fixed, {sum(1 for i in ISSUES if i['status'].startswith('NOT FIXED'))} not fixed (of {len(ISSUES)}) |",
+         f"| Overall status / production | {before['overall_status']} / {before['production_decision']} | {overall} / {production} |", '',
          '## B. Implementation verification', '', '| Component | Status | Evidence |', '|---|---|---|'] + [f'| {a} | {b} | {e} |' for a, b, e in COMPONENTS]
     L += ['', 'Scripts created but never executed: none of the 16 new pipeline scripts is unexecuted (`optimize_hyperparameters.py`, `experiment.py`, `task_data.py`, `ml_common.py` run as libraries). '
           'Older scripts in `scripts/ml/` (`train_timesen2crop.py`, `make_labelling_sheet.py`, PLDD-UP scripts) are outside this task and were not run here.', '',
@@ -211,11 +259,11 @@ def md():
           '* Licence: CC-BY-SA 4.0, evaluation only, no shipped weights (datasets/TRAINING-DATA-REGISTER.md). Weights are under `.local/models` and not committed.', '',
           '## E. Independent metric verification', '',
           f"* Labels rebuilt from the raw feature file; metrics recomputed with scikit-learn called directly and separately written Brier / calibration code (`scripts/ml/verify_models.py`).",
-          f"* **{c['classical_by_artifact']} classical models**: saved artifact reloaded with its saved preprocessing pipeline; probabilities equal the saved ones to 3.3e-16 and every metric to 6.9e-17 (**VERIFIED_BY_ARTIFACT**).",
-          f"* **{c['deep_by_refit']} deep models**: artifact cannot be reloaded (I-02); re-fitted with the saved settings and seed, probabilities and metrics identical (difference 0.0) (**VERIFIED_BY_REFIT**).",
+          f"* **{c['classical_by_artifact']} classical models**: saved artifact reloaded with its saved preprocessing pipeline; probabilities equal the saved ones to 3.3e-16 (**VERIFIED_BY_ARTIFACT**).",
+          f"* **{c['deep_by_artifact']} deep models**: reloaded from their own files (.pt weights with weights_only=True, .json architecture, .prep.joblib scalers); probabilities identical (difference 0.0) (**VERIFIED_BY_ARTIFACT**). Before the fix these could only be re-fitted.",
           '* Metrics from the saved probabilities for all 49 models match the logged numbers exactly; `results.json` equals the per-run files for all 49 (0 mismatches); the deep log (15 models) and classical log (15 models) match the result files (0 mismatches).',
           '* Metrics checked: accuracy, balanced accuracy, precision, recall, macro and weighted F1, ROC-AUC, PR-AUC, confusion matrix, false-positive / false-negative / false-healthy rate, Brier, calibration error. None is UNVERIFIED.',
-          '* Limitation: the test split was never used for tuning or selection (unit-tested), but it is the only test set, and its numbers were visible while the reports were written (I-07). Held-out district / season scores are slightly optimistic (I-06).', '',
+          '* Limitation: the test split was never used for tuning or selection (unit-tested), but it is the only test set, and its numbers were visible while the reports were written (I-07). Held-out folds now use nested tuning (I-06 fixed).', '',
           '## F. Accuracy and performance comparison (test split, verified)', '', 'Accuracy is shown because it was asked for, but 82% of fields are Healthy, so always answering Healthy scores 0.821. Use balanced accuracy and macro F1.', '']
     for t, title in TASKS.items():
         w = winners[t]
@@ -234,9 +282,9 @@ def md():
         if r['task'] == 'health_binary':
             L.append(f"| {r['task']} | {r['model']} | {r['p50_ms_verified']:.2f} | {r['p95_ms_verified']:.2f} | {r['throughput_verified']:.0f} | {r['peak_ram_mb_verified']:.0f} | {r['p50_ms_original']:.2f} |")
     L += ['', 'The table shows Healthy vs Problem; all three tasks are in `verification_results.json`. Random forest and extra trees are slowest (about 17 ms) because of multi-core overhead on one-row calls.', '',
-          f"Training time re-measured for the final fit of the 15 Healthy-vs-Problem models (tuning time was not re-run): classical models match the recorded values within about 0.2 s; deep models took 1.6 to 2.7x less time than recorded, showing the recorded values were inflated by other processes (I-05). Training time for the other two tasks: NOT RE-MEASURED.", '',
+          f"The pipeline was re-run with `--force` on an idle machine (I-05). Recorded single-call p50 against the fresh benchmark: median ratio {np.median(ratio):.2f}, range {min(ratio):.2f} to {max(ratio):.2f} (before the re-run: 1.57, up to 5.15). Final-fit time re-measured for the 15 Healthy-vs-Problem models: now / recorded between {min(v['final_fit_seconds_now'] / max(v['final_fit_seconds_recorded'], 1e-3) for v in fit.values()):.2f} and {max(v['final_fit_seconds_now'] / max(v['final_fit_seconds_recorded'], 1e-3) for v in fit.values()):.2f} (tuning time was not re-run; the other two tasks were NOT RE-MEASURED).", '',
           '## H. Model artifact verification', '',
-          f"* {c['models_trained_ok']} artifacts exist under `.local/models/main/<task>/` (34 `.joblib`, 15 `.pt`). The 34 classical artifacts reload and reproduce exactly. The 15 deep artifacts hold weights only (I-02).",
+          f"* {c['models_trained_ok']} artifacts exist under `.local/models/main/<task>/` (34 `.joblib`, 15 deep models as `.pt` + `.json` + `.prep.joblib`). All 49 reload and reproduce exactly; the boosted-tree models also have native exports (`.lgb.txt`, `.xgb.json`, `.cbm`).",
           '* `.local/models/best_health_model/`, `best_stress_risk_model/` and `model_metadata.json` do not exist (no model was selected). Existing models (PLDD-UP runs) were not touched.',
           '* `reports/ml/results.json` and `verification_results.json` parse as JSON; `results.json` equals the per-run files for all 49 models.', '',
           '## I. Explainability verification', '',
@@ -244,14 +292,17 @@ def md():
           '* The top-5 features in `reports/ml/explain.json` are reproduced exactly for all three tasks. A missing feature is handled (the model predicts; the probability moves 0.02 to 0.05 on average).',
           '* Consistency is poor, as expected for models at chance: permutation-rank correlation between two seeds is 0.45 / 0.75 / 0.71 and with TreeSHAP 0.03 / 0.54 / 0.43 (binary / 4-class / cause). Top features include `clear_fraction` and `area_ha`, which describe observation coverage and field size, not crop condition.',
           '* Example explanations carry the note "satellite indicators that raised this class score; not a diagnosis". Feature importance is **not** evidence of disease.', '',
-          '## J. Prediction safety verification', '', 'Seven input kinds through the saved model and the abstention rule as `explain_predictions.py` applies it:', '',
-          '| Case | health_binary (lightgbm) | health_4class (xgboost) | stress_cause (xgboost) |', '|---|---|---|---|']
+          '## J. Prediction safety verification', '', 'Seven input kinds go through `prediction_safety.predict_with_safety` (new): every check is derived from the feature row itself (finite values, plausible envelope, share of missing features, clear observations, distribution test) and the settings stored beside the model. '
+          'Each case is run twice: **as shipped** (the validated threshold) and with a deliberately **permissive 0.30 threshold**, so the validity gates are tested even though the shipped threshold abstains on everything.', '',
+          '| Case | as shipped (all 3 tasks) | permissive threshold: health_binary | health_4class | stress_cause |', '|---|---|---|---|---|']
     for case in safety['safety']['health_binary']['cases']:
-        cell = lambda t: f"{safety['safety'][t]['cases'][case]['final_answer'].replace('INSUFFICIENT_DATA_OR_LOW_CONFIDENCE', 'INSUFFICIENT')} (p={safety['safety'][t]['cases'][case].get('top_probability', 0):.2f})"
-        L.append(f"| {case.replace('_', ' ')} | {cell('health_binary')} | {cell('health_4class')} | {cell('stress_cause')} |")
-    L += ['', '* **Health tasks: 7 of 7 abstain, but vacuously.** Their validation threshold is `None` (no threshold met the 10% false-healthy target), so they abstain on everything, including a healthy and a stressed field. With all satellite inputs missing the model still returned 0.89 confidence, so abstention comes only from the missing threshold.',
-          '* **Stress-cause task: FAIL.** It answered a healthy-profile field ("Pests"), a stressed field ("Diseased", 0.72), and invalid numbers (inf, -inf, -999, 1e12) as "Stressed" at 0.88, and a 0.40-confidence row. It abstained on missing observations only because the caller passed 0 clear observations, and on cloud (1 clear observation) and out-of-distribution (x1000) for the same reason: the safety is in the caller, not in a single prediction function. This is I-01.',
-          '* There is no input-validation layer and no single `predict_with_safety` function. Nothing of this is exposed to users, because nothing is integrated.', '',
+        shipped = {safety['safety'][t]['cases'][case]['as_shipped']['final_answer'].replace('INSUFFICIENT_DATA_OR_LOW_CONFIDENCE', 'INSUFFICIENT') for t in safety['safety']}
+        cell = lambda t: (lambda g: g['final_answer'].replace('INSUFFICIENT_DATA_OR_LOW_CONFIDENCE', 'INSUFFICIENT') + (f" ({', '.join(g['reasons'][:2])})" if g['reasons'] else ''))(safety['safety'][t]['cases'][case]['with_permissive_threshold_0.30'])
+        L.append(f"| {case.replace('_', ' ')} | {', '.join(sorted(shipped))} | {cell('health_binary')} | {cell('health_4class')} | {cell('stress_cause')} |")
+    L += ['', f"* **As shipped, every case in every task abstains** ({as_shipped_all_abstain}). That is correct today because no model passed the pre-registered validation bar, so none may answer; it is also why this table alone would be vacuous.",
+          f"* **The validity gates hold** with the permissive threshold: missing satellite observations, a single clear observation, inf / -inf / -999 / 1e12 values and x1000 inputs are refused in all three tasks ({gates_hold}). The earlier failure (stress-cause answering \"Stressed\" at 0.88 on invalid numbers) is gone (I-01 fixed).",
+          '* With the permissive threshold a normal field, a typical stressed field and the lowest-confidence row can still be answered; that is the confidence rule working as configured, not a gate failure.',
+          '* Still true: nothing of this is exposed to users, because nothing is integrated.', '',
           '## K. Backend integration verification', '',
           '* **The backend does not use any newly trained model.** No reference to the new artifacts or modules exists in `backend/`, `frontend/src` or `shared/` (grep); there is no health or stress prediction route (the API and engine only have the older potato-leaf photo check, which was not part of this work and loads lazily on first use, not at startup).',
           '* Model loading at startup, versioning, prediction endpoint, input validation, output schema, confidence reporting, error handling, database integration: **NOT IMPLEMENTED** (deliberate).',
@@ -263,17 +314,18 @@ def md():
     L += ['', f"Totals: {n_exec} tests executed in these suites, {n_skip} skipped; type check and build have no test count. Also run in this verification (not suites): `verify_data.py`, `verify_models.py`, `verify_safety.py`.", '',
           '## M. Missing deliverables', '', '* ' + '\n* '.join(verification['missing_deliverables']),
           '* All seven required documents and `reports/ml/results.json` exist, parse and contain genuine results. (`FINAL_VERIFICATION_REPORT.md` and `verification_results.json` are this report.)', '',
-          '## N. Failures and recommended fixes', '', '| ID | Severity | File | Problem | Evidence | Recommended fix |', '|---|---|---|---|---|---|']
+          '## N. Failures and recommended fixes', '', '| ID | Severity | Status | File | Problem | Evidence | Fix / what was done |', '|---|---|---|---|---|---|---|']
     for i in sorted(ISSUES, key=lambda x: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].index(x['severity'])):
-        L.append(f"| {i['id']} | {i['severity']} | {i['file']} | {i['problem']} | {i['evidence']} | {i['fix']} |")
-    L += ['', 'No CRITICAL issue was found: nothing was fabricated, no result failed to reproduce, and nothing unvalidated is deployed. Missing scripts: none. Failed training runs: none. Data leakage: none found.', '',
+        L.append(f"| {i['id']} | {i['severity']} | **{i['status']}** | {i['file']} | {i['problem']} | {i['evidence']} | {i['status_evidence']} |")
+    L += ['', 'No CRITICAL issue was found: nothing was fabricated, no result failed to reproduce, and nothing unvalidated is deployed. Missing scripts: none. Failed training runs: none. Data leakage: none found. '
+          'Not fixable in code (labels, licence, independent data, raw bands): I-03, I-04, I-07, I-10.', '',
           '## O. Production readiness decision and completion score', '', f"**Production decision: {production}.** No model beats chance on unseen districts, the safety layer has gaps, deep artifacts are incomplete, nothing is integrated, and the data licence limits shipping. "
           f"**Overall status: {overall}.**", '', '| Category (weight) | Score | Basis |', '|---|---|---|']
     for k, (w, s, b) in rubric.items():
         L.append(f'| {k} | {s * 100:.0f}% | {b} |')
     L += [f"| **Engineering completion (weighted)** | **{engineering:.0f}%** | sum of weight x score |", f"| **ML validation / production readiness** | **0%** | {beat_chance} of 3 tasks with an eligible model; none beats chance |", '',
           '## Answers', '',
-          f"1. **Was the complete training process successful?** The process ran end to end and reproduced exactly (49 of 49 models trained, 0 failed). It did not produce a usable model: every model is at chance.",
+          f"1. **Was the complete training process successful?** The process ran end to end twice (the second time after the fixes, on an idle machine) and reproduced exactly: 49 of 49 models trained, 0 failed. It did not produce a usable model: every model is at chance.",
           f"2. **How many models were actually trained?** {c['models_trained_ok']} (10 classical + 2 baselines on 3 tasks, minus 2 not-applicable; 5 deep on 3 tasks). 15 distinct algorithms on up to 3 tasks.",
           f"3. **How many passed independent validation?** {c['reproduced_exactly']} reproduced exactly; **0** passed the validation bar (beat chance on unseen data). One (tcn, Healthy vs Problem) is nominally above chance on the test split alone (balanced accuracy {next(x['test_balanced_accuracy'] for x in above_on_test):.3f}, lower bound {next(x['ci95_lower'] for x in above_on_test):.3f}); about 2 of 45 are expected by chance, and it fails validation and held-out.",
           f"4. **Highest verified accuracy?** SVM and the majority baseline, test accuracy 0.821 (health_binary): both answer \"Healthy\" for everything. Next: " + ', '.join(f"{r['model']} {r['accuracy']:.3f} (balanced accuracy {r['balanced_accuracy']:.3f})" for r in sorted((r for r in real if r['task'] == 'health_binary' and r['accuracy'] < 0.82), key=lambda r: -r['accuracy'])[:3]) + ". Accuracy is not meaningful here: no model beats the always-Healthy answer on balanced accuracy.",
@@ -283,7 +335,7 @@ def md():
           '8. **Reliable on unseen farms and districts?** No. Held-out districts and the other season average about 0.50 balanced accuracy (chance 0.50) for the health tasks.',
           '9. **Does the backend use the newly trained model?** No.',
           f"10. **Is CHM ready for production?** The existing NDVI rule app works as before, but there is no validated satellite crop-health model: **{production}**.",
-          '11. **What remains incomplete?** Backend integration and model export (by design), a self-contained deep-model artifact, the safety layer (I-01), clean-machine timings, an independent test set, severity labels, raw bands for NDWI / EVI, the integration-database tests, and the licence answer. See sections M and N.']
+          '11. **What remains incomplete?** Backend integration (by design: no model qualifies and the licence is evaluation-only), an independent test set, severity labels, raw bands for NDWI / EVI, and the licence answer. Fixed since the first verification: the safety layer, self-contained deep artifacts, clean timings, nested held-out tuning, the real app-rule baseline, the integration tests. See sections M and N.']
     return '\n'.join(L) + '\n'
 
 

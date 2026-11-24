@@ -5,8 +5,8 @@
 What is independent here: labels and splits are rebuilt from the raw feature file and splits.json; every metric is computed again by the code in
 THIS file (scikit-learn functions called directly, calibration error and Brier written separately); the classical models are reloaded from their
 saved artifacts and the exact saved preprocessing pipeline; timing uses its own loop.
-What is NOT independent: it is the same author, the same machine and the same single dataset, and the deep models cannot be reloaded (their artifact
-holds the weights but not the scalers), so they are re-fitted with the saved settings and seed and compared.
+What is NOT independent: it is the same author, the same machine and the same single dataset. Every model is now reloaded from its saved files (classical:
+joblib pipeline; deep: .pt weights + .json architecture + .prep.joblib scalers); the app-rule baseline is looked up by field id.
 """
 import json
 import sys
@@ -36,7 +36,7 @@ def load_task_arrays(task):
     rows = lambda ix: local[np.asarray(ix)[keep[np.asarray(ix)]]]
     lab = label[keep]
     y = (lab != 'Healthy').astype(int) if task == 'health_binary' else np.array([CLASSES[task].index(x) for x in lab])
-    return z['X'][keep], y, rows(sp['main']['train']), rows(sp['main']['test']), z
+    return z['X'][keep], y, rows(sp['main']['train']), rows(sp['main']['test']), z, keep
 
 
 def ece(p, y, bins=10):
@@ -135,7 +135,6 @@ def benchmark(predict, n_rows, warmup=20, singles=200, batch=256):
 
 
 def main():
-    import task_data
     import train_deep_learning_models as deep
     import train_classical_models as classical            # needed so the pickled Majority / NdviRule classes can be found
     report, cfg = {}, json.load(open(ROOT / 'reports/ml/results.json'))
@@ -153,7 +152,7 @@ def main():
             entry['verdict'] = 'NOT_APPLICABLE' if rec['status'] == 'not_applicable' else 'FAILED_IN_ORIGINAL_RUN'
             report[f'{task}/{model}'] = entry
             continue
-        X, y, tr, te, z = load_task_arrays(task)
+        X, y, tr, te, z, keep = load_task_arrays(task)
         prob = np.load(path.with_suffix('.proba.npz'), allow_pickle=True)
         saved_test, saved_y = prob['test'], prob['test_y']
         entry['test_rows'], entry['train_rows'], entry['features'] = int(len(te)), int(len(tr)), int(X.shape[1])
@@ -163,31 +162,39 @@ def main():
         worst, key = compare(m_saved, rec['test'])
         entry['metrics_recomputed_from_saved_probabilities'] = {'max_abs_difference': worst, 'worst_metric': key, 'ok': worst < 1e-9 or worst < TOL_ARTIFACT}
         predict_fn = None
+        base = ROOT / f'.local/models/main/{task}/{model}'
         if kind == 'classical':
-            art = joblib.load(ROOT / f'.local/models/main/{task}/{model}.joblib')            # level 2: the saved artifact itself
-            p = np.asarray(art.predict_proba(X[te]), float)
+            art = joblib.load(base.with_suffix('.joblib'))                                # level 2: the saved artifact itself
+            if model == 'ndvi_rule':
+                ids_te = z['ids'][keep][te]
+                predict_rows = lambda ix, art=art, ids_te=ids_te: art.predict_ids(ids_te[ix])
+                p = np.asarray(art.predict_ids(ids_te), float)
+            else:
+                predict_rows = lambda ix, art=art, X=X, te=te: art.predict_proba(X[te][ix])
+                p = np.asarray(art.predict_proba(X[te]), float)
             d = float(np.abs(p - saved_test).max())
             entry['artifact_reload'] = {'loaded': True, 'max_abs_probability_difference_vs_saved': d}
             m_art = metrics(y[te], p, task)
             w2, k2 = compare(m_art, rec['test'])
             entry['metrics_from_reloaded_artifact'] = {'max_abs_difference': w2, 'worst_metric': k2}
             entry['verdict'] = 'VERIFIED_BY_ARTIFACT' if d < TOL_ARTIFACT and w2 < TOL_ARTIFACT else 'MISMATCH'
-            entry['artifact_bytes_on_disk'] = (ROOT / f'.local/models/main/{task}/{model}.joblib').stat().st_size
-            predict_fn = lambda ix, art=art, X=X, te=te: art.predict_proba(X[te][ix])
+            entry['artifact_bytes_on_disk'] = base.with_suffix('.joblib').stat().st_size
+            native = [x.name for x in base.parent.glob(f'{model}.*') if x.suffix in ('.cbm',) or x.name.endswith(('.lgb.txt', '.xgb.json'))]
+            entry['portable_native_export'] = native
+            predict_fn = predict_rows
         else:
-            td = task_data.load_task(task)                                                  # level 2 for deep models: refit with the saved settings and seed
-            t0 = time.perf_counter()
-            fitted = deep.fit(td, model, rec['params'], td.train, rec['seed'])
-            entry['refit_seconds'] = time.perf_counter() - t0
-            p = deep.predict(fitted, td, td.test)
+            # deep models: reload from weights + architecture + scalers, using only raw arrays from the feature file
+            fitted = deep.load(base)
+            Xte, seq_te, st_te = X[te], z['seq'][keep][te], z['static'][keep][te]
+            p = deep.predict_arrays(fitted, Xte, seq_te, st_te)
             d = float(np.abs(p - saved_test).max())
-            m_art = metrics(td.y[td.test], p, task)
+            entry['artifact_reload'] = {'loaded': True, 'max_abs_probability_difference_vs_saved': d, 'files': [f'{model}.pt (weights_only)', f'{model}.json', f'{model}.prep.joblib']}
+            m_art = metrics(y[te], p, task)
             w2, k2 = compare(m_art, rec['test'])
-            entry['artifact_reload'] = {'loaded': False, 'reason': 'the .pt file stores weights only; the fitted imputer, scaler and sequence statistics were not saved, so predictions cannot be reproduced from the artifact alone'}
-            entry['refit'] = {'max_abs_probability_difference_vs_saved': d, 'metrics_max_abs_difference': w2, 'worst_metric': k2}
-            entry['verdict'] = 'VERIFIED_BY_REFIT' if w2 < TOL_REFIT else 'MISMATCH_AFTER_REFIT'
-            entry['artifact_bytes_on_disk'] = (ROOT / f'.local/models/main/{task}/{model}.pt').stat().st_size
-            predict_fn = lambda ix, f=fitted, td=td: deep.predict(f, td, td.test[ix])
+            entry['metrics_from_reloaded_artifact'] = {'max_abs_difference': w2, 'worst_metric': k2}
+            entry['verdict'] = 'VERIFIED_BY_ARTIFACT' if d < TOL_REFIT and w2 < TOL_REFIT else 'MISMATCH'
+            entry['artifact_bytes_on_disk'] = sum(base.with_suffix(s).stat().st_size for s in ('.pt', '.json', '.prep.joblib'))
+            predict_fn = lambda ix, f=fitted, a=(Xte, seq_te, st_te): deep.predict_arrays(f, a[0][ix], a[1][ix], a[2][ix])
         # level 3: fresh benchmark, same inputs / batch / warm-up for every model
         entry['benchmark'] = benchmark(predict_fn, len(te))
         entry['original_latency_p50_ms'] = rec['latency']['single_median_ms']
