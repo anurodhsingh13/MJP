@@ -1,0 +1,149 @@
+{
+ "telangana": {
+  "rows": 7888,
+  "columns": [
+   "FarmID",
+   "category",
+   "Crop",
+   "State",
+   "District",
+   "Sub-District",
+   "SDate",
+   "HDate",
+   "CropCoveredArea",
+   "CHeight",
+   "CNext",
+   "CLast",
+   "CTransp",
+   "IrriType",
+   "IrriSource",
+   "IrriCount",
+   "WaterCov",
+   "ExpYield",
+   "Season",
+   "geometry"
+  ],
+  "required_columns_present": true,
+  "duplicate_farm_ids": 0,
+  "labels": {
+   "Healthy": 6506,
+   "Diseased": 474,
+   "Pests": 485,
+   "Stressed": 423
+  },
+  "crops": {
+   "Paddy": 2268,
+   "Cotton": 1692,
+   "Maize": 1384,
+   "Bengal Gram": 938,
+   "Groundnut": 768,
+   "Chillies": 614,
+   "Red Gram": 224
+  },
+  "districts": {
+   "Medak": 1210,
+   "Siddipet": 13,
+   "Adilabad": 1770,
+   "Nirmal": 1244,
+   "Mahabubnagar": 655,
+   "Nagarkurnool": 47,
+   "Narayanpet": 203,
+   "Vikarabad": 11,
+   "Wanaparthy": 6,
+   "Nalgonda": 1386,
+   "Kamareddy": 7,
+   "Mahabubabad": 1314,
+   "Khammam": 2,
+   "Warangal": 20
+  },
+  "seasons": {
+   "Rabi": 6180,
+   "Kharif": 1708
+  },
+  "unparseable_dates": 0,
+  "harvest_not_after_sowing": 0,
+  "season_shorter_than_30_days": 169,
+  "columns_with_missing_values": {},
+  "satellite_extract_fields": 3725,
+  "prepared": {
+   "labelled_fields_in_train_csv": 7888,
+   "fields_with_satellite_extract": 3725,
+   "fields_kept": 3644,
+   "dropped": {
+    "fewer than 3 clear observations in the season": 79,
+    "no valid Sentinel-2 observation": 2
+   },
+   "labels": {
+    "Healthy": 2991,
+    "Pests": 246,
+    "Diseased": 199,
+    "Stressed": 208
+   },
+   "crops": {
+    "Cotton": 1089,
+    "Chillies": 295,
+    "Red Gram": 153,
+    "Paddy": 319,
+    "Maize": 686,
+    "Bengal Gram": 663,
+    "Groundnut": 439
+   },
+   "districts": {
+    "Adilabad": 1226,
+    "Mahabubabad": 423,
+    "Medak": 212,
+    "Nalgonda": 430,
+    "Nirmal": 908,
+    "Narayanpet": 157,
+    "Mahabubnagar": 236,
+    "Nagarkurnool": 31,
+    "Warangal": 8,
+    "Siddipet": 2,
+    "Kamareddy": 3,
+    "Wanaparthy": 4,
+    "Vikarabad": 3,
+    "Khammam": 1
+   },
+   "seasons": {
+    "Kharif": 753,
+    "Rabi": 2891
+   },
+   "sowing_year": {
+    "2023": 3599,
+    "2024": 45
+   },
+   "clear_observations": {
+    "min": 3,
+    "median": 25.0,
+    "max": 174
+   }
+  },
+  "severity_labels_present": false
+ },
+ "others": [
+  {
+   "name": "AgriFieldNet India (Radiant Earth, CC-BY-4.0)",
+   "on_disk": true,
+   "target": "crop type (7,081 fields; 5,551 usable), not health",
+   "ml_use": "excluded from the health models",
+   "why": "No stress or health label. The earlier run reached 59.1% accuracy but macro-F1 0.22 (docs/research/ML-TRAINING-REPORT-2026-11.md).",
+   "source": "register + earlier report, not re-counted"
+  },
+  {
+   "name": "TimeSen2Crop (Zenodo 4715631, CC BY 4.0)",
+   "on_disk": true,
+   "target": "16 crop types per pixel, agronomic year 2017-18, EU",
+   "ml_use": "excluded from the health models",
+   "why": "Crop-type labels only, per pixel, not India. Bands B1-B9 are present, but there is nothing to predict that is a health or stress outcome.",
+   "source": "register; 1,677 sample CSV files are committed under datasets/TimeSen2Crop"
+  },
+  {
+   "name": "PLDD-UP potato leaf photos (CC BY 4.0)",
+   "on_disk": true,
+   "target": "leaf image: Healthy / Early Blight / Late Blight (15,519 photos)",
+   "ml_use": "separate image task, not mixed into the satellite models",
+   "why": "Photos carry no GPS or date, so they cannot be matched to satellite pixels. Its own report covers it.",
+   "source": "register; docs/research/ML-TRAINING-REPORT-2026-11.md"
+  }
+ ]
+}

@@ -48,3 +48,15 @@ its outputs are in `.local/datasets/up/pldd-up/processed/`.
 * Model outputs never overwrite an existing directory.
 * Source images are checksum-verified against the inventory before any cache or training.
 * A score on a public test split is not field accuracy; see `docs/research/ML-TRAINING-REPORT-2026-11.md`.
+
+## 4. Satellite crop-health model comparison (Telangana labels) - one command
+
+```powershell
+.venv\Scripts\python.exe scripts\ml\run_all_experiments.py            # audit, features, splits, 15 models + 2 baselines x 3 tasks, reports (resumable)
+.venv\Scripts\python.exe scripts\ml\run_all_experiments.py --force    # redo every model
+cd scripts\ml; ..\..\.venv\Scripts\python.exe -m unittest test_ml_pipeline
+```
+
+Needs `xgboost lightgbm catboost optuna pandas pyyaml psutil` in `.venv` (`shap` is optional: XGBoost / LightGBM native TreeSHAP is used and was verified equal to it). CPU only.
+Settings: `configs/ml/*.yaml` (selection rules were fixed before results were read). Reports: `docs/ml/` and `reports/ml/results.json`. Artifacts: `.local/ml/`, `.local/models/` (not committed: CC-BY-SA data, evaluation only).
+Result on 2026-11-24: no model beats chance on Healthy vs Problem, so none is production ready; see `docs/ml/PRODUCTION_READINESS.md`.

@@ -1,0 +1,47 @@
+{
+ "seed": 42,
+ "rows": 3644,
+ "fields_unique": true,
+ "sizes": {
+  "train": 2550,
+  "validation": 547,
+  "test": 547
+ },
+ "label_share": {
+  "train": {
+   "Diseased": 0.0553,
+   "Healthy": 0.8208,
+   "Pests": 0.0675,
+   "Stressed": 0.0565
+  },
+  "validation": {
+   "Diseased": 0.0548,
+   "Healthy": 0.8208,
+   "Pests": 0.0658,
+   "Stressed": 0.0585
+  },
+  "test": {
+   "Diseased": 0.0512,
+   "Healthy": 0.8208,
+   "Pests": 0.0695,
+   "Stressed": 0.0585
+  }
+ },
+ "lodo_test_sizes": {
+  "Adilabad": 1226,
+  "Nirmal": 908,
+  "Nalgonda": 430,
+  "Mahabubabad": 423
+ },
+ "season_sizes": {
+  "Rabi->Kharif": [
+   2891,
+   753
+  ],
+  "Kharif->Rabi": [
+   753,
+   2891
+  ]
+ },
+ "sowing_years_note": "about 99% of fields were sown in 2023; year-held-out validation is not possible"
+}

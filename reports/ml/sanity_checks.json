@@ -1,0 +1,100 @@
+{
+ "labels": {
+  "val_balanced_accuracy": 0.47641016317440116,
+  "val_f1_macro": 0.47281206280118143,
+  "lodo_balanced_accuracy": 0.510904375965338,
+  "lodo_f1_macro": 0.5061704420736379,
+  "val_roc_auc": 0.4986364256170174,
+  "lodo_roc_auc": 0.5019879290466116
+ },
+ "shuffled_training_labels": {
+  "val_roc_auc": 0.4906367892368529
+ },
+ "crop_type_from_same_features": {
+  "val_accuracy": 0.8610603290676416,
+  "majority_accuracy": 0.2979890310786106,
+  "classes": 7
+ },
+ "ablation": {
+  "satellite_only": {
+   "val_balanced_accuracy": 0.46861506295168404,
+   "val_f1_macro": 0.4661292654713707,
+   "lodo_balanced_accuracy": 0.4952078724878344,
+   "lodo_f1_macro": 0.49005903996049593,
+   "val_roc_auc": 0.48113722103540746,
+   "lodo_roc_auc": 0.49662974163382756
+  },
+  "satellite+crop_season": {
+   "val_balanced_accuracy": 0.49347756920139996,
+   "val_f1_macro": 0.4924932523616734,
+   "lodo_balanced_accuracy": 0.503019958536842,
+   "lodo_f1_macro": 0.5011784374855397,
+   "val_roc_auc": 0.5333621199036407,
+   "lodo_roc_auc": 0.4949638552075196
+  },
+  "satellite+weather": {
+   "val_balanced_accuracy": 0.4517294668424162,
+   "val_f1_macro": 0.44939841788640994,
+   "lodo_balanced_accuracy": 0.5112379933533926,
+   "lodo_f1_macro": 0.5101906059953668,
+   "val_roc_auc": 0.4939093677560111,
+   "lodo_roc_auc": 0.5079395846020438
+  },
+  "satellite+crop_season+weather (main)": {
+   "val_balanced_accuracy": 0.4990454979319122,
+   "val_f1_macro": 0.4978528609011207,
+   "lodo_balanced_accuracy": 0.5093391447887721,
+   "lodo_f1_macro": 0.5057738340879172,
+   "val_roc_auc": 0.49936366528794146,
+   "lodo_roc_auc": 0.5002677506111566
+  },
+  "field_record_only (survey columns, not in the app)": {
+   "val_balanced_accuracy": 0.5156242898050089,
+   "val_f1_macro": 0.5041351128962526,
+   "lodo_balanced_accuracy": 0.5100802526657156,
+   "lodo_f1_macro": 0.49528334422938414,
+   "val_roc_auc": 0.493000318167356,
+   "lodo_roc_auc": 0.4989142787201016
+  },
+  "all + field_record": {
+   "val_balanced_accuracy": 0.5084200718149174,
+   "val_f1_macro": 0.5061778020862849,
+   "lodo_balanced_accuracy": 0.5111452513357407,
+   "lodo_f1_macro": 0.5055599068869584,
+   "val_roc_auc": 0.5195672923958001,
+   "lodo_roc_auc": 0.5057809974542781
+  }
+ },
+ "learning_curve_lightgbm_health_binary": {
+  "0.1": {
+   "train_rows": 255,
+   "val_roc_auc": 0.53681650834053,
+   "val_balanced_accuracy": 0.5220671787646016,
+   "train_balanced_accuracy": 1.0
+  },
+  "0.25": {
+   "train_rows": 637,
+   "val_roc_auc": 0.5324303440752693,
+   "val_balanced_accuracy": 0.5000795418390074,
+   "train_balanced_accuracy": 1.0
+  },
+  "0.5": {
+   "train_rows": 1275,
+   "val_roc_auc": 0.4736602881687195,
+   "val_balanced_accuracy": 0.5026703331666742,
+   "train_balanced_accuracy": 0.9995219885277247
+  },
+  "0.75": {
+   "train_rows": 1912,
+   "val_roc_auc": 0.500909049588655,
+   "val_balanced_accuracy": 0.4868983228035089,
+   "train_balanced_accuracy": 0.9936020473448497
+  },
+  "1.0": {
+   "train_rows": 2550,
+   "val_roc_auc": 0.4933866642425344,
+   "val_balanced_accuracy": 0.4797509204127085,
+   "train_balanced_accuracy": 0.9866220735785953
+  }
+ }
+}

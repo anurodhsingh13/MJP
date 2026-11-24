@@ -1,0 +1,8 @@
+# Which models run and the Optuna search space size. Names map to scripts/ml/optimize_hyperparameters.py.
+classical: [logistic_regression, decision_tree, random_forest, extra_trees, xgboost, lightgbm, catboost, svm, hist_gradient_boosting, knn]
+deep_learning: [mlp, cnn1d, lstm, gru, tcn]
+# Transformer: skipped. ~3,600 labelled fields with no detectable signal do not support it.
+skipped:
+  transformer: dataset too small (3,644 fields) and tree models already sit at chance
+baselines: [majority_class, ndvi_rule]
+sequence_length: 32

@@ -1,0 +1,31 @@
+seed: 42
+split: {train: 0.70, validation: 0.15, test: 0.15}
+tasks:
+  health_binary: {description: "Healthy vs Problem (Pests/Diseased/Stressed pooled)", positive: Problem}
+  health_4class: {description: "Healthy / Pests / Diseased / Stressed (survey cause labels)"}
+  stress_cause:  {description: "Pests / Diseased / Stressed, problem fields only"}
+optuna: {trials_classical: 12, trials_deep: 4, cv_folds: 3, timeout_seconds_per_model: 240}
+deep: {max_epochs: 40, patience: 6, batch_size: 64}
+heldout:
+  districts: [Adilabad, Nirmal, Nalgonda, Mahabubabad]   # leave-one-district-out on the four largest
+  season: true                                          # train Rabi -> test Kharif and the reverse
+latency: {warmup: 20, single_calls: 200, batch_size: 256}
+abstention: {target_false_healthy_rate: 0.10, min_coverage: 0.20, min_clear_observations: 3}
+paths: {runs: .local/ml/runs, features: .local/ml/features, models: .local/models, reports: reports/ml, docs: docs/ml}
+# Selection rules, fixed on 2026-11-24 BEFORE any model result was read. Selection looks at validation and held-out (district / season)
+# numbers only; the test split is reported afterwards and never used to choose.
+selection:
+  eligible_if:
+    val_balanced_accuracy_ci95_lower_above_chance: true     # chance = 1 / number of classes
+    mean_heldout_balanced_accuracy_margin_over_chance: 0.03  # mean of leave-one-district-out and season-held-out scores
+  weights:                                                  # ranking among eligible models, in the order given in the brief
+    val_f1_macro: 0.25
+    val_balanced_accuracy: 0.20
+    stressed_recall: 0.10
+    low_false_healthy_rate: 0.10
+    heldout_generalisation: 0.20
+    low_calibration_error: 0.05
+    inference_speed: 0.05
+    small_model_size: 0.05
+  deployable_limits: {single_call_p50_ms: 50, model_size_mb: 50}
+  production_requires: independent field validation (agronomist-confirmed, dated visits) in addition to everything above

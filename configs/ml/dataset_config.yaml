@@ -1,0 +1,19 @@
+# Datasets used by the CHM model comparison. Paths are relative to the repository root and are git-ignored (.local).
+telangana:
+  # Zindi Telangana Crop Health Challenge (GIZ FAIR Forward / Government of Telangana / ADeX). CC-BY-SA 4.0: results are
+  # evaluation only; model weights stay local and are not shipped. See datasets/TRAINING-DATA-REGISTER.md.
+  train_csv: .local/datasets/labelled/zindi-telangana-crop-health/files/Train.csv
+  s2_sample_csv: .local/datasets/labelled/telangana-s2-full/sample.csv
+  s2_ndvi_csv: .local/datasets/labelled/telangana-s2-full/ndvi.csv
+  weather_dir: .local/datasets/labelled/telangana-weather
+  # Season-level survey label. Severity (mild / moderate / severe) is NOT in this dataset.
+  label_column: category
+  healthy_label: Healthy
+  cause_labels: [Pests, Diseased, Stressed]
+  min_clear_observations: 3
+  min_valid_pixels: 10
+  min_valid_fraction_of_max: 0.7
+excluded:
+  agrifieldnet: crop-type labels only (no health or stress labels); an earlier run found it not usable
+  timesen2crop: crop-type labels only, EU region, per-pixel; not a health task
+  pldd-up: leaf photographs; a separate image task with its own report (docs/research/ML-TRAINING-REPORT-2026-11.md)
