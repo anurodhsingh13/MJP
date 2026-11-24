@@ -6,7 +6,7 @@ after(async()=>{await pool.end();});
 async function invoke(handler:(request:Request,response:Response)=>Promise<void>,account:{id:string;email:string},body:unknown={},params:Record<string,string>={},query:Record<string,string>={}){let status=200;let payload:any;await handler({body,params,query} as unknown as Request,{locals:{account},status(code:number){status=code;return this;},json(value:unknown){payload=value;},setHeader(){}} as unknown as Response);return {status,payload};}
 test('platform persistence isolates owners, deduplicates notices and notes, and caches real-mode forecasts',{skip:!enabled},async()=>{
  const url=new URL(process.env.DATABASE_URL!);assert.ok(['localhost','127.0.0.1'].includes(url.hostname));assert.equal(url.pathname,'/chm_integration');
- const users:string[]=[];const fields:string[]=[];const original=globalThis.fetch;
+ const users:string[]=[];const fields:string[]=[];const original=globalThis.fetch;const previousWeatherKey=process.env.GOOGLE_WEATHER_API_KEY;delete process.env.GOOGLE_WEATHER_API_KEY; // the fixture mocks Open-Meteo; a developer's own Google key must not change the provider
  try{
   for(let i=0;i<2;i++){users.push((await pool.query("insert into app_users(email,password_hash) values($1,'unused') returning id",[`platform-${randomUUID()}@example.invalid`])).rows[0].id);fields.push((await pool.query("insert into fields(name,crop,owner_id,provenance,location) values('Platform fixture','Wheat',$1,'user_reported',ST_SetSRID(ST_MakePoint(77,28),4326)) returning id",[users[i]])).rows[0].id);}
   const inspection=(await pool.query(`insert into scouting_cases(field_id,client_key,observed_on,boundary_version,observation_category,growth_stage,severity,provenance,verification_status,reported_by)
@@ -43,6 +43,6 @@ test('platform persistence isolates owners, deduplicates notices and notes, and 
   assert.equal((await invoke(assistantHistory,other,{}, {},{fieldId:fields[0]})).status,404);
   const privateHistory=await invoke(assistantHistory,account,{}, {},{fieldId:fields[0]});
   assert.ok(privateHistory.payload.some((item:{content:string})=>item.content==='Private fixture'));
- }finally{globalThis.fetch=original;if(fields.length)await pool.query('delete from fields where id=any($1::uuid[])',[fields]);if(users.length)await pool.query('delete from app_users where id=any($1::uuid[])',[users]);}
+ }finally{globalThis.fetch=original;if(previousWeatherKey===undefined)delete process.env.GOOGLE_WEATHER_API_KEY;else process.env.GOOGLE_WEATHER_API_KEY=previousWeatherKey;if(fields.length)await pool.query('delete from fields where id=any($1::uuid[])',[fields]);if(users.length)await pool.query('delete from app_users where id=any($1::uuid[])',[users]);}
 });
 
