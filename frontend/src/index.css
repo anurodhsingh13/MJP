@@ -365,6 +365,7 @@ input[type=range] { padding:0; accent-color:var(--green); }
 .wizard-content input,.wizard-content select,.wizard-content textarea { background:var(--box-bg,#fff); color:var(--ink); border-color:var(--box-line,#b7c7b5); }
 .step-label,.wizard-status,.boundary-tools { color:#35623a; }
 .wizard-error { color:#813e2d; background:#fff0e9; }
+.wizard-warning { margin:8px 0 0; padding:10px 12px; border-radius:10px; border:1px solid #e0a24a; background:#fff3d6; color:#5a3b05; line-height:1.45; }
 .boundary-tools button { background:#edf3e7; border-color:#b7c7b5; color:var(--ink); }
 .boundary-edit { margin-top:20px; }
 .danger-action { color:#943a2d; border-color:#d4b0a8; background:#fff4ef; width:100%; margin-top:24px; }

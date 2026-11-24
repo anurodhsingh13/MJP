@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {assessEvidence,compareToBaseline,vegetationConditionIndex,comparablePair,seasonalBaseline,cropDatesOutdated,observationTile,qualityReason,referenceStage,resolveStage,seasonStage,validNdviClasses,validReferenceWindow,vegetationScore, type Observation} from '../../../shared/evidence.ts';
+import {assessEvidence,compareToBaseline,vegetationConditionIndex,comparablePair,seasonalBaseline,cropDatesOutdated,cropDatesStatus,observationTile,qualityReason,referenceStage,resolveStage,seasonStage,validNdviClasses,validReferenceWindow,vegetationScore, type Observation} from '../../../shared/evidence.ts';
 const now=Date.parse('2026-10-15T12:00:00Z');
 const observation:Observation={scene_id:'test',observed_on:'2026-10-12',acquired_at:'2026-10-12T10:00:00Z',ndvi_value:.7,ndmi_value:.3,cloud_cover:0,valid_coverage_percent:90,valid_pixel_count:500,source:'Sentinel-2',provenance:'measured_imagery',boundary_version:1,accepted:true,calculation_version:'v2'};
 test('quality and crop score are separate even for identical measurements',()=>{
@@ -92,6 +92,20 @@ test('crop dates from an old season are flagged, so a harvest drop is not presen
  assert.equal(cropDatesOutdated({harvestDate:'2027-03-01'},'2026-10-12'),false);
  assert.equal(cropDatesOutdated({plantingDate:'2026-05-01',harvestDate:'2026-04-01'},'2026-10-12'),true);
  assert.equal(cropDatesOutdated({plantingDate:'2026-01-01'},'2026-10-12'),true);
+});
+
+test("crop date status says when the dates cannot be used for today's advice",()=>{
+ const today='2026-11-24';
+ assert.equal(cropDatesStatus(null,today),'missing');
+ assert.equal(cropDatesStatus({plantingDate:null,harvestDate:null},today),'missing');
+ assert.equal(cropDatesStatus({plantingDate:'',harvestDate:''},today),'missing');           // a cleared form field counts as no date
+ assert.equal(cropDatesStatus({plantingDate:'2026-07-15',harvestDate:'2027-01-15'},today),'ok');       // this season
+ assert.equal(cropDatesStatus({plantingDate:'2026-07-15'},today),'ok');                               // sowing only, within 240 days
+ assert.equal(cropDatesStatus({plantingDate:'2026-10-20',harvestDate:'2026-11-10'},today),'ok');       // harvested 14 days ago: still this season
+ assert.equal(cropDatesStatus({plantingDate:'2023-06-11',harvestDate:'2023-12-11'},today),'outdated'); // an old season
+ assert.equal(cropDatesStatus({plantingDate:'2026-01-01'},today),'outdated');                          // sown > 240 days ago, no harvest date
+ assert.equal(cropDatesStatus({plantingDate:'2027-03-01'},today),'outdated');                          // sowing far in the future
+ assert.equal(cropDatesStatus({plantingDate:'2026-09-01',harvestDate:'2026-08-01'},today),'outdated'); // harvest before sowing
 });
 
 test('tile comes from the scene id when it was not stored, so other tiles are still not compared',()=>{

@@ -1,3 +1,4 @@
+import { cropDatesStatus } from '../../../../shared/evidence';
 import { useState } from 'react';
 import { useModalDialog } from '../../lib/useModalDialog';
 import { queueFieldJob } from '../../lib/api';
@@ -144,9 +145,10 @@ export function AddFieldWizard({ onComplete, onCancel }: { onComplete: (fieldId:
 
         {step === 'dates' && (
           <form onSubmit={(e) => { e.preventDefault(); if (plantingDate && harvestDate && harvestDate < plantingDate) { setError('Harvest date must be on or after planting date.'); return; } setError(''); setStep('boundary'); }}>
-            <label>{t('Planting Date (Optional)', 'बुवाई की तारीख़ (ज़रूरी नहीं)')} <input type="date" value={plantingDate} onChange={e => setPlantingDate(e.target.value)} /></label>
-            <label>{t('Expected Harvest (Optional)', 'कटाई की अनुमानित तारीख़ (ज़रूरी नहीं)')} <input type="date" min={plantingDate || undefined} value={harvestDate} onChange={e => setHarvestDate(e.target.value)} /></label>
-            <p>{t("Don’t know the dates? Leave them blank and continue.", "तारीख़ें नहीं पता? खाली छोड़कर आगे बढ़ें।")}</p>
+            <label>{t('Planting date (recommended)', 'बुवाई की तारीख़ (बताना बेहतर)')} <input type="date" value={plantingDate} onChange={e => setPlantingDate(e.target.value)} /></label>
+            <label>{t('Expected harvest date (recommended)', 'कटाई की अनुमानित तारीख़ (बताना बेहतर)')} <input type="date" min={plantingDate || undefined} value={harvestDate} onChange={e => setHarvestDate(e.target.value)} /></label>
+            <p>{t("These dates let us tell a ripening or harvested crop from a stressed one. An approximate date is fine. Don’t know them? Leave them blank and add them later from Manage field.", "इन तारीख़ों से हम पकती या कटी फ़सल और तनाव वाली फ़सल में फ़र्क़ कर पाते हैं। अंदाज़ी तारीख़ भी चलेगी। नहीं पता? खाली छोड़ें और बाद में \"खेत की जानकारी बदलें\" से जोड़ें।")}</p>
+            {(plantingDate || harvestDate) && cropDatesStatus({ plantingDate: plantingDate || null, harvestDate: harvestDate || null }) === 'outdated' && <p role="status" className="wizard-warning">{t("These dates look like another season. Enter the dates for the crop you are growing now, or the advice may mistake ripening or harvest for crop stress.", "ये तारीख़ें किसी और मौसम की लगती हैं। अभी उगाई जा रही फ़सल की तारीख़ें डालें, वरना सलाह पकने या कटाई को फ़सल का तनाव समझ सकती है।")}</p>}
             <div className="actions">
               <button type="button" onClick={() => setStep('basic')}>{t('Back', 'पीछे')}</button>
               <button type="submit">{t('Next', 'आगे')}</button>

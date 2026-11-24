@@ -67,6 +67,17 @@ export function cropDatesOutdated(season: CropSeason | null | undefined, observe
   return planting !== null && harvest === null && observed - planting > 240 * DAY;
 }
 /**
+ * Whether the saved sowing / harvest dates can be used for TODAY's advice. 'missing' when neither date was entered (the crop stage then falls back to a
+ * regional calendar or stays unknown), 'outdated' when the dates belong to another season (see cropDatesOutdated), otherwise 'ok'.
+ * Unlike cropDatesOutdated this looks at today, not at an image date, so a notice can appear before any alert exists.
+ */
+export type CropDatesStatus = 'ok' | 'missing' | 'outdated';
+export function cropDatesStatus(season: CropSeason | null | undefined, today: string = new Date().toISOString().slice(0, 10)): CropDatesStatus {
+  const planting = dayTime(season?.plantingDate), harvest = dayTime(season?.harvestDate);
+  if (planting === null && harvest === null) return 'missing';
+  return cropDatesOutdated(season, today) ? 'outdated' : 'ok';
+}
+/**
  * Crop stage from the sowing and harvest dates entered for the field. Windows are deliberately simple:
  * 30 days after sowing (establishment), 30 days before harvest (maturity) and 45 days after harvest.
  * Dates far outside the observation are treated as an old season, never as the current one.

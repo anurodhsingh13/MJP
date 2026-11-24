@@ -1,0 +1,6 @@
+.crop-dates-notice { margin-bottom:12px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px 18px; padding:14px 18px; border-radius:14px; border:1px solid #e8c86a; background:linear-gradient(135deg,#fff6d8,#fdebb4); color:#3b2f0b; }
+.crop-dates-notice.outdated { border-color:#e0a24a; background:linear-gradient(135deg,#fff0d2,#fbdfa3); }
+.crop-dates-notice div { flex:1 1 320px; min-width:0; }
+.crop-dates-notice strong { display:block; margin-bottom:3px; }
+.crop-dates-notice p { margin:0; line-height:1.5; }
+.crop-dates-notice button { min-height:44px; padding:8px 18px; border-radius:10px; border:0; background:#17653d; color:#fff; font:inherit; font-weight:700; cursor:pointer; }

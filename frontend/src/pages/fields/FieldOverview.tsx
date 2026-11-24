@@ -11,11 +11,12 @@ import { CropAdvice } from '../../features/fields/CropAdvice';
 import { FieldJourney } from '../../features/fields/FieldJourney';
 import { NdviZones } from '../../features/fields/NdviZones';
 import { IndexValues } from '../../features/fields/IndexValues';
+import { CropDatesNotice } from '../../features/fields/CropDatesNotice';
 import { cropPhoto } from '../../lib/cropPhotos';
 
 const today = () => new Date().toLocaleDateString('en-CA');
 export function FieldOverview() {
-  const { field, refreshField } = useOutletContext<{ field: DatabaseField; refreshField: () => Promise<void> }>();
+  const { field, refreshField, editField } = useOutletContext<{ field: DatabaseField; refreshField: () => Promise<void>; editField?: () => void }>();
   const { t, language, date, area } = usePreferences();
   const [params, setParams] = useSearchParams();
   const { hash } = useLocation();
@@ -52,6 +53,7 @@ export function FieldOverview() {
   }
   const taskLabel = (status: TaskState) => ({ open: t('Planned', 'तय की गई'), acknowledged: t('Seen', 'देख लिया'), action_taken: t('Visit / action done', 'जाँच / काम किया'), resolved: t('Closed', 'बंद') })[status];
   return <div className="field-overview">
+    <CropDatesNotice field={field} onEdit={editField}/>
     <section className="field-overview-photo"><img src={cropPhoto(field.crop).src} alt={cropPhoto(field.crop).alt} loading="lazy" onError={event => {event.currentTarget.style.display='none';}}/><div><span>{t('Illustration only · not a photo of this field','केवल उदाहरण · इस खेत की फ़ोटो नहीं')}</span></div></section>
     <section className={`condition-card condition-${copy.assessment.state}`} aria-label={t('Field summary', 'खेत की स्थिति')}>
       <span className="eyebrow">{t('WHAT WE KNOW', 'अभी क्या जानकारी है')}</span>
