@@ -11,8 +11,10 @@ import csv, json, re, time, urllib.parse, urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import sys
+INDIA = '--india' in sys.argv  # only articles with an India affiliation or Indian study site
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / '.local/datasets/knowledge/evidence_passages.csv'
+OUT = ROOT / ('.local/datasets/knowledge/evidence_passages_india.csv' if INDIA else '.local/datasets/knowledge/evidence_passages.csv')
 BASE = 'https://www.ebi.ac.uk/europepmc/webservices/rest'
 TARGETS = [  # crop, disease, search term
     ('rice', 'blast', '"rice blast" OR "Magnaporthe oryzae"'),
@@ -72,6 +74,8 @@ def get(url, tries=3):
 
 def search(term, review=True):
     q = f'({term}) AND (symptoms OR epidemiology OR "disease management" OR "life cycle" OR damage) AND OPEN_ACCESS:y AND LICENSE:"cc by"'
+    if INDIA:
+        q += ' AND (AFF:"India" OR "Uttar Pradesh" OR "Indo-Gangetic" OR "Punjab" OR "India")'
     if review:
         q += ' AND (PUB_TYPE:"review-article" OR TITLE:review)'
     url = BASE + '/search?' + urllib.parse.urlencode({'query': q, 'format': 'json', 'resultType': 'core', 'pageSize': 10, 'sort': 'RELEVANCE'})
