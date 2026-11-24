@@ -1,4 +1,4 @@
-.season-history { display:grid; gap:10px; margin-top:16px; padding:16px; border:1px solid var(--line, #dce3d8); border-radius:16px; background:#f7faf4; }
+.season-history { display:grid; gap:10px; margin-top:16px; padding:16px; border:1px solid var(--line, var(--box-line,#dce3d8)); border-radius:16px; background:var(--box-bg,#f7faf4); }
 .season-history-head { display:flex; align-items:center; gap:8px; color:#286443; }
 .season-history-head h3 { margin:0; font-size:1rem; color:var(--ink, #20382b); }
 .season-history p { margin:0; font-size:.86rem; line-height:1.55; }

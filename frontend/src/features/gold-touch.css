@@ -1,0 +1,33 @@
+/* Golden touch for the whole app. Colours live here; change --gold* to retune everything.
+   Light mode gets the full treatment (warm page, gold box borders and glow, gold accents).
+   Dark mode only keeps the gold focus ring and text selection. Text colours are never changed. */
+:root { --gold:#c99a2e; --gold-bright:#f2c14e; --gold-deep:#a8740a; --gold-soft:#f3dc8f; --gold-line:#e4d192; --gold-glow:rgba(176,128,20,.16); }
+
+::selection { background:#f3dc8f; color:#1d2f1a; }
+/* Gold focus ring: #a8740a keeps enough contrast against the cream surfaces. */
+html :focus-visible { outline:3px solid #b8860b !important; outline-offset:2px; }
+
+/* Warm cream page with a faint golden glow at the top right. */
+html:not([data-ts-theme=dark]) body { background:radial-gradient(1100px 460px at 88% -8%,#fdf5d6 0%,rgba(253,245,214,0) 62%),linear-gradient(180deg,#fcfaf1 0%,#f8f6ea 100%) fixed !important; }
+html:not([data-ts-theme=dark]) { scrollbar-color:#d9b44a #f6f1da; }
+
+/* Header: gold hairline and soft glow (not while it is the dark menu drawer). */
+html:not([data-ts-theme=dark]) .preferences-bar:not([data-menu-open="true"]) { border-bottom:1px solid #ecd994 !important; box-shadow:0 10px 26px -18px var(--gold-glow); }
+html:not([data-ts-theme=dark]) .brand-logo { box-shadow:0 0 0 2px #f6d98a, 0 6px 14px -8px rgba(184,134,11,.4); }
+
+/* Cards and panels: a soft golden glow under the tinted, gold-bordered boxes. */
+html:not([data-ts-theme=dark]) :is(.field-card,.summary-tile,.fh-card,.platform-panel,.condition-card,.index-values,.profile-card,.dataset-card,.crop-gallery-card,.auth-card,.ndvi-zones,.field-journey,.crop-advice,.field-next-guidance,.map-inspection-guide,.season-history,.next-step-panel,.attention-panel) {
+  box-shadow:0 1px 0 rgba(255,255,255,.7) inset, 0 12px 26px -18px var(--gold-glow); }
+html:not([data-ts-theme=dark]) :is(.field-card,.fh-card,.dataset-card,.crop-gallery-card):hover { box-shadow:0 1px 0 rgba(255,255,255,.7) inset, 0 16px 30px -16px rgba(176,128,20,.28); }
+
+/* Hero banner: thin gold frame. */
+html:not([data-ts-theme=dark]) .fh-hero { box-shadow:0 0 0 1px rgba(236,217,148,.8), 0 20px 42px -28px rgba(168,116,10,.32); }
+
+/* Field tabs: the open tab gets a golden pill with a gold underline. */
+html:not([data-ts-theme=dark]) .field-tabs a.active { background:linear-gradient(135deg,#fbf1cb,#f1f6dc); box-shadow:inset 0 -2px 0 #dcc070; }
+
+/* Primary buttons: gold ring. */
+html:not([data-ts-theme=dark]) :is(.primary-action,.fh-btn,.fh-hero .fh-btn) { box-shadow:0 0 0 1px rgba(226,198,110,.6), 0 8px 18px -12px rgba(168,116,10,.35); }
+
+/* Menu drawer: gold marker on the current page. */
+.preferences-bar[data-menu-open="true"] .top-nav a.active { box-shadow:inset 3px 0 0 var(--gold-bright); }

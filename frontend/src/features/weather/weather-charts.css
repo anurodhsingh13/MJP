@@ -1,10 +1,10 @@
 .wx-charts{display:grid;gap:18px;min-width:0}
 .wx-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:10px}
-.wx-stat{display:grid;gap:2px;padding:12px 14px;border:1px solid #d5e3d1;border-radius:12px;background:#f7fbf6;min-width:0}
+.wx-stat{display:grid;gap:2px;padding:12px 14px;border:1px solid var(--box-line,#d5e3d1);border-radius:12px;background:var(--box-bg,#f7fbf6);min-width:0}
 .wx-stat span{font-size:.78rem;color:#55705c}.wx-stat strong{font-size:1.35rem;line-height:1.25;color:#17442d}.wx-stat small{font-size:.78rem;color:#55705c}
 .wx-stat.rain strong{color:#1d5f80}.wx-stat.hot strong{color:#9a4a12}.wx-stat.cool strong{color:#2f6f8f}
 .wx-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px}
-.wx-chart{min-width:0;padding:12px 8px 6px;border:1px solid #e1ebdf;border-radius:14px;background:#fff}
+.wx-chart{min-width:0;padding:12px 8px 6px;border:1px solid var(--box-line,#e1ebdf);border-radius:14px;background:var(--box-bg,#fff)}
 .wx-chart h4{margin:0 8px 2px;font-size:1rem;color:#17442d}
 .wx-chart p.wx-help{margin:0 8px 6px;font-size:.8rem;color:#55705c;line-height:1.45}
 .wx-key{list-style:none;display:flex;flex-wrap:wrap;gap:6px 16px;margin:2px 8px 4px;padding:0;font-size:.8rem;color:#2f4a38}
@@ -12,5 +12,5 @@
 .wx-key i.sq{border-radius:3px;border:1px solid #0003;box-shadow:none}
 .wx-plot{width:100%;height:clamp(230px,38vw,290px)}
 .wx-empty{margin:4px 8px 0;padding:8px 10px;border-radius:8px;background:#eef5fa;color:#1d5f80;font-size:.85rem}
-.wx-tip{display:grid;gap:3px;padding:9px 11px;background:#fff;border:1px solid #cdd9cd;border-radius:10px;box-shadow:0 3px 12px #0002;font-size:.85rem;color:#17442d}
+.wx-tip{display:grid;gap:3px;padding:9px 11px;background:var(--box-bg,#fff);border:1px solid var(--box-line,#cdd9cd);border-radius:10px;box-shadow:0 3px 12px #0002;font-size:.85rem;color:#17442d}
 .wx-tip strong{font-size:.9rem}

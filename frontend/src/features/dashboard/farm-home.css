@@ -191,7 +191,7 @@ html[data-ts-theme=dark] .farm-home .ndvi-zones { color:var(--ink); }
 
 /* Responsive dashboard shell matching the attached TerraScope workspace reference. */
 .fh-toolbar { display:flex; align-items:center; justify-content:space-between; gap:14px; min-height:44px; }
-.fh-global-search { width:min(540px,100%); height:42px; display:flex; align-items:center; gap:10px; padding:0 13px; border:1px solid #e3ebe5; border-radius:999px; background:#fff; color:#83948a; box-shadow:0 4px 20px -2px #102a1c0a; }
+.fh-global-search { width:min(540px,100%); height:42px; display:flex; align-items:center; gap:10px; padding:0 13px; border:1px solid var(--box-line,#e3ebe5); border-radius:999px; background:var(--box-bg,#fff); color:#83948a; box-shadow:0 4px 20px -2px #102a1c0a; }
 .fh-global-search:focus-within { border-color:#5cb785; box-shadow:0 0 0 4px #22c55e18; }
 .fh-global-search input { min-width:0; flex:1; padding:0; border:0; outline:0; background:transparent; color:#183e2b; font-size:.8rem; }
 .fh-global-search input::placeholder { color:#87958c; }
@@ -441,3 +441,10 @@ body:has(.preferences-bar) .preferences-bar .brand b .brand-s,.site-brand .brand
 body:has(.preferences-bar) .preferences-bar[data-menu-open="true"] .brand b .brand-s,
 html[data-ts-theme=dark] body:has(.preferences-bar) .preferences-bar .brand b .brand-s { color:#f2c14e !important; }
 .brand-s,body:has(.preferences-bar) .preferences-bar .brand b .brand-s { font:inherit !important; font-size:inherit !important; letter-spacing:inherit; text-transform:none; line-height:inherit; display:inline; }
+
+/* Menu drawer on short screens: keep everything in ONE column and scroll inside the drawer.
+   Without this the flex-wrap inherited from .preferences-bar pushed the theme / bell / profile row into a second
+   column outside the drawer, on top of the close button. */
+body:has(.preferences-bar) .preferences-bar[data-menu-open="true"] { flex-wrap:nowrap !important; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+body:has(.preferences-bar) .preferences-bar[data-menu-open="true"] > * { flex-shrink:0; }
+body:has(.preferences-bar) .preferences-bar[data-menu-open="true"] .header-account-actions { margin-top:14px; padding-bottom:6px; }
