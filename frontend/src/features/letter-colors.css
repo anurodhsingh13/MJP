@@ -7,17 +7,17 @@ body { --ink:var(--lc-black); --muted:var(--lc-green-soft); --green:#1c6b45; }
 /* headings, numbers and names → black */
 :is(h1,h2,h3,h4,h5,h6,strong,b,th,legend):not(:is(
   .fh-hero *,.preferences-bar *,button *,button,.primary-action,.primary-action *,.fh-btn,.fh-btn *,.fh-add *,.fh-status,.fh-tag,.fh-chip,.notification-count,
-  .fh-chat .me *,.sidebar-promo *,.landing-page *,[class*=badge],[class*=chip],[class*=pill],.eyebrow,
+  .fh-chat .me *,.sidebar-promo *,.landing-page *,.site-how *,[class*=badge],[class*=chip],[class*=pill],.eyebrow,
   html[data-ts-theme=dark] .farm-home *)) { color:var(--lc-black) !important; }
 /* body copy → very dark green */
 :is(p,li,dd,td,figcaption,label,summary,dt):not(:is(
-  .fh-hero *,.preferences-bar *,button *,button,.primary-action *,.fh-btn *,.fh-chat .me *,.sidebar-promo *,.landing-page *,[class*=badge],[class*=chip],[class*=pill],
+  .fh-hero *,.preferences-bar *,button *,button,.primary-action *,.fh-btn *,.fh-chat .me *,.sidebar-promo *,.landing-page *,.site-how *,[class*=badge],[class*=chip],[class*=pill],
   .fh-status,.fh-tag,html[data-ts-theme=dark] .farm-home *)) { color:var(--lc-body) !important; }
 /* secondary text → green */
 :is(small,dt,figcaption,.fh-muted,.eyebrow,.field-card small,.back-link):not(:is(
-  .fh-hero *,.preferences-bar *,button *,.primary-action *,.fh-btn *,.fh-chat .me *,.sidebar-promo *,.landing-page *,html[data-ts-theme=dark] .farm-home *)) { color:var(--lc-green-soft) !important; }
+  .fh-hero *,.preferences-bar *,button *,.primary-action *,.fh-btn *,.fh-chat .me *,.sidebar-promo *,.landing-page *,.site-how *,html[data-ts-theme=dark] .farm-home *)) { color:var(--lc-green-soft) !important; }
 /* links and text-actions → green */
-a:not(:is(.fh-btn,.primary-action,.preferences-bar *,.fh-hero *,.landing-page *,.fh-field,.fh-quick a,.farmer-mobile-nav *,.field-card h3 a,.overview-nav a,.top-nav a,.fh-wide,.fh-toolbar-profile,
+a:not(:is(.fh-btn,.primary-action,.preferences-bar *,.fh-hero *,.landing-page *,.site-how *,.fh-field,.fh-quick a,.farmer-mobile-nav *,.field-card h3 a,.overview-nav a,.top-nav a,.fh-wide,.fh-toolbar-profile,
   html[data-ts-theme=dark] .farm-home *)),
 .secondary-action,.text-button,.notification-read-all,.action-link { color:var(--lc-green) !important; }
 .fh-btn,.fh-btn *,.primary-action,.primary-action * { color:#fff !important; }
