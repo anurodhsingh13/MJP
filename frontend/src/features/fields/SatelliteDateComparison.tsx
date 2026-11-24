@@ -1,7 +1,7 @@
 import {useState} from 'react';
 import {OpenFieldMap} from '../../lib/OpenFieldMap';
 import {qualityReason} from '../../../../shared/evidence';
-import type {DatabaseField,Observation} from '../../lib/api';
+import {findImageForDate,type DatabaseField,type Observation} from '../../lib/api';
 import {usePreferences} from '../../lib/preferencesContext';
 import '../platform.css';
 import './ndvi-versus.css';
@@ -16,8 +16,8 @@ const INDEXES:Record<IndexKey,{label:string;field:'ndvi_value'|'ndre_value'|'ndm
 const reading=(o:Observation,key:IndexKey)=>{const raw=o[INDEXES[key].field];return raw==null||raw===''?null:Number.isFinite(Number(raw))?Number(raw):null;};
 
 /** Side-by-side map comparison of two accepted images for NDVI, NDRE or NDMI, using the independently scoped tile renderer. */
-export function SatelliteDateComparison({field,observations}:{field:DatabaseField;observations:Observation[]}){
- const {t,date}=usePreferences();const [before,setBefore]=useState('');const [after,setAfter]=useState('');const [index,setIndex]=useState<IndexKey>('ndvi');
+export function SatelliteDateComparison({field,observations,onImageAdded}:{field:DatabaseField;observations:Observation[];onImageAdded?:()=>Promise<void>}){
+ const {t,date}=usePreferences();const [before,setBefore]=useState('');const [after,setAfter]=useState('');const [index,setIndex]=useState<IndexKey>('ndvi');const [pickedDate,setPickedDate]=useState('');const [busy,setBusy]=useState(false);const [notice,setNotice]=useState('');
  const cfg=INDEXES[index];
  const copy={
   ndvi:{name:t('Greenness (NDVI)','हरियाली (NDVI)'),intro:t('Greenness colours for your field, not natural photographs.','आपके खेत की हरियाली के रंग, असली फ़ोटो नहीं।'),low:t('Bare soil / no crop','खाली मिट्टी / फ़सल नहीं'),high:t('Dense, healthy green','घनी, स्वस्थ हरियाली'),down:t('Less green','हरियाली घटी'),up:t('Greener','हरियाली बढ़ी'),
@@ -39,6 +39,24 @@ export function SatelliteDateComparison({field,observations}:{field:DatabaseFiel
  const haveValues=olderValue!=null&&newerValue!=null;
  const delta=comparable&&haveValues?newerValue-olderValue:0;
  const tileUrl=(o:Observation)=>`/api/fields/${field.id}/tiles/${encodeURIComponent(o.scene_id!)}/{z}/{x}/{y}.png${index==='ndvi'?'':`?index=${index}`}`;
+ const DAY=86400000;
+ const dayOf=(o?:Observation)=>o?(o.acquired_at||String(o.observed_on)).slice(0,10):'';
+ /** Earliest pickable date is two years back; the latest is the day before the image it is compared with. */
+ const minDate=new Date(Date.now()-730*DAY).toISOString().slice(0,10);
+ const maxDate=newer?new Date(Date.parse(`${dayOf(newer)}T00:00:00Z`)-DAY).toISOString().slice(0,10):'';
+ const findDate=async()=>{
+  if(!pickedDate||!newer||busy)return;
+  setBusy(true);setNotice('');
+  try{
+   const result=await findImageForDate(field.id,pickedDate,dayOf(newer));
+   if(result.found&&result.sceneId){
+    await onImageAdded?.();setBefore(result.sceneId);
+    const gap=result.daysFromRequested??0;
+    setNotice(gap>0?t(`No clear image on that exact date. Showing the closest clear one, ${gap} day${gap===1?'':'s'} away.`,`उस तारीख़ की साफ़ तस्वीर नहीं मिली। सबसे नज़दीकी साफ़ तस्वीर दिखा रहे हैं, ${gap} दिन दूर।`):t('Image for that date is ready.','उस तारीख़ की तस्वीर तैयार है।'));
+   }else setNotice(result.message);
+  }catch(error){setNotice(error instanceof Error?error.message:t('Image search unavailable. Please retry.','तस्वीर खोज अभी उपलब्ध नहीं। फिर कोशिश करें।'));}
+  finally{setBusy(false);}
+ };
  const panel=(item:Observation,side:number)=>{const value=reading(item,index);return <figure className="ndvi-panel" key={`${index}-${item.scene_id}`}>
   <div className="ndvi-map"><span className="ndvi-badge">({side?'b':'a'}) {side?t('After','बाद में'):t('Before','पहले')} · {date(item.observed_on)}</span>
    <OpenFieldMap latitude={Number(field.latitude)} longitude={Number(field.longitude)} fieldName={field.name} boundaryGeojson={field.boundary_geojson} tileUrl={tileUrl(item)} layerLabel={cfg.label} opacity={.85}/></div>
@@ -51,7 +69,15 @@ export function SatelliteDateComparison({field,observations}:{field:DatabaseFiel
     <b>{INDEXES[key].label}</b><span>{key==='ndvi'?t('Greenness','हरियाली'):key==='ndre'?t('Leaf colour','पत्तियों का रंग'):t('Plant water','पौधों में पानी')}</span></button>)}
   </div>
   <p>{copy.intro}</p>
-  {available.length<2||!position?<p>{t('Two quality-accepted images and a saved field boundary are needed.','दो साफ़ स्वीकृत तस्वीरें और खेत की सीमा चाहिए।')}</p>:<>
+  {!position||available.length<1?<p>{t('A saved field boundary and at least one quality-accepted image are needed.','खेत की सीमा और कम से कम एक साफ़ स्वीकृत तस्वीर चाहिए।')}</p>:<>
+   <form className="ndvi-date-finder" onSubmit={event=>{event.preventDefault();void findDate();}}>
+    <label>{t('Compare the latest image with an earlier date','सबसे नई तस्वीर की तुलना किसी पुरानी तारीख़ से करें')}
+     <input type="date" value={pickedDate} min={minDate} max={maxDate} disabled={busy} onChange={event=>setPickedDate(event.target.value)}/></label>
+    <button type="submit" disabled={!pickedDate||busy}>{busy?t('Searching satellite images…','सैटेलाइट तस्वीरें खोज रहे हैं…'):t('Find image','तस्वीर खोजें')}</button>
+   </form>
+   <p className="ndvi-date-hint">{t('Any date in the last 2 years. If that day has no clear image, the closest clear one within 5 days is used.','पिछले 2 साल की कोई भी तारीख़। उस दिन साफ़ तस्वीर न हो तो 5 दिन के भीतर की सबसे नज़दीकी साफ़ तस्वीर ली जाती है।')}</p>
+   {notice&&<p role="status" className="ndvi-date-notice">{notice}</p>}
+   {available.length<2?<p>{t('Pick an earlier date above to compare it with your latest image.','अपनी सबसे नई तस्वीर से तुलना के लिए ऊपर कोई पुरानी तारीख़ चुनें।')}</p>:<>
    <div className="platform-two-column">{([['before',older,setBefore],['after',newer,setAfter]] as const).map(([side,item,set])=><label key={side}>{side==='before'?t('Before acquisition','पहली तस्वीर'):t('After acquisition','दूसरी तस्वीर')}<select value={item?.scene_id||''} onChange={event=>set(event.target.value)}>{available.map(o=><option value={o.scene_id!} key={o.scene_id}>{date(o.observed_on)} · {(o.acquired_at||'').slice(11,16)} · {o.scene_id}</option>)}</select></label>)}</div>
    {!chronological&&<p role="alert">{t('Choose two different acquisitions with Before earlier than After.','दो अलग तस्वीरें चुनें; पहली तस्वीर दूसरी से पुरानी हो।')}</p>}
    {distinct&&<div className="ndvi-versus">
@@ -66,6 +92,7 @@ export function SatelliteDateComparison({field,observations}:{field:DatabaseFiel
     <div className="ndvi-scale-ticks" aria-hidden="true">{cfg.ticks.map(tick=><span key={tick} style={{left:`${(tick-cfg.min)/(cfg.max-cfg.min)*100}%`}}>{tick}</span>)}</div>
     <div className="ndvi-scale-ends" aria-hidden="true"><span>{copy.low}</span><span>{copy.high}</span></div>
    </div>
+  </>}
   </>}
  </section>;
 }

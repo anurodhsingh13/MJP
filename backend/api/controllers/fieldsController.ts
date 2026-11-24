@@ -7,6 +7,7 @@ import { baselinePointsByField } from '../services/baselineReadings.ts';
 import { evidencePolicy } from '../services/policy.ts';
 import { processScene, processLatest, ProcessingError, rasterPayload, EARTH_ENGINE_SOURCE } from '../services/satellite.ts';
 import { ingestOpenSentinel, primaryTile } from '../services/openSentinel.ts';
+import { imageForDate } from '../services/compareDate.ts';
 
 const DEFAULT_PYTHON_ENGINE_URL = 'http://127.0.0.1:8000';
 
@@ -188,6 +189,14 @@ export async function calculateNdviFromScene(request: Request, response: Respons
   catch(error) {
     console.error('Scene processing failed:');
     response.status(error instanceof ProcessingError?error.status:503).json({error:error instanceof ProcessingError?error.message:'Image processing unavailable. Please retry.'});
+  }
+}
+/** Finds or fetches the clearest accepted image near a past date, so the user can compare it with the latest image. */
+export async function findImageForDate(request: Request, response: Response) {
+  try { response.json(await imageForDate(String(request.params.fieldId), (request.body ?? {}) as { date?: unknown; before?: unknown })); }
+  catch(error) {
+    console.error('Image lookup for date failed:');
+    response.status(error instanceof ProcessingError?error.status:503).json({error:error instanceof ProcessingError?error.message:'Image search unavailable. Please retry.'});
   }
 }
 export async function processLatestScene(request: Request,response: Response) {

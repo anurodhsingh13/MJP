@@ -38,3 +38,11 @@
 .ndvi-index-picker button[aria-pressed="true"] { background:linear-gradient(135deg,#286443,#3d8556); border-color:#286443; color:#fff; }
 .ndvi-index-picker button[aria-pressed="true"] span { color:#e3f3e0; }
 @media (max-width:520px) { .ndvi-index-picker button { flex:1 1 30%; min-width:0; padding:8px 10px; } }
+
+.ndvi-date-finder { display:flex; flex-wrap:wrap; align-items:flex-end; gap:10px; margin:10px 0 4px; }
+.ndvi-date-finder label { display:grid; gap:4px; font-weight:600; color:#17472d; }
+.ndvi-date-finder input[type="date"] { padding:9px 12px; border-radius:10px; border:1.5px solid #9dbd98; background:#fff; font:inherit; min-height:44px; }
+.ndvi-date-finder button { padding:10px 18px; min-height:44px; border-radius:10px; border:0; background:#17653d; color:#fff; font:inherit; font-weight:600; cursor:pointer; }
+.ndvi-date-finder button:disabled { opacity:.55; cursor:not-allowed; }
+.ndvi-date-hint { margin:2px 0 6px; font-size:.9rem; opacity:.8; }
+.ndvi-date-notice { margin:6px 0; padding:8px 12px; border-radius:10px; background:#eef6e9; border:1px solid #bcd7b4; }

@@ -396,3 +396,13 @@ export async function loadCropAdvice(fieldId: string, languageCode: 'en-IN' | 'h
   if (!response.ok) throw new Error(payload.error ?? 'Crop advice is unavailable')
   return payload as CropAdviceResponse
 }
+
+export interface ImageForDateResult { found:boolean; sceneId?:string; observedAt?:string; daysFromRequested?:number; reused?:boolean; requestedDate:string; message:string }
+/** Finds, or fetches and processes, the clearest accepted image near a past date. `before` is the date of the image it will be compared with. */
+export async function findImageForDate(fieldId:string,date:string,before?:string):Promise<ImageForDateResult> {
+  const response=await fetch(`/api/fields/${fieldId}/ndvi/image-for-date`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date,before})});
+  const payload=await response.json().catch(()=>null) as (Partial<ImageForDateResult>&{error?:string})|null;
+  if(!response.ok) throw new Error(payload?.error||'Image search unavailable. Please retry.');
+  if(!payload||typeof payload.found!=='boolean'||typeof payload.message!=='string') throw new Error('Image search returned an incomplete result. Please retry.');
+  return payload as ImageForDateResult;
+}

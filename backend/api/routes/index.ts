@@ -14,7 +14,7 @@ import { getCropAdvice } from '../controllers/adviceController.ts';
 import { searchPlaces } from '../controllers/placesController.ts';
 import { 
   getFields, getFieldAlerts, resolveFieldAlert, updateFieldAlert, getFieldNdvi, getFieldNdviAnalysis,
-  getFieldWeather, calculateNdviFromScene, processNdviSentinelHub, processLatestScene,
+  getFieldWeather, calculateNdviFromScene, processNdviSentinelHub, processLatestScene, findImageForDate,
   getFieldScenes, ingestEarthEngineScenes, ingestOpenSentinelScenes, ingestWeather,
   createField, updateBoundary, updateFieldLocation, updateField, deleteField,
   getFieldEvents, createFieldEvent, deleteFieldEvent,
@@ -68,6 +68,7 @@ router.get('/fields/:fieldId/weather', getFieldWeather);
 router.get('/fields/:fieldId/forecast',rateLimit('forecast',60),getForecast);
 router.post('/fields/:fieldId/ndvi/from-scene/:sceneId', calculateNdviFromScene);
 router.post('/fields/:fieldId/ndvi/process-latest', processLatestScene);
+router.post('/fields/:fieldId/ndvi/image-for-date', rateLimit('image-for-date',30), findImageForDate);
 router.post('/fields/:fieldId/ndvi/process', processNdviSentinelHub);
 router.get('/fields/:fieldId/scenes', getFieldScenes);
 router.post('/fields/:fieldId/ingest/earth-engine-scenes', ingestEarthEngineScenes);
