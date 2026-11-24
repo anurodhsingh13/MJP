@@ -19,9 +19,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import balanced_accuracy_score, roc_auc_score
 
-from compare_models import fig_dir
+from compare_models import fig_dir, select_models
 from evaluate_models import collect
-from ml_common import INSUFFICIENT, apply_abstention, choose_confidence_threshold, path, set_seed, training_config, write_json
+from ml_common import INSUFFICIENT, choose_confidence_threshold, path, set_seed, training_config, write_json
+from prediction_safety import build_spec, choose_cause_threshold, predict_with_safety
+from scipy.stats import spearmanr
 from task_data import TASKS, load_task
 
 
@@ -55,13 +57,8 @@ def permutation_importance(pipe, X, y, n_classes, seed, repeats=3) -> np.ndarray
     return drop
 
 
-def out_of_range(X_train: np.ndarray, X: np.ndarray, max_share: float = 0.20) -> np.ndarray:
-    """True when a row is inside the training distribution: at most `max_share` of its non-missing features outside the 0.5-99.5 percentiles."""
-    lo, hi = np.nanpercentile(X_train, 0.5, axis=0), np.nanpercentile(X_train, 99.5, axis=0)
-    with np.errstate(invalid='ignore'):
-        outside = ((X < lo) | (X > hi)) & ~np.isnan(X)
-    present = np.maximum((~np.isnan(X)).sum(1), 1)
-    return (outside.sum(1) / present) <= max_share
+def task_has_eligible_model(results: list[dict], task: str) -> bool:
+    return bool(select_models(results, task, training_config())['eligible'])
 
 
 def explain_task(run_id: str, task: str, results: list[dict], cfg: dict, seed: int) -> dict | None:
@@ -87,17 +84,29 @@ def explain_task(run_id: str, task: str, results: list[dict], cfg: dict, seed: i
         examples.append({'field_row': int(i), 'predicted': td.classes[c], 'true': td.classes[yv[i]], 'confidence': float(pv[i, c]),
                          'top_reasons': [{'feature': td.feature_names[j], 'value': None if np.isnan(Xv[i, j]) else float(Xv[i, j]), 'contribution': float(contrib[i, c, j])} for j in idx],
                          'note': 'satellite indicators that raised this class score; not a diagnosis'})
-    # abstention: threshold from VALIDATION, applied to TEST
+    # abstention: threshold from VALIDATION, applied to TEST through the single safety function
     a = cfg['abstention']
-    thr = choose_confidence_threshold(pv, yv, td.healthy_index, a['target_false_healthy_rate'], a['min_coverage'])
+    spec = build_spec(td.X[td.train], td.feature_names)
+    if td.healthy_index is None:
+        thr = choose_cause_threshold(pv, yv, a['cause_skill_margin'], a['min_coverage'])
+    else:
+        thr = choose_confidence_threshold(pv, yv, td.healthy_index, a['target_false_healthy_rate'], a['min_coverage'])
+    # A model that did not pass the pre-registered validation bar (skill on held-out districts and the other season) never answers, whatever its
+    # validation confidence looks like: validation numbers of the top-ranked model are optimistic because that model was picked on them.
+    validated = name in select_models(results, task, cfg)['eligible']
+    if not validated:
+        thr = None
+    threshold = thr['threshold'] if thr else None
     Xt, yt = td.X[td.test], td.y[td.test]
-    pt = pipe.predict_proba(Xt)
-    inside = out_of_range(td.X[td.train], Xt)
-    answers = apply_abstention(pt, thr['threshold'] if thr else None, td.classes, td.n_clear[td.test], a['min_clear_observations'], inside)
-    answered = np.array([x != INSUFFICIENT for x in answers])
-    pred = np.array([td.classes.index(x) if x != INSUFFICIENT else -1 for x in answers])
-    ab = {'threshold_chosen_on_validation': thr, 'target_false_healthy_rate': a['target_false_healthy_rate'], 'test_coverage': float(answered.mean()),
-          'test_outside_training_range_share': float((~inside).mean())}
+    out = predict_with_safety(pipe, Xt, spec, td.classes, threshold)
+    answered = np.array([o['answer'] != INSUFFICIENT for o in out])
+    pred = np.array([td.classes.index(o['answer']) if o['answer'] != INSUFFICIENT else -1 for o in out])
+    reasons = {}
+    for o in out:
+        for r in o['reasons']:
+            reasons[r] = reasons.get(r, 0) + 1
+    ab = {'model_passed_validation_bar': validated, 'threshold_chosen_on_validation': thr, 'target_false_healthy_rate': a['target_false_healthy_rate'], 'cause_skill_margin': a['cause_skill_margin'],
+          'test_coverage': float(answered.mean()), 'abstention_reasons_on_test': reasons}
     if answered.any():
         ab['test_accuracy_when_answered'] = float((pred[answered] == yt[answered]).mean())
         ab['test_majority_accuracy_when_answered'] = float(np.bincount(yt[answered]).max() / answered.sum())
@@ -106,8 +115,19 @@ def explain_task(run_id: str, task: str, results: list[dict], cfg: dict, seed: i
             ab['test_false_healthy_rate_when_answered'] = float((pred[st] == td.healthy_index).mean())
             ab['test_stressed_fields_answered'] = int(st.sum())
     else:
-        ab['verdict'] = 'no confidence threshold met the safety target on validation, so the model abstains on every field'
-    return {'task': task, 'model': name, 'method': 'exact TreeSHAP (native) + permutation importance on validation', 'top_features': top, 'examples': examples, 'abstention': ab}
+        ab['verdict'] = ('the model did not pass the pre-registered validation bar, so it abstains on every field' if not validated else
+                         'no confidence threshold met the safety target on validation, so the model abstains on every field' if td.healthy_index is not None
+                         else 'no confidence threshold lifted validation balanced accuracy above chance by the required margin, so the model abstains on every field')
+    # a portable copy of the safety settings, stored beside the model
+    base = path('models') / run_id / task
+    write_json(base / f'{name}.safety.json', {'classes': td.classes, 'threshold': threshold, 'spec': spec})
+    # explanation reliability: stable ranking AND a model that has skill. Otherwise the explanation describes noise.
+    rho = float(spearmanr(perm, permutation_importance(pipe, Xv, yv, k, seed + 1))[0])
+    has_skill = task_has_eligible_model(results, task)
+    reliability = {'permutation_rank_correlation_between_seeds': rho, 'ranking_stable': rho >= 0.8, 'model_has_validated_skill': has_skill,
+                   'explanation_reliable': bool(rho >= 0.8 and has_skill),
+                   'warning': None if (rho >= 0.8 and has_skill) else 'Do not present these indicators as evidence about crop condition: the model has no validated skill and/or the importance ranking is unstable.'}
+    return {'task': task, 'model': name, 'method': 'exact TreeSHAP (native) + permutation importance on validation', 'top_features': top, 'examples': examples, 'abstention': ab, 'reliability': reliability}
 
 
 def draw(task: str, info: dict) -> str:

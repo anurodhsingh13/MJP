@@ -246,22 +246,3 @@ def choose_confidence_threshold(proba: np.ndarray, y: np.ndarray, healthy_index:
         if ok and (best is None or cov > best['coverage']):
             best = {'threshold': float(t), 'coverage': float(cov)}
     return best
-
-
-def apply_abstention(proba: np.ndarray, threshold: float | None, classes: list[str], clear_observations: np.ndarray | None = None, min_clear: int = 3,
-                     inside_training_range: np.ndarray | None = None) -> list[str]:
-    """Final answer per sample: the class name, or INSUFFICIENT_DATA_OR_LOW_CONFIDENCE.
-
-    Abstains when the confidence is below the validated threshold (or no threshold was safe), when there are too few clear
-    (cloud-free) observations, or when the inputs lie outside the training distribution."""
-    out = []
-    for i, row in enumerate(proba):
-        if threshold is None or row.max() < threshold:
-            out.append(INSUFFICIENT)
-        elif clear_observations is not None and clear_observations[i] < min_clear:
-            out.append(INSUFFICIENT)
-        elif inside_training_range is not None and not inside_training_range[i]:
-            out.append(INSUFFICIENT)
-        else:
-            out.append(classes[int(row.argmax())])
-    return out

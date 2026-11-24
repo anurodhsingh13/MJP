@@ -3,8 +3,8 @@
   .venv/Scripts/python scripts/ml/train_classical_models.py [--tasks health_binary ...] [--models xgboost ...] [--force]
 
 Models: logistic regression, decision tree, random forest, extra trees, XGBoost, LightGBM, CatBoost, SVM, HistGradientBoosting, KNN.
-Baselines: majority class (predicts the training prior) and the NDVI rule (the app's two triggers: a 0.10 drop within 30 days, or
-NDVI below 0.3 while growing), which only exists for the Healthy / Problem task.
+Baselines: majority class (predicts the training prior) and the app's real alert replayed on every field (AppRuleReplay), which only exists for
+the Healthy / Problem task.
 All run on the CPU. GPU builds of XGBoost / CatBoost exist, but 2,500 rows gain nothing from them, so none is claimed or used.
 """
 from __future__ import annotations
@@ -31,17 +31,28 @@ class Majority:
         return np.tile(self.prior, (len(X), 1))
 
 
-class NdviRule:
-    """Problem when the app's rule would alert: a >= 0.10 NDVI drop within 30 days, or NDVI < 0.3 in mid-season."""
+class AppRuleReplay:
+    """The app's real alert (shared/evidence.ts assessEvidence + shared/advice.ts decideVisit), replayed over each field's season by
+    scripts/evaluate-telangana-alerts.mjs and stored in .local/ml/features/app_rule_replay.json. A field is Problem when the rule said
+    "visit: yes" at least once; "no decision" (not enough comparable images) counts as no alert, so it is never hidden as a hit."""
 
-    def __init__(self, names):
-        self.i = [names.index('n_drops_10_30d'), names.index('n_low_growing')]
+    def __init__(self, outcomes: dict):
+        self.outcomes = outcomes
+
+    @classmethod
+    def load(cls):
+        import json
+        from ml_common import ROOT
+        f = ROOT / '.local/ml/features/app_rule_replay.json'
+        if not f.exists():
+            raise FileNotFoundError('run: node --import tsx scripts/evaluate-telangana-alerts.mjs --dir .local/datasets/labelled/telangana-s2-full --json .local/ml/features/app_rule_replay.json')
+        return cls({r['id']: r['outcome'] for r in json.load(open(f))['rows']})
 
     def fit(self, X, y):
         return self
 
-    def predict_proba(self, X):
-        alert = ((np.nan_to_num(X[:, self.i[0]]) > 0) | (np.nan_to_num(X[:, self.i[1]]) > 0)).astype(float)
+    def predict_ids(self, ids):
+        alert = np.array([self.outcomes.get(str(i)) == 'alert' for i in ids], float)
         return np.stack([1 - alert, alert], 1)
 
 
@@ -53,10 +64,11 @@ def not_applicable_reason(model, td):
     return 'the app rule only separates alert / no alert; it cannot name a cause or a class'
 
 
-def tune(td, model, cfg, seed):
+def tune(td, model, cfg, seed, rows=None, trials=None, timeout=None, cv_folds=None):
     if model in BASELINES:
         return {}, None, 0, 0.0
-    params, cv, trials, secs = tune_classical(model, td.X[td.train], td.y[td.train], len(td.classes), cfg, seed)
+    rows = td.train if rows is None else rows
+    params, cv, trials, secs = tune_classical(model, td.X[rows], td.y[rows], len(td.classes), cfg, seed, trials, timeout, cv_folds)
     if params is None:
         raise RuntimeError('no tuning trial finished inside the time limit')
     return params, cv, trials, secs
@@ -66,13 +78,14 @@ def fit(td, model, params, rows, seed):
     if model == 'majority_class':
         return Majority().fit(td.X[rows], td.y[rows])
     if model == 'ndvi_rule':
-        return NdviRule(td.feature_names).fit(td.X[rows], td.y[rows])
+        return AppRuleReplay.load()
     return fit_estimator(model, build(model, params, seed, len(td.classes)), td.X[rows], td.y[rows])
 
 
 def predict(fitted, td, rows):
-    p = fitted.predict_proba(td.X[rows])
-    return np.asarray(p, float)
+    if isinstance(fitted, AppRuleReplay):
+        return fitted.predict_ids(td.ids[rows])
+    return np.asarray(fitted.predict_proba(td.X[rows]), float)
 
 
 def gpu_used(model):
@@ -86,8 +99,17 @@ def size_bytes(fitted):
 
 
 def save(fitted, base):
+    """The joblib pipeline (imputer / scaler included) plus, for the three boosted-tree libraries, a portable native file that is not a pickle."""
     base.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(fitted, base.with_suffix('.joblib'))
+    est = getattr(fitted, 'named_steps', {}).get('model')
+    name = type(est).__name__
+    if name == 'LGBMClassifier':
+        est.booster_.save_model(str(base.with_suffix('.lgb.txt')))
+    elif name == 'XGBClassifier':
+        est.save_model(str(base.with_suffix('.xgb.json')))
+    elif name == 'CatBoostClassifier':
+        est.save_model(str(base.with_suffix('.cbm')))
 
 
 def main():

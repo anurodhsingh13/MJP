@@ -155,11 +155,24 @@
    }
   ],
   "abstention": {
+   "model_passed_validation_bar": false,
    "threshold_chosen_on_validation": null,
    "target_false_healthy_rate": 0.1,
+   "cause_skill_margin": 0.1,
    "test_coverage": 0.0,
-   "test_outside_training_range_share": 0.0018281535648994515,
-   "verdict": "no confidence threshold met the safety target on validation, so the model abstains on every field"
+   "abstention_reasons_on_test": {
+    "no_validated_confidence_threshold": 540,
+    "outside_training_distribution": 6,
+    "too_many_missing_features": 1
+   },
+   "verdict": "the model did not pass the pre-registered validation bar, so it abstains on every field"
+  },
+  "reliability": {
+   "permutation_rank_correlation_between_seeds": 0.6549831389981804,
+   "ranking_stable": false,
+   "model_has_validated_skill": false,
+   "explanation_reliable": false,
+   "warning": "Do not present these indicators as evidence about crop condition: the model has no validated skill and/or the importance ranking is unstable."
   },
   "figure": "feature_importance_health_binary.png"
  },
@@ -319,11 +332,24 @@
    }
   ],
   "abstention": {
+   "model_passed_validation_bar": false,
    "threshold_chosen_on_validation": null,
    "target_false_healthy_rate": 0.1,
+   "cause_skill_margin": 0.1,
    "test_coverage": 0.0,
-   "test_outside_training_range_share": 0.0018281535648994515,
-   "verdict": "no confidence threshold met the safety target on validation, so the model abstains on every field"
+   "abstention_reasons_on_test": {
+    "no_validated_confidence_threshold": 540,
+    "outside_training_distribution": 6,
+    "too_many_missing_features": 1
+   },
+   "verdict": "the model did not pass the pre-registered validation bar, so it abstains on every field"
+  },
+  "reliability": {
+   "permutation_rank_correlation_between_seeds": 0.7105206066775942,
+   "ranking_stable": false,
+   "model_has_validated_skill": false,
+   "explanation_reliable": false,
+   "warning": "Do not present these indicators as evidence about crop condition: the model has no validated skill and/or the importance ranking is unstable."
   },
   "figure": "feature_importance_health_4class.png"
  },
@@ -483,15 +509,23 @@
    }
   ],
   "abstention": {
-   "threshold_chosen_on_validation": {
-    "threshold": 0.3,
-    "coverage": 1.0
-   },
+   "model_passed_validation_bar": false,
+   "threshold_chosen_on_validation": null,
    "target_false_healthy_rate": 0.1,
-   "test_coverage": 1.0,
-   "test_outside_training_range_share": 0.0,
-   "test_accuracy_when_answered": 0.40816326530612246,
-   "test_majority_accuracy_when_answered": 0.3877551020408163
+   "cause_skill_margin": 0.1,
+   "test_coverage": 0.0,
+   "abstention_reasons_on_test": {
+    "no_validated_confidence_threshold": 97,
+    "outside_training_distribution": 1
+   },
+   "verdict": "the model did not pass the pre-registered validation bar, so it abstains on every field"
+  },
+  "reliability": {
+   "permutation_rank_correlation_between_seeds": 0.6361184742923711,
+   "ranking_stable": false,
+   "model_has_validated_skill": false,
+   "explanation_reliable": false,
+   "warning": "Do not present these indicators as evidence about crop condition: the model has no validated skill and/or the importance ranking is unstable."
   },
   "figure": "feature_importance_stress_cause.png"
  }

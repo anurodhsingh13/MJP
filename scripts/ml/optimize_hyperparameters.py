@@ -115,9 +115,10 @@ def run_study(objective, trials: int, timeout: float, seed: int):
     return study.best_params, float(study.best_value), len(done), time.perf_counter() - t0
 
 
-def tune_classical(name: str, X: np.ndarray, y: np.ndarray, n_classes: int, cfg: dict, seed: int):
-    """CV macro-F1 on the training rows. Returns (params, cv_f1, trials, seconds)."""
-    folds = list(StratifiedKFold(cfg['optuna']['cv_folds'], shuffle=True, random_state=seed).split(X, y))
+def tune_classical(name: str, X: np.ndarray, y: np.ndarray, n_classes: int, cfg: dict, seed: int, trials: int | None = None, timeout: float | None = None, cv_folds: int | None = None):
+    """CV macro-F1 on the rows given (training rows only). `trials` / `timeout` override the config (used for the smaller nested searches inside held-out folds).
+    Returns (params, cv_f1, trials, seconds)."""
+    folds = list(StratifiedKFold(cv_folds or cfg['optuna']['cv_folds'], shuffle=True, random_state=seed).split(X, y))
 
     def objective(trial):
         params = space(name, trial)
@@ -127,4 +128,4 @@ def tune_classical(name: str, X: np.ndarray, y: np.ndarray, n_classes: int, cfg:
             scores.append(f1_score(y[te], est.predict(X[te]), average='macro', zero_division=0))
         return float(np.mean(scores))
 
-    return run_study(objective, cfg['optuna']['trials_classical'], cfg['optuna']['timeout_seconds_per_model'], seed)
+    return run_study(objective, trials or cfg['optuna']['trials_classical'], timeout or cfg['optuna']['timeout_seconds_per_model'], seed)

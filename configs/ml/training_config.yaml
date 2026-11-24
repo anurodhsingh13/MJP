@@ -9,8 +9,12 @@ deep: {max_epochs: 40, patience: 6, batch_size: 64}
 heldout:
   districts: [Adilabad, Nirmal, Nalgonda, Mahabubabad]   # leave-one-district-out on the four largest
   season: true                                          # train Rabi -> test Kharif and the reverse
+  tuning_trials_classical: 2                            # nested search inside every held-out fold (training rows of that fold only); small on purpose:
+  tuning_trials_deep: 1                                 # the aim is that held-out fields never influence the settings, not a better search
+  tuning_cv_folds: 2
+  tuning_timeout_seconds: 30
 latency: {warmup: 20, single_calls: 200, batch_size: 256}
-abstention: {target_false_healthy_rate: 0.10, min_coverage: 0.20, min_clear_observations: 3}
+abstention: {target_false_healthy_rate: 0.10, min_coverage: 0.20, min_clear_observations: 3, cause_skill_margin: 0.10}   # cause task: answered subset must beat chance by this balanced-accuracy margin on validation
 paths: {runs: .local/ml/runs, features: .local/ml/features, models: .local/models, reports: reports/ml, docs: docs/ml}
 # Selection rules, fixed on 2026-11-24 BEFORE any model result was read. Selection looks at validation and held-out (district / season)
 # numbers only; the test split is reported afterwards and never used to choose.

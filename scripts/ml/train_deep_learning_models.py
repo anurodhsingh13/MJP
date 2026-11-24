@@ -137,11 +137,15 @@ def prepare(td, rows) -> SimpleNamespace:
     return SimpleNamespace(imp=imp, sc=sc, seq_mean=mean, seq_std=std)
 
 
-def tensors(td, rows, prep):
-    tab = prep.sc.transform(prep.imp.transform(td.X[rows]))
-    seq = np.nan_to_num((td.seq[rows] - prep.seq_mean) / prep.seq_std)         # NaN (no usable index value) becomes the training mean
+def tensors_from(X, seq, static, prep):
+    tab = prep.sc.transform(prep.imp.transform(X))
+    seq = np.nan_to_num((seq - prep.seq_mean) / prep.seq_std)                   # NaN (no usable index value) becomes the training mean
     f = lambda a: torch.tensor(np.asarray(a), dtype=torch.float32)
-    return f(tab), f(seq), f(td.static[rows])
+    return f(tab), f(seq), f(static)
+
+
+def tensors(td, rows, prep):
+    return tensors_from(td.X[rows], td.seq[rows], td.static[rows], prep)
 
 
 def train_net(td, model, params, rows, seed, cfg):
@@ -192,8 +196,8 @@ def not_applicable_reason(model, td):
     return ''
 
 
-def tune(td, model, cfg, seed):
-    rows = td.train
+def tune(td, model, cfg, seed, rows=None, trials=None, timeout=None, cv_folds=None):
+    rows = td.train if rows is None else np.asarray(rows)
     tr_i, ho_i = train_test_split(np.arange(len(rows)), test_size=0.2, stratify=td.y[rows], random_state=seed)
 
     def objective(trial):
@@ -202,7 +206,7 @@ def tune(td, model, cfg, seed):
         pred = predict(fitted, td, rows[ho_i]).argmax(1)
         return float(f1_score(td.y[rows[ho_i]], pred, average='macro', zero_division=0))
 
-    params, score, trials, secs = run_study(objective, cfg['optuna']['trials_deep'], cfg['optuna']['timeout_seconds_per_model'], seed)
+    params, score, trials, secs = run_study(objective, trials or cfg['optuna']['trials_deep'], timeout or cfg['optuna']['timeout_seconds_per_model'], seed)
     if params is None:
         raise RuntimeError('no tuning trial finished inside the time limit')
     return params, score, trials, secs
@@ -212,10 +216,14 @@ def fit(td, model, params, rows, seed):
     return train_net(td, model, params, np.asarray(rows), seed, training_cfg())
 
 
-def predict(fitted, td, rows):
-    tab, seq, st = tensors(td, rows, fitted.prep)
+def predict_arrays(fitted, X, seq, static):
+    tab, sq, st = tensors_from(X, seq, static, fitted.prep)
     with torch.no_grad():
-        return torch.softmax(fitted.net(tab, seq, st), 1).numpy().astype(float)
+        return torch.softmax(fitted.net(tab, sq, st), 1).numpy().astype(float)
+
+
+def predict(fitted, td, rows):
+    return predict_arrays(fitted, td.X[rows], td.seq[rows], td.static[rows])
 
 
 def gpu_used(model):
@@ -229,8 +237,25 @@ def size_bytes(fitted):
 
 
 def save(fitted, base):
+    """Three files, together a complete model: <name>.pt (weights only, loadable with weights_only=True), <name>.json (architecture and settings) and
+    <name>.prep.joblib (the imputer, scaler and sequence statistics fitted on the training rows). `load` rebuilds the model from them."""
+    import json
+    import joblib
     base.parent.mkdir(parents=True, exist_ok=True)
-    torch.save({'state_dict': fitted.net.state_dict(), 'params': fitted.params, 'model': fitted.model}, base.with_suffix('.pt'))
+    torch.save(fitted.net.state_dict(), base.with_suffix('.pt'))
+    base.with_suffix('.json').write_text(json.dumps({'model': fitted.model, 'params': fitted.params, 'n_tab': fitted.n_tab, 'n_static': fitted.n_static, 'n_out': fitted.n_out}), encoding='utf-8')
+    joblib.dump(fitted.prep, base.with_suffix('.prep.joblib'))
+
+
+def load(base):
+    import json
+    import joblib
+    meta = json.loads(base.with_suffix('.json').read_text(encoding='utf-8'))
+    net_params = {k: v for k, v in meta['params'].items() if k not in ('lr', 'weight_decay')}
+    net = make_net(meta['model'], net_params, meta['n_tab'], meta['n_static'], meta['n_out'])
+    net.load_state_dict(torch.load(base.with_suffix('.pt'), map_location='cpu', weights_only=True))
+    net.eval()
+    return SimpleNamespace(net=net, prep=joblib.load(base.with_suffix('.prep.joblib')), model=meta['model'], params=meta['params'], n_tab=meta['n_tab'], n_static=meta['n_static'], n_out=meta['n_out'])
 
 
 def training_cfg():

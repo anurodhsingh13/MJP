@@ -100,6 +100,8 @@ def write_training(res: dict, explain: dict) -> str:
          f"{res['config']['optuna']['trials_deep']} trials for deep models on one hold-out of the training rows; early stopping on a hold-out of the training rows. "
          'Search spaces are small on purpose: with about 2,500 training rows more tuning would fit noise.',
          '* Class imbalance: balanced class weights (or inverse-frequency loss weights for the deep models).',
+         f"* Held-out districts and the other season are scored with **nested tuning**: the settings for each fold are searched on that fold's own training rows ({res['config']['heldout']['tuning_trials_classical']} trials, {res['config']['heldout']['tuning_cv_folds']}-fold CV for classical models; {res['config']['heldout']['tuning_trials_deep']} trial for deep), so the held-out data never influenced them.",
+         '* Baselines: the always-answer-the-commonest-class model, and the app\'s real alert (shared/evidence.ts + advice.ts) replayed on every field by `scripts/evaluate-telangana-alerts.mjs` (Healthy vs Problem only).',
          '* Skipped by design: ' + '; '.join(f'{k} ({v})' for k, v in res['skipped_by_design'].items()), '',
          '## Results at a glance', '', *[sentence_task(res, t) + '\n' for t in TASKS]]
     t = 'health_binary'
@@ -199,7 +201,9 @@ def write_readiness(res: dict, explain: dict) -> str:
               f"4. **Reliability on unseen farms and districts:** held-out districts and the other season average {fmt(s['heldout_balanced_accuracy'])} balanced accuracy for `{m}` (chance 0.50). "
               f"False-healthy rate on test (stressed fields called Healthy): {fmt(s['test_false_healthy_rate'])}."]
     L += ['', '## Abstention (INSUFFICIENT_DATA_OR_LOW_CONFIDENCE)', '',
-          'The rule: answer only when the top-class probability reaches a threshold chosen on **validation** data so that the false-healthy rate stays at or below 10% while at least 20% of fields are answered; '
+          'The single prediction function is `scripts/ml/prediction_safety.py` (`predict_with_safety`). It answers only when ALL hold: the model passed the pre-registered validation bar (skill on held-out districts and the other season); the row is valid '
+          '(finite values, inside a plausible envelope, not too many missing features, at least 3 clear observations, inside the training distribution); and the top-class probability reaches a threshold chosen on **validation** data '
+          '(health tasks: false-healthy rate at most 10% with at least 20% of fields answered; cause task: the answered fields must beat chance by 0.10 balanced accuracy). Otherwise it returns INSUFFICIENT_DATA_OR_LOW_CONFIDENCE with the reasons. A model that cannot meet its target never answers.', '',
           'also abstain on fewer than 3 clear observations and on inputs outside the training range. A model that cannot meet the safety target abstains on every field.', '']
     for k, e in (explain or {}).items():
         ab = e['abstention']
@@ -207,10 +211,10 @@ def write_readiness(res: dict, explain: dict) -> str:
                  + (f", accuracy when answered {ab['test_accuracy_when_answered']:.3f} (commonest class would score {ab['test_majority_accuracy_when_answered']:.3f})" if 'test_accuracy_when_answered' in ab else '')
                  + (f", false-healthy rate when answered {ab['test_false_healthy_rate_when_answered']:.3f} on {ab['test_stressed_fields_answered']} stressed fields" if 'test_false_healthy_rate_when_answered' in ab else '')
                  + (f". {ab['verdict']}" if 'verdict' in ab else '.')
-                 + (' There is no Healthy class here, so no false-healthy target applies: the threshold sits at the 0.30 floor and the model never abstains on confidence. That is not a safety result, and its accuracy is within noise of the commonest class.' if k == 'stress_cause' else ''))
+                 + (' There is no Healthy class here, so no false-healthy target applies; the threshold rule asks for skill above chance instead.' if (k == 'stress_cause' and ab['threshold_chosen_on_validation']) else ''))
     L += ['', '## Backend integration status', '',
           '**Not integrated, on purpose.** (1) No model is approved. (2) The Telangana licence note in `datasets/TRAINING-DATA-REGISTER.md` limits this data to evaluation until the owner says a trained model may ship. '
-          'The existing API is unchanged and no weights are committed. The abstention rule is implemented and tested in `scripts/ml/ml_common.py`; it would move into `backend/engine/prediction_confidence.py` together with the first approved model.',
+          'The existing API is unchanged and no weights are committed. The safety function is implemented and unit-tested in `scripts/ml/prediction_safety.py`; it would move into `backend/engine/prediction_confidence.py` together with the first approved model.',
           '', '## What is needed before any model can be called production-ready', '',
           '* Dated, agronomist-confirmed stress observations with severity (mild / moderate / severe) for the same fields the satellite sees, at least 100 per class, collected in more than one season and several districts. '
           'The app already has `scripts/evaluate-ndvi-alerts.mjs` for scoring against visits.',

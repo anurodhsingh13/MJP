@@ -75,16 +75,29 @@ def run_one(task: str, model: str, kind: str, run_id: str = 'main', force: bool 
         result['latency'] = benchmark_inference(lambda idx: tr.predict(fitted, td, idx), td.test, lat['warmup'], lat['single_calls'], lat['batch_size'])
         result['model_size_bytes'] = tr.size_bytes(fitted)
         # robustness: refit with the tuned parameters on the other districts / the other season and score the held-out one
-        held = {'lodo': {}, 'season': {}}
+        # Nested tuning: the settings for each held-out fold are searched on THAT fold's training rows only (a smaller budget), so the held-out
+        # district / season never influenced them. If a nested search cannot finish, the fold falls back to the main settings and says so.
+        ho = cfg['heldout']
+        trials = ho['tuning_trials_classical'] if kind == 'classical' else ho['tuning_trials_deep']
+        held, fold_notes = {'lodo': {}, 'season': {}}, {}
+
+        def fold(slot, key, s):
+            if len(s['test']) < 20 or len(s['train']) < 50:
+                return
+            try:
+                p_fold, _cv, _n, _sec = tr.tune(td, model, cfg, seed, rows=s['train'], trials=trials, timeout=ho['tuning_timeout_seconds'], cv_folds=ho['tuning_cv_folds'])
+                note = 'nested'
+            except Exception:
+                p_fold, note = params, 'fallback_to_main_settings'
+            fold_notes[f'{slot}/{key}'] = note
+            held[slot][key] = _light(td.y[s['test']], tr.predict(tr.fit(td, model, p_fold, s['train'], seed), td, s['test']), td)
+
         for d, s in td.lodo.items():
-            if len(s['test']) >= 20 and len(s['train']) >= 50:
-                p = tr.predict(tr.fit(td, model, params, s['train'], seed), td, s['test'])
-                held['lodo'][d] = _light(td.y[s['test']], p, td)
-        if cfg['heldout']['season']:
+            fold('lodo', d, s)
+        if ho['season']:
             for k, s in td.season_split.items():
-                if len(s['test']) >= 20 and len(s['train']) >= 50:
-                    p = tr.predict(tr.fit(td, model, params, s['train'], seed), td, s['test'])
-                    held['season'][k] = _light(td.y[s['test']], p, td)
+                fold('season', k, s)
+        held['tuning'] = fold_notes
         result['heldout'] = held
         np.savez_compressed(out.with_suffix('.proba.npz'), val=proba['val'], val_y=td.y[td.val], test=proba['test'], test_y=td.y[td.test],
                             test_crop=td.crop[td.test], test_district=td.district[td.test], val_n_clear=td.n_clear[td.val], test_n_clear=td.n_clear[td.test])

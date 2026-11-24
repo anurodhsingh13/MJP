@@ -2,8 +2,9 @@
 
   .venv/Scripts/python scripts/ml/run_all_experiments.py [--run-id main] [--force] [--tasks ...] [--skip classical deep] [--quick]
 
-Steps: 1 audit datasets, 2 prepare data, 3 build features, 4 leakage-safe splits, 5 classical models (with Optuna), 6 deep models,
-7 evaluate (sanity checks, ablation, learning curve), 8 compare + select + figures, 9 explain + abstention, 10 write the reports.
+Steps: 1 audit datasets, 2 prepare data, 3 build features, 4 leakage-safe splits, 4b replay the app's real alert rule (node) for the baseline,
+5 classical models (with Optuna), 6 deep models, 7 evaluate (sanity checks, ablation, learning curve), 8 compare + select + figures,
+9 explain + abstention, 10 write the reports.
 
 * Reproducible: seeds and every setting come from configs/ml/*.yaml. Nothing is downloaded: it reads the git-ignored .local datasets.
 * Resumable: a model whose result file exists is skipped (use --force to redo). An interrupted run continues where it stopped.
@@ -27,7 +28,7 @@ ROOT = HERE.parents[1]
 
 STEPS = [
     ('audit', 'audit_datasets.py', True), ('prepare', 'prepare_satellite_data.py', True), ('features', 'build_satellite_features.py', True),
-    ('splits', 'create_data_splits.py', True), ('classical', 'train_classical_models.py', False), ('deep', 'train_deep_learning_models.py', False),
+    ('splits', 'create_data_splits.py', True), ('rule_replay', None, False), ('classical', 'train_classical_models.py', False), ('deep', 'train_deep_learning_models.py', False),
     ('evaluate', 'evaluate_models.py', False), ('compare', 'compare_models.py', False), ('explain', 'explain_predictions.py', False), ('reports', 'write_reports.py', False),
 ]
 
@@ -55,15 +56,21 @@ def main() -> int:
             if name in a.skip:
                 status[name] = 'skipped'
                 continue
-            cmd = [sys.executable, str(HERE / script)]
+            if name == 'rule_replay':
+                cmd = ['node', '--import', 'tsx', str(ROOT / 'scripts/evaluate-telangana-alerts.mjs'), '--dir', str(ROOT / '.local/datasets/labelled/telangana-s2-full'),
+                       '--json', str(ROOT / '.local/ml/features/app_rule_replay.json')]
+            else:
+                cmd = [sys.executable, str(HERE / script)]
             if name in ('classical', 'deep', 'evaluate', 'compare', 'explain', 'reports'):
                 cmd += ['--run-id', a.run_id]
             if name in ('classical', 'deep'):
                 cmd += (['--force'] if a.force else []) + (['--tasks', *a.tasks] if a.tasks else [])
             t0 = time.time()
             print(f'[{name}] ...', flush=True)
-            with open(log_dir / f'{name}.log', 'w', encoding='utf-8') as log:
-                code = subprocess.run(cmd, cwd=HERE, stdout=log, stderr=subprocess.STDOUT).returncode
+            with open(log_dir / f'{name}.log', 'a', encoding='utf-8') as log:      # append: a resumed run must not erase the earlier lines
+                log.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} run {a.run_id}{' (force)' if a.force else ''} =====\n")
+                log.flush()
+                code = subprocess.run(cmd, cwd=ROOT if name == 'rule_replay' else HERE, stdout=log, stderr=subprocess.STDOUT).returncode
             status[name] = {'exit_code': code, 'seconds': round(time.time() - t0, 1)}
             print(f"[{name}] exit {code} in {time.time() - t0:.0f}s (log: .local/ml/logs/{name}.log)", flush=True)
             if code and critical:
