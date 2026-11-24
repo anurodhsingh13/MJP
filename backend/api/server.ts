@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import { pathToFileURL } from 'node:url';
 import { app } from './app.ts';
 import {startWorkers} from './services/jobs.ts';
+import {startWeatherSchedule} from './services/weatherSchedule.ts';
 import { pool } from './db/pool.ts';
 
 dotenv.config({ path: ['.env.local', '.env'] });
@@ -18,8 +19,10 @@ export async function start() {
       process.exitCode = 1;
     });
     const stopWorkers=startWorkers();
+    const stopWeather=startWeatherSchedule();
     const shutdown = () => {
       void stopWorkers();
+      void stopWeather();
       server.close(async () => { await pool.end(); });
     };
     process.once('SIGTERM', shutdown);

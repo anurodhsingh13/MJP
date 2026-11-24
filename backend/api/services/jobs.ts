@@ -7,6 +7,7 @@ import {ingestOpenSentinel,satelliteProvider} from './openSentinel.ts';
 import {backfillHistory} from './history.ts';
 import {evidencePolicy} from './policy.ts';
 import {ingestEarthEngineScenes,ingestWeather} from '../controllers/fieldsController.ts';
+import {weatherWindow} from './weatherSchedule.ts';
 export interface Job{id:string;field_id:string;owner_id:string|null;boundary_version:number;kind:'satellite'|'weather'|'history';status:'queued'|'running'|'succeeded'|'failed';attempts:number;max_attempts:number;lease_token:string;progress:string;result:Record<string,unknown>|null;error:string|null}
 const publicColumns='id,field_id,boundary_version,kind,status,progress,result,error,created_at,finished_at';
 /**
@@ -21,9 +22,9 @@ async function ingestScenes(fieldId:string,days=evidencePolicy().searchDays){
  const end=new Date(Date.now()+86400000).toISOString().slice(0,10),start=new Date(Date.now()-days*86400000).toISOString().slice(0,10);
  return {provider:'earth-search' as const,...await ingestOpenSentinel(fieldId,{start,end})};
 }
-async function controllerWork(handler:typeof ingestWeather,fieldId:string,query:Record<string,string>={}){
+async function controllerWork(handler:typeof ingestWeather,fieldId:string,query:Record<string,string>={},body:Record<string,string>={}){
  let status=200;let payload:Record<string,unknown>={};
- await handler({params:{fieldId},query,body:{}} as unknown as Request,{status(code:number){status=code;return this;},json(value:Record<string,unknown>){payload=value;}} as unknown as Response);
+ await handler({params:{fieldId},query,body} as unknown as Request,{status(code:number){status=code;return this;},json(value:Record<string,unknown>){payload=value;}} as unknown as Response);
  if(status>=400)throw new Error(String(payload.error||'Provider unavailable'));return payload;
 }
 export async function enqueue(request:Request,response:Response){
@@ -64,7 +65,11 @@ export async function runOne(execute?:(job:Job)=>Promise<Record<string,unknown>>
   if(!field||field.boundary_version!==job.boundary_version){await pool.query("update ingestion_jobs set status='failed',lease_token=null,error='Field boundary changed',progress='Start a new image check for the edited field',finished_at=now() where id=$1 and lease_token=$2",[job.id,token]);return true;}
   let result:Record<string,unknown>;
   if(execute)result=await execute(job);
-  else if(job.kind==='weather')result=await controllerWork(ingestWeather,job.field_id);
+  else if(job.kind==='weather'){
+   // Catch up from the newest stored day instead of a fixed 7 days, so a gap (app offline) is filled too.
+   const latest=(await pool.query<{d:string|null}>('select max(observed_on)::text as d from public.weather_observations where field_id=$1',[job.field_id])).rows[0]?.d??null;
+   result=await controllerWork(ingestWeather,job.field_id,{},weatherWindow(latest));
+  }
   else if(job.kind==='history'){
    const progress=async(text:string)=>{await pool.query('update ingestion_jobs set progress=$3,heartbeat_at=now() where id=$1 and lease_token=$2',[job.id,token,text]);};
    const provider=satelliteProvider();
